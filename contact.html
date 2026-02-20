@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support | SkyTrack Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #f8fafc;
+            --text-dim: #94a3b8; --accent: #38bdf8; --nav-bg: rgba(15, 23, 42, 0.9);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        [data-theme="light"] {
+            --bg: #f8fafc; --card: rgba(255, 255, 255, 0.9); --text: #0f172a;
+            --text-dim: #475569; --accent: #0284c7; --nav-bg: rgba(248, 250, 252, 0.9);
+            --border: rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+        
+        nav {
+            position: fixed; top: 0; width: 100%; z-index: 2000;
+            background: var(--nav-bg); backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--border); padding: 1rem 8%;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .logo { font-size: 1.6rem; font-weight: 800; color: var(--accent); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+
+        .container { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 120px 5% 60px; min-height: 100vh; }
+        
+        .btn-back {
+            align-self: center; display: inline-flex; align-items: center; gap: 8px;
+            color: var(--accent); text-decoration: none; font-weight: 600;
+            margin-bottom: 20px; cursor: pointer;
+        }
+
+        .glass-card { 
+            background: var(--card); padding: 2.5rem; border-radius: 24px; border: 1px solid var(--border); 
+            backdrop-filter: blur(10px); width: 100%; max-width: 500px; position: relative;
+        }
+
+        .input-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .input-group label { font-size: 0.75rem; font-weight: 700; color: var(--accent); text-transform: uppercase; }
+        .input-group input, .input-group textarea { 
+            padding: 12px; border-radius: 12px; border: 1px solid var(--border); 
+            background: rgba(0,0,0,0.05); color: var(--text); outline: none; font-family: inherit; width: 100%;
+        }
+
+        .btn-submit {
+            background: var(--accent); color: white; width: 100%; padding: 1rem; 
+            border-radius: 50px; border: none; font-weight: 700; cursor: pointer; transition: 0.3s; margin-top: 10px;
+        }
+        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        #success-msg {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--card); border-radius: 24px; backdrop-filter: blur(20px);
+            flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; z-index: 10;
+        }
+
+        @media (max-width: 500px) {
+            .glass-card { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html" class="logo"><i class="fas fa-paper-plane"></i> SkyTrack Pro</a>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span id="navUser" style="display:none;font-size:0.83rem;font-weight:700;color:var(--accent);"></span>
+            <button id="navAuthBtn" onclick="handleNavAuth()" style="display:none;background:var(--accent);color:#fff;padding:0.55rem 1.2rem;border-radius:50px;border:none;font-weight:700;font-size:0.85rem;cursor:pointer;"></button>
+        </div>
+    </nav>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+        const app  = initializeApp({ apiKey:"AIzaSyAcnU7sDm8pWkWssgxMPA4q2rdpS8a6qDw",authDomain:"skytrack-28c83.firebaseapp.com",projectId:"skytrack-28c83",storageBucket:"skytrack-28c83.firebasestorage.app",messagingSenderId:"876231264024",appId:"1:876231264024:web:eb42a685ee2bad2020c06d" });
+        const auth = getAuth(app);
+        onAuthStateChanged(auth, user => {
+            const btn  = document.getElementById('navAuthBtn');
+            const uTag = document.getElementById('navUser');
+            btn.style.display = 'inline-block';
+            if(user){
+                localStorage.setItem('isLoggedIn','true');
+                localStorage.setItem('userName', user.displayName||'');
+                if(uTag){ uTag.textContent='Hi, '+(user.displayName||user.email||'').split(' ')[0]; uTag.style.display='inline'; }
+                btn.textContent = 'Log Out';
+                btn.style.background = '#ef4444';
+                window._fbLogout = ()=> signOut(auth).then(()=>{ localStorage.removeItem('isLoggedIn'); window.location.href='index.html'; });
+            } else {
+                localStorage.removeItem('isLoggedIn');
+                btn.textContent = 'Sign In';
+                btn.style.background = 'var(--accent)';
+                window._fbLogout = null;
+            }
+        });
+    </script>
+    <script>
+        function handleNavAuth(){
+            if(localStorage.getItem('isLoggedIn')==='true' && window._fbLogout){ window._fbLogout(); }
+            else { window.location.href='login.html'; }
+        }
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light');
+    </script>
+
+    <div class="container">
+        <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Home</a>
+        
+        <div class="glass-card">
+            <div id="success-msg">
+                <i class="fas fa-check-circle fa-4x" style="color: #22c55e; margin-bottom: 15px;"></i>
+                <h2>Sent Successfully</h2>
+                <p style="color: var(--text-dim); margin-top: 10px;">We've received your submission and will get back to you shortly.</p>
+                <button onclick="window.location.reload()" class="btn-submit" style="margin-top: 20px; max-width: 200px;">New Message</button>
+            </div>
+
+            <h2 style="text-align: center; margin-bottom: 5px;">Help Center</h2>
+            <p style="text-align: center; color: var(--text-dim); font-size: 0.85rem; margin-bottom: 25px;">Submit details for ID help or technical support.</p>
+            
+            <form id="contact-form" action="https://formspree.io/f/mbdakqpz" method="POST">
+                <div class="input-group">
+                    <label>Your Name</label>
+                    <input type="text" name="name" required placeholder="Full Name">
+                </div>
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" required placeholder="email@example.com">
+                </div>
+                <div class="input-group">
+                    <label>Submission Details</label>
+                    <textarea name="message" rows="4" required placeholder="Describe your request..."></textarea>
+                </div>
+                <button type="submit" id="submit-btn" class="btn-submit">Submit Submission</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById("contact-form");
+        const successOverlay = document.getElementById("success-msg");
+        const submitBtn = document.getElementById("submit-btn");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            submitBtn.innerText = "Sending...";
+            submitBtn.disabled = true;
+
+            const data = new FormData(form);
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: data,
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (response.ok) {
+                    successOverlay.style.display = "flex";
+                } else {
+                    alert("Submission failed. Please try again.");
+                    submitBtn.innerText = "Submit Submission";
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                alert("Error connecting to server.");
+                submitBtn.innerText = "Submit Submission";
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

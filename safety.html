@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safety & Terms | SkyTrack Pro</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --text-dim: #475569;
+            --accent: #0284c7;
+            --border: #e2e8f0;
+            --nav-bg: rgba(248, 250, 252, 0.9);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --accent: #38bdf8;
+            --border: #334155;
+            --nav-bg: rgba(15, 23, 42, 0.9);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; transition: all 0.3s ease; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+        }
+
+        nav {
+            position: fixed; top: 0; width: 100%; z-index: 2000;
+            background: var(--nav-bg);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 8%;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .logo { font-size: 1.4rem; font-weight: 800; color: var(--accent); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+
+        .content-container {
+            max-width: 800px;
+            margin: 120px auto 60px;
+            padding: 0 5%;
+        }
+
+        .glass-card {
+            background: var(--card);
+            padding: 3rem;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+        }
+
+        h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; color: var(--accent); }
+        h2 { font-size: 1.2rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px; }
+        
+        p { margin-bottom: 1.2rem; color: var(--text-dim); }
+
+        .disclaimer-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid #f59e0b;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+
+        .disclaimer-box i { color: #f59e0b; margin-right: 10px; }
+        .disclaimer-box b { color: var(--text); }
+
+        .guideline-item {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .guideline-item i { color: var(--accent); font-size: 1.2rem; margin-top: 5px; }
+
+        footer { text-align: center; padding: 40px; color: var(--text-dim); font-size: 0.9rem; }
+
+        .btn-home {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .glass-card { padding: 2rem; }
+            h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="index.html" class="logo">
+            <i class="fas fa-paper-plane"></i> SkyTrack Pro
+        </a>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span id="navUser" style="display:none;font-size:0.83rem;font-weight:700;color:var(--accent);"></span>
+            <button id="navAuthBtn" onclick="handleNavAuth()" style="display:none;background:var(--accent);color:#fff;padding:0.55rem 1.2rem;border-radius:50px;border:none;font-weight:700;font-size:0.85rem;cursor:pointer;"></button>
+        </div>
+    </nav>
+
+    <div class="content-container">
+        <div class="glass-card">
+            <h1>Safety & Terms</h1>
+            <p>Welcome to SkyTrack Pro. This page outlines our operational guidelines and legal terms to ensure a transparent experience for all users.</p>
+
+            <div class="disclaimer-box">
+                <i class="fas fa-exclamation-triangle"></i>
+                <b>Simulation Notice:</b> SkyTrack Pro is a <u>dummy platform</u> designed for simulation and demonstration purposes. It does not provide real-time flight telemetry from actual aircraft.
+            </div>
+
+            <h2>1. Nature of Service</h2>
+            <p>All flight tracking data, including progress bars, "Live" status updates, and map visualizations, are generated based on mathematical algorithms and user-provided schedules. We are not connected to FAA, ADS-B, or any global aviation radar networks.</p>
+
+            <h2>2. Safety Guidelines</h2>
+            <div class="guideline-item">
+                <i class="fas fa-ban"></i>
+                <div>
+                    <b>No Navigational Use:</b> Do not use this platform to coordinate real-world travel, airport pickups, or safety-critical decisions.
+                </div>
+            </div>
+            <div class="guideline-item">
+                <i class="fas fa-check-circle"></i>
+                <div>
+                    <b>Verify with Airlines:</b> For actual flight statuses, always refer to official airline apps or airport terminal flight information displays (FIDS).
+                </div>
+            </div>
+            <div class="guideline-item">
+                <i class="fas fa-passport"></i>
+                <div>
+                    <b>Simulated Identity Only:</b> The "Elite Tickets" and IDs generated here are for entertainment only. They are not valid for travel and do not grant access to airport secure zones.
+                </div>
+            </div>
+
+            <h2>3. Terms of Use</h2>
+            <p><b>A. Liability:</b> SkyTrack Pro and its developers are not responsible for missed flights, travel delays, or confusion caused by the use of this simulated data.</p>
+            <p><b>B. Content Sharing:</b> When sharing screenshots of your simulated tickets, we ask that you disclose that the content is a flight simulation to avoid misleading others.</p>
+            <p><b>C. Data Handling:</b> We store your flight data locally in your browser. While we do not share this with third parties, please avoid entering highly sensitive personal information.</p>
+
+            <a href="index.html" class="btn-home">I Understand, Take Me Home</a>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 SkyTrack Pro Intelligence Simulation.
+    </footer>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+        const app  = initializeApp({ apiKey:"AIzaSyAcnU7sDm8pWkWssgxMPA4q2rdpS8a6qDw",authDomain:"skytrack-28c83.firebaseapp.com",projectId:"skytrack-28c83",storageBucket:"skytrack-28c83.firebasestorage.app",messagingSenderId:"876231264024",appId:"1:876231264024:web:eb42a685ee2bad2020c06d" });
+        const auth = getAuth(app);
+        onAuthStateChanged(auth, user => {
+            const btn  = document.getElementById('navAuthBtn');
+            const uTag = document.getElementById('navUser');
+            btn.style.display = 'inline-block';
+            if(user){
+                localStorage.setItem('isLoggedIn','true');
+                if(uTag){ uTag.textContent='Hi, '+(user.displayName||user.email||'').split(' ')[0]; uTag.style.display='inline'; }
+                btn.textContent = 'Log Out';
+                btn.style.background = '#ef4444';
+                window._fbLogout = ()=> signOut(auth).then(()=>{ localStorage.removeItem('isLoggedIn'); window.location.href='index.html'; });
+            } else {
+                localStorage.removeItem('isLoggedIn');
+                btn.textContent = 'Sign In';
+                btn.style.background = 'var(--accent)';
+                window._fbLogout = null;
+            }
+        });
+    </script>
+    <script>
+        function handleNavAuth(){
+            if(localStorage.getItem('isLoggedIn')==='true' && window._fbLogout){ window._fbLogout(); }
+            else { window.location.href='login.html'; }
+        }
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light');
+    </script>
+</body>
+</html>

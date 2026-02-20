@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Flight Progress | SkyTrack Pro</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-dim: #64748b;
+            --accent: #0284c7;
+            --border: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- Navigation --- */
+        .nav-header {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .back-home-btn {
+            background: var(--card);
+            color: var(--text);
+            padding: 8px 14px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.8rem;
+            border: 1px solid var(--border);
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        .back-home-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* Tighter on mobile */
+        @media (max-width: 480px) {
+            .nav-header { top: 10px; left: 10px; }
+            .back-home-btn { padding: 6px 11px; font-size: 0.72rem; gap: 5px; border-radius: 8px; }
+            .back-home-btn span { display: none; } /* hide text, keep icon only on very small screens */
+        }
+
+        /* --- Gatekeeper --- */
+        .gatekeeper-container {
+            max-width: 700px;
+            width: 95%;
+            margin: 20px auto;
+            text-align: center;
+        }
+
+        .id-prompt-box {
+            background: var(--card);
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        .tracking-input {
+            width: 80%;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: #f1f5f9;
+            color: var(--text);
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .ticket-detail-card {
+            background: #fff;
+            color: #1e293b;
+            padding: 30px;
+            border-radius: 24px;
+            text-align: left;
+            margin-bottom: 25px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+        }
+
+        .view-map-btn {
+            background: var(--accent);
+            color: white;
+            padding: 16px 40px;
+            border-radius: 50px;
+            border: none;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .view-map-btn:hover { background: #0369a1; transform: translateY(-2px); }
+
+        /* --- Progress View --- */
+        #progressView {
+            display: none;
+            width: 90%;
+            max-width: 900px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        /* --- Timeline Bar --- */
+        .timeline-container {
+            position: relative;
+            height: 120px;
+            margin: 80px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .track-line {
+            position: absolute;
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .active-track {
+            position: absolute;
+            height: 6px;
+            background: var(--accent);
+            width: 0%;
+            border-radius: 10px;
+            transition: width 1s linear;
+        }
+
+        .plane-carrier {
+            position: absolute;
+            left: 0%;
+            transform: translateX(-50%);
+            transition: left 1s linear;
+            z-index: 10;
+        }
+
+        .plane-icon {
+            font-size: 32px;
+            color: var(--accent);
+            transform: rotate(90deg);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .location-marker {
+            position: absolute;
+            top: 35px;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        /* --- Info Grid --- */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            background: var(--card);
+            padding: 25px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+
+        .label { font-size: 0.65rem; color: var(--accent); font-weight: 800; text-transform: uppercase; margin-bottom: 5px; }
+        .value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+
+        /* --- Live Map Section --- */
+        .map-section {
+            margin: 30px 0;
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+            position: relative;
+        }
+
+        #liveMap {
+            width: 100%;
+            height: 420px;
+        }
+
+        /* Loading overlay for map geocoding */
+        .map-loading {
+            position: absolute;
+            inset: 0;
+            background: rgba(248,250,252,0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            z-index: 500;
+            border-radius: 24px;
+        }
+        .map-loading.hidden { display: none; }
+        .spinner {
+            width: 36px; height: 36px;
+            border: 4px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .map-error {
+            background: #fff0f0;
+            border: 1px solid #fca5a5;
+            border-radius: 12px;
+            padding: 14px 20px;
+            font-size: 0.85rem;
+            color: #b91c1c;
+            text-align: center;
+            display: none;
+        }
+
+        /* Plane emoji marker */
+        .plane-map-icon { font-size: 24px; line-height: 1; display: block; transform-origin: center; }
+
+        .cancelled-banner {
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .cancelled-banner h2 { color: #ef4444; font-size: 1.8rem; font-weight: 900; letter-spacing: 4px; margin: 0; }
+        .cancelled-banner p { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
+
+        .cancel-flight-zone {
+            margin-top: 30px;
+            text-align: center;
+            padding: 20px;
+            border: 1px dashed #fca5a5;
+            border-radius: 16px;
+            background: #fff5f5;
+        }
+        .cancel-flight-zone p {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 14px;
+            font-weight: 600;
+        }
+        .cancel-confirm-box {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+        .cancel-confirm-box p {
+            color: #ef4444;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        .cancel-confirm-btns {
+            display: flex;
+            gap: 12px;
+        }
+        .btn-cancel-yes {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-cancel-yes:hover { background: #dc2626; transform: scale(1.03); }
+        .btn-cancel-no {
+            background: transparent;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-cancel-no:hover { border-color: #94a3b8; color: #334155; }
+
+        .transit-badge {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 10px 0 20px;
+        }
+
+        /* --- History --- */
+        .history-section { margin-top: 30px; text-align: left; }
+        .history-card { 
+            background: var(--card); padding: 12px; border-radius: 12px; border: 1px solid var(--border); 
+            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .history-info { display: flex; flex-direction: column; }
+        .history-id { color: var(--accent); font-weight: 800; font-size: 0.9rem; }
+        .history-route { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none !important; }
+
+        /* --- Mobile --- */
+        @media (max-width: 650px) {
+            .gatekeeper-container { margin-top: 60px; }
+            .id-prompt-box { padding: 30px 15px; }
+            .tracking-input { width: 100%; font-size: 1.1rem; }
+            .ticket-detail-card { padding: 20px; }
+            .ticket-detail-card > div[style*="display:grid"] { grid-template-columns: 1fr !important; gap: 10px !important; }
+            .info-grid { grid-template-columns: 1fr; gap: 15px; }
+            .timeline-container { margin: 60px 0; }
+            .location-marker span { font-size: 1.1rem !important; }
+            .view-map-btn { width: 100%; }
+            #liveMap { height: 280px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Back button — smaller on mobile via CSS above -->
+    <nav class="nav-header" id="navHeader">
+        <a href="index.html" class="back-home-btn">
+            <i class="fas fa-arrow-left"></i>
+            <span>BACK TO HOME</span>
+        </a>
+        <button id="trackLogoutBtn" onclick="trackLogout()" style="display:none; background:#ef4444; color:#fff; border:none; padding:7px 16px; border-radius:10px; font-weight:700; font-size:0.78rem; cursor:pointer; margin-left:10px;">
+            <i class="fas fa-sign-out-alt"></i> Log Out
+        </button>
+    </nav>
+
+    <!-- ── GATEKEEPER ── -->
+    <div id="gatekeeper" class="gatekeeper-container">
+        <h1 style="color:var(--accent); font-weight:800; margin-bottom:20px;">FLIGHT REPORT</h1>
+        
+        <div id="idPrompt" class="id-prompt-box hidden">
+            <h3 style="margin-bottom: 10px;">TRACKING ID REQUIRED</h3>
+            <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px;">Please enter your unique Flight ID to view live progress.</p>
+            <input type="text" id="manualID" class="tracking-input" placeholder="e.g. ST-ABC12">
+            <br>
+            <button class="view-map-btn" onclick="validateManualID()">SEARCH FLIGHT</button>
+
+            <div class="history-section" id="historyArea">
+                <h4 style="margin: 20px 0 10px; color: var(--text-dim);">Your Recent Tickets</h4>
+                <div id="historyList"></div>
+            </div>
+        </div>
+
+        <div id="ticketInfo" class="ticket-detail-card"></div>
+        <button class="view-map-btn" id="launchBtn" onclick="activateTracker()">ACTIVATE LIVE PROGRESS</button>
+    </div>
+
+    <!-- ── PROGRESS VIEW ── -->
+    <div id="progressView">
+        <!-- Minimal SkyTrack branding shown only to shared-link guests -->
+        <div id="guestBrandBar" style="display:none; text-align:center; padding:22px 0 4px;">
+            <span style="font-size:1.05rem; font-weight:800; color:#0284c7; letter-spacing:1px;">
+                <i class="fas fa-paper-plane" style="margin-right:6px;"></i>SkyTrack Pro
+            </span>
+            <span style="font-size:0.72rem; color:#64748b; margin-left:10px; font-weight:500; vertical-align:middle;">Live Flight Tracker</span>
+        </div>
+
+        <!-- Airline + ID header -->
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h2 id="dispAirline" style="margin:0; letter-spacing: 3px; color:var(--accent); font-weight: 900;">---</h2>
+            <p id="dispID" style="color: var(--text-dim); font-weight:700; margin-top:5px;"></p>
+            <div id="cancelledBanner" class="cancelled-banner hidden">
+                <h2>✗ FLIGHT CANCELLED</h2>
+                <p>This flight has been cancelled. Please contact the airline for rebooking.</p>
+            </div>
+            <div id="transitBadge" class="transit-badge hidden">
+                <i class="fas fa-route"></i> <span>Via: <strong id="dispTransitCity">---</strong></span>
+            </div>
+        </div>
+
+        <!-- Progress timeline bar -->
+        <div class="timeline-container">
+            <div class="location-marker" style="left:0;">ORIGIN<br><span id="dispFrom" style="font-size:1.5rem; color:var(--text); font-weight: 900;">---</span></div>
+            <div class="location-marker" style="right:0; text-align:right;">DESTINATION<br><span id="dispTo" style="font-size:1.5rem; color:var(--text); font-weight: 900;">---</span></div>
+            <div class="track-line"></div>
+            <div class="active-track" id="activeTrack"></div>
+            <div class="plane-carrier" id="planeCarrier"><i class="fas fa-plane plane-icon"></i></div>
+        </div>
+
+        <!-- Live map -->
+        <div class="map-section">
+            <div id="mapLoading" class="map-loading">
+                <div class="spinner"></div>
+                <p style="font-size:0.85rem; font-weight:700; color:var(--text-dim);">Loading live map…</p>
+            </div>
+            <div id="liveMap"></div>
+        </div>
+        <div id="mapError" class="map-error">
+            Could not place cities on the map. Check that city names were entered correctly when creating the ticket.
+        </div>
+        
+        <!-- Info grid -->
+        <div class="info-grid">
+            <div><div class="label">Passenger</div><div class="value" id="resName">---</div></div>
+            <div><div class="label">Date</div><div class="value" id="resDate">---</div></div>
+            <div><div class="label">Flight Status</div><div class="value" id="resStatus">---</div></div>
+            <div><div class="label">Terminal / Gate</div><div class="value" id="resGate">---</div></div>
+            <div><div class="label">Departure</div><div class="value" id="resDep">---</div></div>
+            <div><div class="label">Arrival (EST)</div><div class="value" id="resArr">---</div></div>
+            <div id="resAirportCell" style="display:none;"><div class="label">Airports</div><div class="value" id="resAirports" style="font-size:0.85rem; line-height:1.6;">---</div></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <button class="view-map-btn" style="background:transparent; border: 2px solid var(--accent); color: var(--accent);" onclick="location.reload()">REFRESH TRACKER</button>
+        </div>
+
+        <!-- Cancel Flight Zone — only shown to logged-in user -->
+        <div class="cancel-flight-zone hidden" id="cancelFlightZone">
+            <p>Wanna cancel your flight?</p>
+            <button class="view-map-btn" style="background:#ef4444; font-size:0.85rem; padding:12px 28px;" onclick="showCancelConfirm()" id="cancelAskBtn">
+                <i class="fas fa-times-circle"></i> Cancel Flight
+            </button>
+            <div class="cancel-confirm-box" id="cancelConfirmBox">
+                <p>⚠️ Are you sure you want to cancel your flight? The plane will return to origin.</p>
+                <div class="cancel-confirm-btns">
+                    <button class="btn-cancel-yes" onclick="executeCancelFlight()">Yes, Cancel Flight</button>
+                    <button class="btn-cancel-no" onclick="hideCancelConfirm()">No, Keep Flying</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Firebase Auth + Firestore for track.html -->
+    <script type="module">
+        import { initializeApp }    from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc, collection, query, where, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+        const app = initializeApp({
+            apiKey:            "AIzaSyAcnU7sDm8pWkWssgxMPA4q2rdpS8a6qDw",
+            authDomain:        "skytrack-28c83.firebaseapp.com",
+            projectId:         "skytrack-28c83",
+            storageBucket:     "skytrack-28c83.firebasestorage.app",
+            messagingSenderId: "876231264024",
+            appId:             "1:876231264024:web:eb42a685ee2bad2020c06d",
+            measurementId:     "G-FE2WV6KZ20"
+        });
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        // Expose Firestore helpers globally
+        window._fsGetFlight = async (id) => {
+            const snap = await getDoc(doc(db, 'flights', id));
+            return snap.exists() ? snap.data() : null;
+        };
+        window._fsUpdateFlight = async (id, fields) => {
+            await updateDoc(doc(db, 'flights', id), fields);
+        };
+        window._fsGetUserFlights = async (uid) => {
+            const q = query(
+                collection(db, 'flights'),
+                where('uid', '==', uid),
+                orderBy('createdAt', 'desc'),
+                limit(5)
+            );
+            const snap = await getDocs(q);
+            return snap.docs.map(d => d.data());
+        };
+        window._fsReady = true;
+
+        onAuthStateChanged(auth, user => {
+            if(user){
+                localStorage.setItem('isLoggedIn','true');
+                localStorage.setItem('userEmail', user.email||'');
+                localStorage.setItem('userName',  user.displayName||'');
+                localStorage.setItem('uid', user.uid);
+            } else {
+                localStorage.removeItem('isLoggedIn');
+            }
+            window._fbAuth    = auth;
+            window._fbSignOut = signOut;
+            window._fbReady   = true;
+
+            // Re-trigger loadFlightData once Firebase is ready (auth state resolved)
+            if (window._pendingFlightLoad) {
+                window._pendingFlightLoad();
+                window._pendingFlightLoad = null;
+            }
+        });
+    </script>
+
+    <script>
+        // ─── STATE ────────────────────────────────────────────────
+        function extractFlightId() {
+            const pathMatch = window.location.pathname.match(/\/track\/([A-Za-z0-9\-]+)/);
+            if (pathMatch) return pathMatch[1].toUpperCase();
+            const qs = new URLSearchParams(window.location.search).get('id');
+            if (qs) return qs.toUpperCase();
+            const hash = window.location.hash.replace('#', '').trim();
+            if (hash) return hash.toUpperCase();
+            return null;
+        }
+
+        function isSharedView() {
+            const qs = new URLSearchParams(window.location.search);
+            return qs.has('share') || !!window.location.pathname.match(/\/track\/([A-Za-z0-9\-]+)/);
+        }
+
+        let flightId       = extractFlightId();
+        const isSharedLink = isSharedView();
+        let savedData      = null;
+        let leafletMap     = null;
+        let planeMapMarker = null;
+
+        function trackLogout(){
+            const doLogout = ()=>{
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('userEmail');
+                localStorage.removeItem('userName');
+                window.location.href = 'login.html';
+            };
+            if(window._fbAuth && window._fbSignOut){
+                window._fbSignOut(window._fbAuth).then(doLogout).catch(doLogout);
+            } else { doLogout(); }
+        }
+
+        // ─── BOOT ─────────────────────────────────────────────────
+        async function loadFlightData() {
+            if (flightId) {
+                // 1. Try localStorage first (instant for owner on same device)
+                const local = localStorage.getItem('flight_' + flightId);
+                if (local) { try { savedData = JSON.parse(local); } catch(e) {} }
+
+                // 2. Fetch from Firestore (works for guests and cross-device sharing)
+                if (!savedData && window._fsGetFlight) {
+                    try {
+                        savedData = await window._fsGetFlight(flightId);
+                        if (savedData) localStorage.setItem('flight_' + flightId, JSON.stringify(savedData));
+                    } catch(e) { console.error('Firestore fetch error:', e); }
+                }
+
+                // 3. If Firestore not ready yet, defer and retry after Firebase init
+                if (!savedData && !window._fsGetFlight) {
+                    window._pendingFlightLoad = loadFlightData;
+                    return;
+                }
+
+                // 4. Refresh from Firestore in background to get latest state (e.g. cancellations)
+                if (savedData && window._fsGetFlight) {
+                    window._fsGetFlight(flightId).then(fresh => {
+                        if (fresh) {
+                            savedData = fresh;
+                            localStorage.setItem('flight_' + flightId, JSON.stringify(fresh));
+                        }
+                    }).catch(() => {});
+                }
+            }
+
+            if (isSharedLink) {
+                // ── SHARED / GUEST VIEW ──────────────────────────
+                const nav = document.getElementById('navHeader');
+                if (nav) nav.style.display = 'none';
+                renderGuestView();
+            } else {
+                // ── OWNER / NORMAL MODE — show logout btn if logged in
+                if(localStorage.getItem('isLoggedIn')==='true'){
+                    const lb = document.getElementById('trackLogoutBtn');
+                    if(lb) lb.style.display = 'inline-flex';
+                }
+                renderGatekeeper();
+                loadHistory();
+            }
+        }
+
+        // ─── GUEST / SHARED VIEW ─────────────────────────────────
+        function renderGuestView() {
+            document.getElementById('gatekeeper').classList.add('hidden');
+            if (!savedData) {
+                document.getElementById('progressView').style.display = 'block';
+                document.getElementById('progressView').innerHTML = `
+                    <div style="text-align:center;padding:60px 20px;max-width:500px;margin:0 auto;">
+                        <div style="font-size:4rem;margin-bottom:20px;">✈️</div>
+                        <div style="font-size:1.1rem;font-weight:800;color:var(--accent);letter-spacing:2px;margin-bottom:8px;">SKYTRACK PRO</div>
+                        <h2 style="font-weight:900;margin-bottom:12px;">Flight Not Found</h2>
+                        <p style="color:var(--text-dim);font-size:0.9rem;line-height:1.7;">
+                            Flight <strong style="color:var(--accent);">${flightId}</strong> could not be located.<br>
+                            The flight ID may be incorrect or the ticket may have been deleted.<br>
+                            Double-check the ID and try again.
+                        </p>
+                    </div>`;
+                return;
+            }
+            document.getElementById('progressView').style.display = 'block';
+            document.getElementById('guestBrandBar').style.display = 'block';
+            activateTracker(true);
+        }
+
+        // ─── GATEKEEPER ───────────────────────────────────────────
+        function renderGatekeeper() {
+            const ticketCard = document.getElementById('ticketInfo');
+            const launchBtn  = document.getElementById('launchBtn');
+            const idPrompt   = document.getElementById('idPrompt');
+
+            if (savedData) {
+                idPrompt.classList.add('hidden');
+                ticketCard.classList.remove('hidden');
+                launchBtn.classList.remove('hidden');
+
+                ticketCard.innerHTML = `
+                    ${savedData.cancelled ? '<div style="background:#fef2f2;border:1px solid #ef4444;border-radius:10px;padding:10px 16px;margin-bottom:15px;font-weight:800;color:#ef4444;font-size:0.9rem;letter-spacing:2px;">✗ THIS FLIGHT HAS BEEN CANCELLED</div>' : ''}
+                    <div style="display:flex; justify-content:space-between; border-bottom:2px solid #f1f5f9; padding-bottom:15px; margin-bottom:15px;">
+                        <div><span class="label">Passenger Name</span><div style="font-size:1.4rem; font-weight:800;">${savedData.name}</div></div>
+                        <div style="text-align:right;"><span class="label">ID</span><div style="font-size:1.4rem; font-weight:800; color:#0284c7;">${flightId}</div></div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:15px;">
+                        <div>
+                            <span class="label">From</span>
+                            <div style="font-weight:700;">${savedData.fromCity || savedData.from}</div>
+                            ${savedData.fromAirportCode ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:2px;">✈ ${savedData.fromAirportCode} — ${savedData.fromAirportName}</div>` : ''}
+                        </div>
+                        <div>
+                            <span class="label">To</span>
+                            <div style="font-weight:700;">${savedData.hasTransit ? '<span style="color:#f59e0b;">via ' + savedData.transitCity + '</span> → ' : ''}${savedData.toCity || savedData.to}</div>
+                            ${savedData.toAirportCode ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:2px;">✈ ${savedData.toAirportCode} — ${savedData.toAirportName}</div>` : ''}
+                            ${savedData.hasTransit && savedData.transitAirportCode ? `<div style="font-size:0.72rem;color:#f59e0b;font-weight:800;">✈ Transit: ${savedData.transitAirportCode} — ${savedData.transitAirportName}</div>` : ''}
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px; background:#f8fafc; padding:15px; border-radius:15px; border: 1px solid #e2e8f0;">
+                        <div><span class="label">Terminal</span><div style="font-weight:700;">${savedData.terminal || 'T1'}</div></div>
+                        <div><span class="label">Gate</span><div style="font-weight:700;">${savedData.gate || 'G1'}</div></div>
+                        <div><span class="label">Date</span><div style="font-weight:700;">${savedData.date}</div></div>
+                    </div>
+                `;
+            } else {
+                ticketCard.classList.add('hidden');
+                launchBtn.classList.add('hidden');
+                idPrompt.classList.remove('hidden');
+            }
+        }
+
+        // ─── HISTORY ──────────────────────────────────────────────
+        async function loadHistory() {
+            const list = document.getElementById('historyList');
+            if (!list) return;
+
+            // Try Firestore first
+            const uid = localStorage.getItem('uid');
+            if (uid && window._fsGetUserFlights) {
+                try {
+                    const flights = await window._fsGetUserFlights(uid);
+                    if (flights.length > 0) {
+                        renderTrackHistoryItems(list, flights.map(f => ({
+                            id: f.id, from: f.fromCity || f.from, to: f.toCity || f.to, cancelled: f.cancelled || false
+                        })));
+                        return;
+                    }
+                } catch(e) { /* fall through */ }
+            }
+            // Fallback to localStorage history
+            const history = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
+            renderTrackHistoryItems(list, history);
+        }
+
+        function renderTrackHistoryItems(list, history) {
+            list.innerHTML = history.length ? '' : '<p style="font-size:0.8rem; color:var(--text-dim);">No previous tickets found.</p>';
+            history.forEach(item => {
+                const isCancelled = item.cancelled || false;
+                const div = document.createElement('div');
+                div.className = 'history-card';
+                if(isCancelled) div.style.opacity = '0.6';
+                div.innerHTML = `
+                    <div class="history-info">
+                        <span class="history-id">${item.id}${isCancelled ? ' <span style="color:#ef4444;font-size:0.65rem;">✗ CANCELLED</span>' : ''}</span>
+                        <span class="history-route">${item.from} → ${item.to}</span>
+                    </div>
+                    ${isCancelled
+                        ? '<span style="color:#ef4444;font-size:0.7rem;font-weight:800;">CANCELLED</span>'
+                        : '<button class="view-map-btn" style="padding:0.5rem 1rem;font-size:0.7rem;">View</button>'
+                    }`;
+                if(!isCancelled){
+                    div.querySelector('button').addEventListener('click', ()=> loadFlightById(item.id));
+                }
+                list.appendChild(div);
+            });
+        }
+
+        function validateManualID() {
+            const input = document.getElementById('manualID').value.trim().toUpperCase();
+            if (!input) return;
+            loadFlightById(input);
+        }
+
+        function showManualNotFound(id) {
+            const inp = document.getElementById('manualID');
+            if (inp) { inp.style.borderColor='#ef4444'; inp.style.background='#fff5f5'; setTimeout(()=>{ inp.style.borderColor=''; inp.style.background='#f1f5f9'; }, 2200); }
+            let errEl = document.getElementById('manualIDError');
+            if (!errEl) { errEl=document.createElement('p'); errEl.id='manualIDError'; errEl.style.cssText='color:#ef4444;font-size:0.82rem;font-weight:700;margin-top:10px;'; inp.insertAdjacentElement('afterend',errEl); }
+            errEl.textContent = `Flight "${id}" not found. Double-check the ID.`;
+            setTimeout(()=>{ if(errEl) errEl.textContent=''; }, 4000);
+        }
+
+        async function loadFlightById(id) {
+            id = id.trim().toUpperCase();
+            let data = localStorage.getItem('flight_' + id);
+            let parsed = data ? JSON.parse(data) : null;
+
+            // Try Firestore if not cached locally
+            if (!parsed && window._fsGetFlight) {
+                try {
+                    parsed = await window._fsGetFlight(id);
+                    if (parsed) localStorage.setItem('flight_' + id, JSON.stringify(parsed));
+                } catch(e) {}
+            }
+
+            if (!parsed) { showManualNotFound(id); return; }
+            flightId  = id;
+            savedData = parsed;
+            if (leafletMap) { leafletMap.remove(); leafletMap=null; planeMapMarker=null; }
+            document.getElementById('progressView').style.display = 'none';
+            document.getElementById('cancelledBanner').classList.add('hidden');
+            document.getElementById('transitBadge').classList.add('hidden');
+            document.getElementById('cancelFlightZone').classList.add('hidden');
+            document.getElementById('activeTrack').style.width = '0%';
+            document.getElementById('planeCarrier').style.left = '0%';
+            document.getElementById('mapLoading').classList.remove('hidden');
+            document.getElementById('mapError').style.display = 'none';
+            try { window.history.pushState({}, '', '?id='+id); } catch(e) {}
+            renderGatekeeper();
+            activateTracker(false);
+        }
+
+        // ─── ACTIVATE ─────────────────────────────────────────────
+        function activateTracker(guestMode) {
+            guestMode = guestMode || false;
+            if (!savedData) return;
+            document.getElementById('gatekeeper').classList.add('hidden');
+            document.getElementById('progressView').style.display = 'block';
+
+            // Show branded bar for guest view
+            if (isSharedLink || guestMode) {
+                const bar = document.getElementById('guestBrandBar');
+                if (bar) bar.style.display = 'block';
+            }
+
+            // Use fromCity/toCity if available
+            const fromLabel = savedData.fromCity || savedData.from.substring(0, 3);
+            const toLabel   = savedData.toCity   || savedData.to.substring(0, 3);
+
+            document.getElementById('dispAirline').innerText = savedData.airline;
+            document.getElementById('dispID').innerText      = "TRACKING: " + flightId;
+            document.getElementById('dispFrom').innerText    = fromLabel.substring(0, 3).toUpperCase();
+            document.getElementById('dispTo').innerText      = toLabel.substring(0, 3).toUpperCase();
+            document.getElementById('resName').innerText     = savedData.name;
+            document.getElementById('resDate').innerText     = savedData.date;
+            document.getElementById('resGate').innerText     = (savedData.terminal || 'T1') + " / " + (savedData.gate || 'G1');
+            document.getElementById('resDep').innerText      = savedData.dep;
+            document.getElementById('resArr').innerText      = savedData.arr;
+
+            // Show cancelled banner if flight is cancelled
+            if (savedData.cancelled) {
+                document.getElementById('cancelledBanner').classList.remove('hidden');
+                document.getElementById('resStatus').innerText   = "CANCELLED";
+                document.getElementById('resStatus').style.color = "#ef4444";
+            }
+
+            // Show transit badge
+            if (savedData.hasTransit && savedData.transit) {
+                document.getElementById('transitBadge').classList.remove('hidden');
+                document.getElementById('dispTransitCity').innerText = savedData.transit;
+            }
+
+            // Show cancel zone ONLY for owner (logged-in), never for guests
+            if (!isSharedLink && !guestMode && localStorage.getItem('isLoggedIn') === 'true' && !savedData.cancelled) {
+                document.getElementById('cancelFlightZone').classList.remove('hidden');
+            }
+
+            // Show airport info if available
+            if (savedData.fromAirportCode || savedData.toAirportCode) {
+                const cell = document.getElementById('resAirportCell');
+                const val  = document.getElementById('resAirports');
+                if (cell && val) {
+                    cell.style.display = 'block';
+                    let aptLines = [];
+                    if (savedData.fromAirportCode) aptLines.push(`✈ DEP: ${savedData.fromAirportCode} — ${savedData.fromAirportName}`);
+                    if (savedData.transitAirportCode) aptLines.push(`⏱ VIA: ${savedData.transitAirportCode} — ${savedData.transitAirportName}`);
+                    if (savedData.toAirportCode) aptLines.push(`✈ ARR: ${savedData.toAirportCode} — ${savedData.toAirportName}`);
+                    val.innerHTML = aptLines.join('<br>');
+                }
+            }
+
+            // Start progress bar simulation
+            startSimulation();
+
+            // Build live map (geocode city names via Nominatim)
+            initLiveMap();
+        }
+
+        // ─── CANCEL FLIGHT FLOW ───────────────────────────────────
+        function showCancelConfirm() {
+            document.getElementById('cancelAskBtn').style.display = 'none';
+            document.getElementById('cancelConfirmBox').style.display = 'flex';
+        }
+
+        function hideCancelConfirm() {
+            document.getElementById('cancelAskBtn').style.display = 'inline-flex';
+            document.getElementById('cancelConfirmBox').style.display = 'none';
+        }
+
+        function executeCancelFlight() {
+            if (!flightId) return;
+
+            // Mark flight as cancelled in localStorage
+            const key  = 'flight_' + flightId;
+            const data = JSON.parse(localStorage.getItem(key));
+            if (data) {
+                data.cancelled = true;
+                localStorage.setItem(key, JSON.stringify(data));
+                savedData = data; // update in-memory reference
+            }
+            if (savedData) savedData.cancelled = true;
+
+            // Update Firestore so guests see the cancellation too
+            if (window._fsUpdateFlight) {
+                window._fsUpdateFlight(flightId, { cancelled: true })
+                    .catch(err => console.error('Firestore cancel error:', err));
+            }
+
+            // Mark in ticket history
+            let history = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
+            history = history.map(h => h.id === flightId ? {...h, cancelled: true} : h);
+            localStorage.setItem('ticketHistory', JSON.stringify(history));
+
+            // Hide cancel zone
+            document.getElementById('cancelFlightZone').classList.add('hidden');
+
+            // Show cancelled banner
+            document.getElementById('cancelledBanner').classList.remove('hidden');
+
+            // Update status
+            document.getElementById('resStatus').innerText   = "CANCELLED";
+            document.getElementById('resStatus').style.color = "#ef4444";
+
+            // Instantly snap plane back to origin (0%)
+            document.getElementById('activeTrack').style.transition = 'width 0.8s ease';
+            document.getElementById('planeCarrier').style.transition = 'left 0.8s ease';
+            document.getElementById('activeTrack').style.width = '0%';
+            document.getElementById('planeCarrier').style.left = '0%';
+
+            // Return map plane to origin if map loaded
+            if (planeMapMarker && window._mapOrigin) {
+                planeMapMarker.setLatLng([window._mapOrigin.lat, window._mapOrigin.lng]);
+                const el = document.getElementById('planeMapEl');
+                if (el) el.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        // ─── TIMELINE SIMULATION ──────────────────────────────────
+        function startSimulation() {
+            const takeoff       = savedData.departTime;
+            const landing       = savedData.arrivalTime;
+            const hasTransit    = savedData.hasTransit && savedData.transitArrTime;
+            const transitArr    = savedData.transitArrTime || 0;
+            const transitDurMs  = (savedData.transitDuration || 0) * 60 * 1000;
+            const transitDep    = transitArr + transitDurMs;
+            const totalDuration = landing - takeoff;
+
+            // If already cancelled on load, just show state and stop
+            if (savedData.cancelled) {
+                document.getElementById('resStatus').innerText   = "CANCELLED";
+                document.getElementById('resStatus').style.color = "#ef4444";
+                document.getElementById('activeTrack').style.width  = "0%";
+                document.getElementById('planeCarrier').style.left  = "0%";
+                return;
+            }
+
+            function update() {
+                // Check live cancelled state (user may cancel mid-flight)
+                if (savedData && savedData.cancelled) {
+                    document.getElementById('resStatus').innerText   = "CANCELLED";
+                    document.getElementById('resStatus').style.color = "#ef4444";
+                    // transition handled by executeCancelFlight
+                    return;
+                }
+
+                const now = Date.now();
+                let progress = 0;
+                let statusText = '', statusColor = '';
+
+                if (now < takeoff) {
+                    progress    = 0;
+                    statusText  = "BOARDING / TAXI";
+                    statusColor = "#f59e0b";
+                } else if (hasTransit && now >= transitArr && now < transitDep) {
+                    const legProgress = (transitArr - takeoff) / totalDuration;
+                    progress    = legProgress;
+                    statusText  = "TRANSIT LAYOVER";
+                    statusColor = "#f59e0b";
+                } else if (now >= takeoff && now < landing) {
+                    if (hasTransit && now < transitArr) {
+                        progress = (now - takeoff) / totalDuration;
+                    } else if (hasTransit && now >= transitDep) {
+                        const adjustedNow = now - transitDurMs;
+                        progress = (adjustedNow - takeoff) / totalDuration;
+                    } else {
+                        progress = (now - takeoff) / totalDuration;
+                    }
+                    statusText  = "EN-ROUTE";
+                    statusColor = "#22c55e";
+                } else {
+                    progress    = 1;
+                    statusText  = "ARRIVED";
+                    statusColor = "#64748b";
+                }
+
+                document.getElementById('resStatus').innerText   = statusText;
+                document.getElementById('resStatus').style.color = statusColor;
+
+                const percent = (Math.max(0, Math.min(1, progress)) * 100).toFixed(4);
+                document.getElementById('activeTrack').style.width  = percent + "%";
+                document.getElementById('planeCarrier').style.left  = percent + "%";
+            }
+
+            update();
+            setInterval(update, 1000);
+        }
+
+        // ─── LIVE MAP ─────────────────────────────────────────────
+        async function initLiveMap() {
+            const loadingEl = document.getElementById('mapLoading');
+            const errorEl   = document.getElementById('mapError');
+
+            let origin, dest, transitPt = null;
+            try {
+                const geocodePromises = [geocode(savedData.from), geocode(savedData.to)];
+                if (savedData.hasTransit && savedData.transit) {
+                    geocodePromises.push(geocode(savedData.transit));
+                }
+                const results = await Promise.all(geocodePromises);
+                origin = results[0];
+                dest   = results[1];
+                if (results[2]) transitPt = results[2];
+            } catch(e) {
+                loadingEl.classList.add('hidden');
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            loadingEl.classList.add('hidden');
+
+            // Build Leaflet map
+            leafletMap = L.map('liveMap', { zoomControl: true });
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>',
+                subdomains: 'abcd', maxZoom: 19
+            }).addTo(leafletMap);
+
+            // Fit map bounds
+            const boundsPoints = [[origin.lat, origin.lng], [dest.lat, dest.lng]];
+            if (transitPt) boundsPoints.push([transitPt.lat, transitPt.lng]);
+            leafletMap.fitBounds(L.latLngBounds(boundsPoints), { padding: [50, 50] });
+
+            // Origin dot (green)
+            L.circleMarker([origin.lat, origin.lng], {
+                radius: 9, fillColor: '#22c55e', color: '#fff', weight: 3, fillOpacity: 1
+            }).addTo(leafletMap)
+              .bindPopup(`<b>ORIGIN</b><br>${savedData.fromCity || savedData.from}${savedData.fromCountry ? ', ' + savedData.fromCountry : ''}`);
+
+            // Transit dot (amber) + dashed arc origin→transit
+            if (transitPt) {
+                L.circleMarker([transitPt.lat, transitPt.lng], {
+                    radius: 9, fillColor: '#f59e0b', color: '#fff', weight: 3, fillOpacity: 1
+                }).addTo(leafletMap)
+                  .bindPopup(`<b>TRANSIT STOP</b><br>${savedData.transit}<br>Layover: ${savedData.transitDuration} min`);
+
+                const arc1 = [];
+                for (let i = 0; i <= 80; i++) arc1.push(greatCirclePoint(origin, transitPt, i / 80));
+                L.polyline(arc1, { color: '#f59e0b', weight: 2.5, opacity: 0.5, dashArray: '8 6' }).addTo(leafletMap);
+
+                const arc2 = [];
+                for (let i = 0; i <= 80; i++) arc2.push(greatCirclePoint(transitPt, dest, i / 80));
+                L.polyline(arc2, { color: '#0284c7', weight: 2.5, opacity: 0.45, dashArray: '8 6' }).addTo(leafletMap);
+            } else {
+                // Dashed great-circle arc
+                const arcPoints = [];
+                for (let i = 0; i <= 80; i++) arcPoints.push(greatCirclePoint(origin, dest, i / 80));
+                L.polyline(arcPoints, { color: '#0284c7', weight: 2.5, opacity: 0.45, dashArray: '8 6' }).addTo(leafletMap);
+            }
+
+            // Destination dot (blue)
+            L.circleMarker([dest.lat, dest.lng], {
+                radius: 9, fillColor: '#0284c7', color: '#fff', weight: 3, fillOpacity: 1
+            }).addTo(leafletMap)
+              .bindPopup(`<b>DESTINATION</b><br>${savedData.toCity || savedData.to}${savedData.toCountry ? ', ' + savedData.toCountry : ''}`);
+
+            // Animated plane icon
+            const planeIcon = L.divIcon({
+                className: '',
+                html: `<span class="plane-map-icon" id="planeMapEl">✈️</span>`,
+                iconSize: [26, 26],
+                iconAnchor: [13, 13]
+            });
+            planeMapMarker = L.marker([origin.lat, origin.lng], { icon: planeIcon, zIndexOffset: 1000 }).addTo(leafletMap);
+
+            // Sync map plane with simulation timestamps
+            startMapAnimation(origin, dest, transitPt);
+        }
+
+        // ─── GEOCODING (OpenStreetMap Nominatim — free, no key) ───
+        async function geocode(cityName) {
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1`;
+            const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+            const data = await res.json();
+            if (!data || !data.length) throw new Error('Not found: ' + cityName);
+            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        }
+
+        // ─── GREAT-CIRCLE INTERPOLATION ───────────────────────────
+        function greatCirclePoint(a, b, t) {
+            const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+            const lat1 = a.lat * D2R, lng1 = a.lng * D2R;
+            const lat2 = b.lat * D2R, lng2 = b.lng * D2R;
+
+            const d = 2 * Math.asin(Math.sqrt(
+                Math.pow(Math.sin((lat2 - lat1) / 2), 2) +
+                Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin((lng2 - lng1) / 2), 2)
+            ));
+            if (d === 0) return { lat: a.lat, lng: a.lng };
+
+            const A = Math.sin((1 - t) * d) / Math.sin(d);
+            const B = Math.sin(t * d) / Math.sin(d);
+            const x = A * Math.cos(lat1) * Math.cos(lng1) + B * Math.cos(lat2) * Math.cos(lng2);
+            const y = A * Math.cos(lat1) * Math.sin(lng1) + B * Math.cos(lat2) * Math.sin(lng2);
+            const z = A * Math.sin(lat1) + B * Math.sin(lat2);
+            return {
+                lat: Math.atan2(z, Math.sqrt(x * x + y * y)) * R2D,
+                lng: Math.atan2(y, x) * R2D
+            };
+        }
+
+        // ─── BEARING (for plane rotation) ─────────────────────────
+        function getBearing(a, b) {
+            const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+            const dLng = (b.lng - a.lng) * D2R;
+            const lat1 = a.lat * D2R, lat2 = b.lat * D2R;
+            const y = Math.sin(dLng) * Math.cos(lat2);
+            const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+            return (Math.atan2(y, x) * R2D + 360) % 360;
+        }
+
+        // ─── MAP ANIMATION ────────────────────────────────────────
+        function startMapAnimation(origin, dest, transitPt) {
+            const takeoff       = savedData.departTime;
+            const landing       = savedData.arrivalTime;
+            const totalDuration = landing - takeoff;
+            const hasTransit    = savedData.hasTransit && transitPt;
+            const transitArr    = savedData.transitArrTime || 0;
+            const transitDurMs  = (savedData.transitDuration || 0) * 60 * 1000;
+            const transitDep    = transitArr + transitDurMs;
+
+            // Store origin globally for cancel-return snap
+            window._mapOrigin = origin;
+
+            function updateMap() {
+                // If cancelled (can happen live), snap to origin and stop updating
+                if (savedData && savedData.cancelled) {
+                    planeMapMarker.setLatLng([origin.lat, origin.lng]);
+                    const el = document.getElementById('planeMapEl');
+                    if (el) el.style.transform = 'rotate(0deg)';
+                    return;
+                }
+
+                const now = Date.now();
+                let pos;
+
+                if (hasTransit && now >= transitArr && now < transitDep) {
+                    pos = transitPt;
+                } else if (hasTransit && now >= transitDep && now < landing) {
+                    const leg2Duration = landing - transitDep;
+                    const leg2Progress = Math.max(0, Math.min(1, (now - transitDep) / leg2Duration));
+                    pos = greatCirclePoint(transitPt, dest, leg2Progress);
+                } else if (hasTransit && now >= takeoff && now < transitArr) {
+                    const leg1Duration = transitArr - takeoff;
+                    const leg1Progress = Math.max(0, Math.min(1, (now - takeoff) / leg1Duration));
+                    pos = greatCirclePoint(origin, transitPt, leg1Progress);
+                } else {
+                    let progress = 0;
+                    if (now >= takeoff && now < landing) {
+                        progress = (now - takeoff) / totalDuration;
+                    } else if (now >= landing) {
+                        progress = 1;
+                    }
+                    progress = Math.max(0, Math.min(1, progress));
+                    pos = greatCirclePoint(origin, dest, progress);
+                }
+
+                planeMapMarker.setLatLng([pos.lat, pos.lng]);
+
+                // Rotate plane emoji
+                const nextPosRef = hasTransit && now >= transitDep && now < landing
+                    ? greatCirclePoint(transitPt, dest, Math.min((now - transitDep + 30000) / (landing - transitDep), 1))
+                    : hasTransit && now >= takeoff && now < transitArr
+                        ? greatCirclePoint(origin, transitPt, Math.min((now - takeoff + 30000) / (transitArr - takeoff), 1))
+                        : greatCirclePoint(origin, dest, Math.min(((now - takeoff) / totalDuration) + 0.005, 1));
+
+                const bearing = getBearing(pos, nextPosRef);
+                const el = document.getElementById('planeMapEl');
+                if (el) el.style.transform = `rotate(${bearing - 45}deg)`;
+            }
+
+            updateMap();
+            setInterval(updateMap, 1000);
+        }
+
+        // ─── KICK OFF ─────────────────────────────────────────────
+        loadFlightData();
+    </script>
+</body>
+</html>

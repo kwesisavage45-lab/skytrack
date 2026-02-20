@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About | SkyTrack Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --text: #f8fafc;
+            --text-dim: #94a3b8; --accent: #38bdf8; --nav-bg: rgba(15, 23, 42, 0.9);
+            --border: rgba(255, 255, 255, 0.1); --footer-bg: #0b1120;
+        }
+        [data-theme="light"] {
+            --bg: #f8fafc; --card: rgba(255, 255, 255, 0.9); --text: #0f172a;
+            --text-dim: #475569; --accent: #0284c7; --nav-bg: rgba(248, 250, 252, 0.9);
+            --border: rgba(0, 0, 0, 0.1); --footer-bg: #e2e8f0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; transition: all 0.3s ease; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; line-height: 1.6; }
+        
+        nav {
+            position: fixed; top: 0; width: 100%; z-index: 2000;
+            background: var(--nav-bg); backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--border); padding: 1rem 8%;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .logo { font-size: 1.6rem; font-weight: 800; color: var(--accent); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+
+        section { padding: 140px 8% 60px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+        .hero-text { text-align: center; max-width: 800px; margin-bottom: 40px; }
+        .hero-text h1 { font-size: clamp(2.2rem, 5vw, 4rem); font-weight: 800; margin-bottom: 1rem; }
+        .hero-text span { color: var(--accent); }
+
+        .btn-back {
+            display: inline-flex; align-items: center; gap: 8px;
+            color: var(--accent); text-decoration: none; font-weight: 600;
+            margin-bottom: 30px; cursor: pointer; background: none; border: none;
+        }
+
+        .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; max-width: 1000px; }
+        .glass-card { background: var(--card); padding: 2rem; border-radius: 24px; border: 1px solid var(--border); backdrop-filter: blur(10px); }
+        .glass-card h2 { margin-bottom: 15px; color: var(--accent); font-size: 1.5rem; }
+        .glass-card p { color: var(--text-dim); font-size: 0.95rem; }
+
+        @media (max-width: 768px) {
+            .content-grid { grid-template-columns: 1fr; }
+            section { padding: 120px 5% 60px; }
+            .hero-text h1 { font-size: 2.2rem; }
+        }
+
+        footer { background: var(--footer-bg); padding: 3rem 8%; border-top: 1px solid var(--border); text-align: center; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html" class="logo"><i class="fas fa-paper-plane"></i> SkyTrack Pro</a>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span id="navUser" style="display:none;font-size:0.83rem;font-weight:700;color:var(--accent);"></span>
+            <button id="navAuthBtn" onclick="handleNavAuth()" style="display:none;background:var(--accent);color:#fff;padding:0.55rem 1.2rem;border-radius:50px;border:none;font-weight:700;font-size:0.85rem;cursor:pointer;"></button>
+        </div>
+    </nav>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+        const app  = initializeApp({ apiKey:"AIzaSyAcnU7sDm8pWkWssgxMPA4q2rdpS8a6qDw",authDomain:"skytrack-28c83.firebaseapp.com",projectId:"skytrack-28c83",storageBucket:"skytrack-28c83.firebasestorage.app",messagingSenderId:"876231264024",appId:"1:876231264024:web:eb42a685ee2bad2020c06d" });
+        const auth = getAuth(app);
+        onAuthStateChanged(auth, user => {
+            const btn  = document.getElementById('navAuthBtn');
+            const uTag = document.getElementById('navUser');
+            btn.style.display = 'inline-block';
+            if(user){
+                localStorage.setItem('isLoggedIn','true');
+                localStorage.setItem('userName', user.displayName||'');
+                if(uTag){ uTag.textContent='Hi, '+(user.displayName||user.email||'').split(' ')[0]; uTag.style.display='inline'; }
+                btn.textContent = 'Log Out';
+                btn.style.background = '#ef4444';
+                window._fbLogout = ()=> signOut(auth).then(()=>{ localStorage.removeItem('isLoggedIn'); window.location.href='index.html'; });
+            } else {
+                localStorage.removeItem('isLoggedIn');
+                btn.textContent = 'Sign In';
+                btn.style.background = 'var(--accent)';
+                window._fbLogout = null;
+            }
+        });
+    </script>
+    <script>
+        function handleNavAuth(){
+            if(localStorage.getItem('isLoggedIn')==='true' && window._fbLogout){ window._fbLogout(); }
+            else { window.location.href='login.html'; }
+        }
+        // Apply saved theme
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light');
+    </script>
+
+    <section>
+        <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i> Back to Home</a>
+        
+        <div class="hero-text">
+            <h1>Our <span>Mission</span></h1>
+            <p>Elevating flight tracking into a personalized, elite digital experience for global travelers.</p>
+        </div>
+
+        <div class="content-grid">
+            <div class="glass-card">
+                <h2>The Vision</h2>
+                <p>SkyTrack Pro was designed to solve the complexity of flight sharing. We convert technical aeronautical data into beautiful, shareable SkyTrack IDs.</p>
+            </div>
+            <div class="glass-card">
+                <h2>Elite Access</h2>
+                <p>Whether you are a frequent flyer or tracking a loved one, our platform provides the tools to monitor every mile with precision and style.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer><p style="color: var(--text-dim);">&copy; 2026 SkyTrack Pro.</p></footer>
+</body>
+</html>
