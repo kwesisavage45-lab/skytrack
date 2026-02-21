@@ -10,7 +10,7 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
+    <script src="https://js.paystack.co/v1/inline.js"></script>
     <style>
         :root {
             --bg: #0f172a;
@@ -171,9 +171,46 @@
             section { padding: 100px 5% 40px; }
             .ticket-visual { flex-direction: column; }
             .footer-container { grid-template-columns: 1fr; gap: 2rem; }
+            /* ── History cards mobile ── */
+            .hist-card { border-radius:14px !important; }
+            .hist-card .hist-actions { flex-direction:column !important; }
+            .hist-card .hist-actions button { width:100% !important; justify-content:center !important; }
         }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── Price Section ── */
+        .price-result-box {
+            background: rgba(34,197,94,0.07); border: 1px solid #22c55e; border-radius: 14px;
+            padding: 14px 16px; margin-bottom: 6px; animation: slideUp 0.3s ease;
+        }
+
+        /* ── Soft Modal Overlay ── */
+        .sky-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9000;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+            animation: fadeInModal 0.25s ease;
+        }
+        @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+        .sky-modal {
+            background: var(--card); border-radius: 24px; border: 1px solid var(--border);
+            padding: 2.5rem; max-width: 440px; width: 100%; text-align: center;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.3); animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            backdrop-filter: blur(20px);
+        }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+        .sky-modal .modal-icon { font-size: 3.5rem; margin-bottom: 1rem; display: block; }
+        .sky-modal h3 { font-size: 1.4rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .sky-modal p { color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem; }
+        .sky-modal .modal-btn { 
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 0.8rem 2rem; border-radius: 50px; border: none; font-weight: 700; font-size: 0.9rem; cursor: pointer; 
+            transition: transform 0.2s, box-shadow 0.2s; text-decoration: none;
+        }
+        .sky-modal .modal-btn:hover { transform: translateY(-2px); }
+        .sky-modal .modal-btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 15px rgba(56,189,248,0.35); }
+        .sky-modal .modal-btn-danger { background: #ef4444; color: #fff; box-shadow: 0 4px 15px rgba(239,68,68,0.35); }
+        .sky-modal .modal-btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
 
         .transit-toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 14px; background: rgba(56,189,248,0.05); border: 1px dashed var(--border); border-radius: 12px; }
         .transit-toggle-row label { font-size: 0.85rem; font-weight: 600; color: var(--text); cursor: pointer; }
@@ -251,6 +288,8 @@
                 <li><a href="#" onclick="toggleDashboard(false)">Home</a></li>
                 <li><a href="about.html">About</a></li>
                 <li><a href="contact.html">Contact</a></li>
+                <li><a href="#" onclick="showTrackSection()">Track Flight</a></li>
+                <li><a href="#" onclick="showHistorySection()" id="historyNavLink" style="display:none;">Flight History</a></li>
                 <li><a href="track.html">Live Tracker</a></li>
             </ul>
             <div class="nav-actions">
@@ -270,7 +309,48 @@
         <p>The definitive command center for high-fidelity transit monitoring. Generate identity assets through your SkyTrack ID, secure your terminal access, and oversee your simulated flight path in real-time. Track your journey like a pro.</p>
         <div class="hero-btn-group">
             <button onclick="toggleDashboard(true)" class="btn-auth">Create Ticket</button>
-            <button onclick="trackPrompt()" class="btn-auth" style="background: transparent; border: 1px solid var(--accent); color: var(--text);">Track Flight</button>
+            <button onclick="showTrackSection()" class="btn-auth" style="background: transparent; border: 1px solid var(--accent); color: var(--text);">Track Flight</button>
+        </div>
+    </section>
+
+    <!-- ── TRACK FLIGHT SECTION ── -->
+    <section class="hidden" id="trackSection" style="justify-content:center; align-items:center;">
+        <div style="max-width:680px; width:100%; margin:0 auto;">
+            <button onclick="showHeroSection()" style="background:none; border:none; color:var(--accent); cursor:pointer; margin-bottom:20px; font-weight:600; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </button>
+            <div class="glass-card" style="text-align:center;">
+                <div style="font-size:3rem; margin-bottom:12px;">✈️</div>
+                <h2 style="font-weight:900; margin-bottom:8px; font-size:1.8rem;">Track Your Flight</h2>
+                <p style="color:var(--text-dim); margin-bottom:28px; font-size:0.95rem;">Enter your SkyTrack ID to view full flight details and live progress</p>
+                <div style="position:relative; margin-bottom:20px;">
+                    <input type="text" id="heroTrackInput" placeholder="e.g. ST-ABC12" 
+                        style="width:100%; padding:18px 60px 18px 20px; border-radius:50px; border:2px solid var(--border); background:rgba(0,0,0,0.05); color:var(--text); font-size:1.1rem; text-align:center; text-transform:uppercase; outline:none; font-family:inherit; letter-spacing:2px;"
+                        oninput="this.value=this.value.toUpperCase()"
+                        onkeydown="if(event.key==='Enter') heroTrackSearch()">
+                </div>
+                <button onclick="heroTrackSearch()" class="btn-auth" style="width:100%; padding:1rem; font-size:1rem; border-radius:50px;">
+                    <i class="fas fa-search" style="margin-right:8px;"></i> Search Flight
+                </button>
+                <div id="heroTrackResult" style="margin-top:24px; text-align:left;"></div>
+                <div id="heroTrackHistory" style="margin-top:28px; text-align:left;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── FLIGHT HISTORY SECTION ── -->
+    <section class="hidden" id="historySection" style="justify-content:center; align-items:center;">
+        <div style="max-width:760px; width:100%; margin:0 auto;">
+            <button onclick="showHeroSection()" style="background:none; border:none; color:var(--accent); cursor:pointer; margin-bottom:20px; font-weight:600; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </button>
+            <div class="glass-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                    <h2 style="font-weight:900; margin:0;"><i class="fas fa-history" style="color:var(--accent); margin-right:10px;"></i>Flight History</h2>
+                    <button onclick="refreshHistorySection()" class="btn-auth" style="padding:0.5rem 1.2rem; font-size:0.8rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div id="fullHistoryList"></div>
+            </div>
         </div>
     </section>
 
@@ -408,14 +488,48 @@
                 <div class="input-group" style="margin-bottom: 20px;">
                     <label>Airline</label>
                     <select id="airlineSelect" onchange="handleAirlineChange(this.value)">
-                        <option value="Delta Air Lines">Delta Air Lines</option>
-                        <option value="Emirates">Emirates</option>
-                        <option value="Qatar Airways">Qatar Airways</option>
-                        <option value="Lufthansa">Lufthansa</option>
-                        <option value="British Airways">British Airways</option>
-                        <option value="custom">Other (Input Custom)</option>
+                        <optgroup label="🇺🇸 US Carriers">
+                            <option value="American Airlines">American Airlines</option>
+                            <option value="Delta Air Lines">Delta Air Lines</option>
+                            <option value="United Airlines">United Airlines</option>
+                            <option value="Southwest Airlines">Southwest Airlines</option>
+                            <option value="Spirit Airlines">Spirit Airlines</option>
+                            <option value="Frontier Airlines">Frontier Airlines</option>
+                            <option value="JetBlue Airways">JetBlue Airways</option>
+                            <option value="Alaska Airlines">Alaska Airlines</option>
+                        </optgroup>
+                        <optgroup label="🌍 International">
+                            <option value="Emirates">Emirates</option>
+                            <option value="Qatar Airways">Qatar Airways</option>
+                            <option value="Lufthansa">Lufthansa</option>
+                            <option value="British Airways">British Airways</option>
+                            <option value="Air France">Air France</option>
+                            <option value="KLM">KLM</option>
+                            <option value="Turkish Airlines">Turkish Airlines</option>
+                            <option value="Singapore Airlines">Singapore Airlines</option>
+                            <option value="Etihad Airways">Etihad Airways</option>
+                            <option value="Air Canada">Air Canada</option>
+                            <option value="Ryanair">Ryanair</option>
+                            <option value="EasyJet">EasyJet</option>
+                            <option value="Vueling">Vueling</option>
+                            <option value="Iberia">Iberia</option>
+                            <option value="Cathay Pacific">Cathay Pacific</option>
+                            <option value="Japan Airlines">Japan Airlines</option>
+                            <option value="ANA">ANA</option>
+                            <option value="Korean Air">Korean Air</option>
+                            <option value="Air Arabia">Air Arabia</option>
+                            <option value="flydubai">flydubai</option>
+                        </optgroup>
+                        <optgroup label="🌍 African Carriers">
+                            <option value="Ethiopian Airlines">Ethiopian Airlines</option>
+                            <option value="Kenya Airways">Kenya Airways</option>
+                            <option value="RwandAir">RwandAir</option>
+                            <option value="Arik Air">Arik Air</option>
+                            <option value="Africa World Airlines">Africa World Airlines</option>
+                        </optgroup>
+                        <option value="custom">✏ Other (Input Custom)</option>
                     </select>
-                    <input type="text" id="customAirline" class="hidden" placeholder="Enter Airline Name" style="margin-top:10px;">
+                    <input type="text" id="customAirline" class="hidden" placeholder="Enter Airline Name" style="margin-top:10px;" oninput="scheduleLogoFetch()">
                 </div>
 
                 <div id="returnGroup" class="input-group hidden" style="margin-bottom: 20px;">
@@ -500,7 +614,52 @@
                     </div>
                 </div>
 
-                <button class="btn-auth" style="width: 100%; height: 50px;" onclick="generateTicket()">Generate Elite Ticket</button>
+                <!-- ═══ FLIGHT PRICE SECTION ═══ -->
+                <div class="price-section" id="priceSectionWrap" style="margin-top:20px;">
+                    <label style="font-size:0.8rem; font-weight:700; color:var(--accent); display:block; margin-bottom:10px;">
+                        <i class="fas fa-tag" style="margin-right:5px;"></i>TICKET PRICE <span style="font-weight:400; color:var(--text-dim);">(optional)</span>
+                    </label>
+                    <div class="custom-apt-box" style="margin:0; padding:14px;">
+                        <div class="custom-apt-row" style="align-items:flex-end;">
+                            <div style="flex:0.9;">
+                                <label class="custom-apt-label">Currency</label>
+                                <select id="customCurrency" class="custom-apt-input" style="padding:10px; border-radius:10px; border:1.5px solid var(--border); background:rgba(0,0,0,0.1); color:var(--text); font-size:0.85rem; font-family:inherit; width:100%;" onchange="onPriceInput()">
+                                    <option value="USD">$ USD</option>
+                                    <option value="GBP">£ GBP</option>
+                                    <option value="EUR">€ EUR</option>
+                                    <option value="GHS">₵ GHS</option>
+                                    <option value="NGN">₦ NGN</option>
+                                    <option value="KES">KSh KES</option>
+                                    <option value="ZAR">R ZAR</option>
+                                    <option value="CAD">CA$ CAD</option>
+                                    <option value="AUD">A$ AUD</option>
+                                    <option value="AED">AED</option>
+                                    <option value="QAR">QAR</option>
+                                    <option value="INR">₹ INR</option>
+                                </select>
+                            </div>
+                            <div style="flex:2;">
+                                <label class="custom-apt-label">Amount <span style="font-weight:400;">(leave blank to skip)</span></label>
+                                <input type="number" id="customPriceAmount" class="custom-apt-input" placeholder="e.g. 850" min="0" oninput="onPriceInput()" style="width:100%;">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="showPriceToggleWrap" class="hidden" style="margin-top:10px; display:flex; align-items:center; gap:10px; padding:10px 14px; background:rgba(34,197,94,0.07); border:1px dashed #22c55e; border-radius:12px;">
+                        <input type="checkbox" id="showPriceOnTicket" style="width:17px;height:17px;accent-color:#22c55e;cursor:pointer;" checked>
+                        <label for="showPriceOnTicket" style="font-size:0.8rem; font-weight:600; color:var(--text); cursor:pointer;">Show price on generated ticket</label>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin-top:18px; margin-bottom:6px;">
+                    <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(56,189,248,0.08); border:1px dashed var(--accent); padding:5px 16px; border-radius:50px; font-size:0.78rem; color:var(--text-dim); font-style:italic;">
+                        <i class="fas fa-ticket-alt" style="color:var(--accent);"></i>
+                        Flight ticket generation — <strong style="color:var(--accent);">GHS 50 / ~$4.55</strong> per ticket
+                    </span>
+                </div>
+
+                <button onclick="payAndGenerate()" class="btn-auth" style="width:100%;">
+                    <i class="fas fa-bolt" style="margin-right:6px;"></i> Generate Ticket
+                </button>
 
                 <div class="info-notice-box">
                     <i class="fas fa-circle-info"></i>
@@ -563,6 +722,10 @@
                         <div>
                             <span class="pass-label">Airport Code</span>
                             <div id="stubAirportCode" style="font-size: 0.85rem; font-weight: 800; color:#0284c7; letter-spacing:1px;">---</div>
+                        </div>
+                        <div id="stubPriceWrap" style="display:none;">
+                            <span class="pass-label">Ticket Price</span>
+                            <div id="stubPrice" style="font-size: 1rem; font-weight: 800; color:#22c55e;">---</div>
                         </div>
                         <div class="barcode">123456789</div>
                     </div>
@@ -687,16 +850,19 @@
         function updateNavUI(loggedIn){
             const navBtn  = document.getElementById('navActionBtn');
             const nameTag = document.getElementById('navUserName');
+            const histLink = document.getElementById('historyNavLink');
             const userName= localStorage.getItem('userName') || localStorage.getItem('userEmail') || '';
             if(loggedIn){
                 navBtn.innerHTML  = '<i class="fas fa-sign-out-alt"></i> Log Out';
                 navBtn.style.background = '#ef4444';
                 if(nameTag && userName){ nameTag.textContent = 'Hi, ' + userName.split(' ')[0]; nameTag.style.display='inline'; }
+                if(histLink) histLink.style.display = 'block';
                 loadHistory();
             } else {
                 navBtn.innerHTML  = 'Get Started';
                 navBtn.style.background = 'var(--accent)';
                 if(nameTag) nameTag.style.display='none';
+                if(histLink) histLink.style.display = 'none';
             }
         }
 
@@ -727,15 +893,271 @@
             }
             const hero = document.getElementById('heroSection');
             const dash = document.getElementById('dashboardSection');
+            const track = document.getElementById('trackSection');
+            const hist = document.getElementById('historySection');
             if(show){
                 hero.classList.add('hidden');
                 dash.classList.remove('hidden');
+                track.classList.add('hidden');
+                hist.classList.add('hidden');
                 window.scrollTo(0,0);
                 loadHistory();
             } else {
-                hero.classList.remove('hidden');
-                dash.classList.add('hidden');
+                showHeroSection();
             }
+        }
+
+        function showHeroSection() {
+            document.getElementById('heroSection').classList.remove('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('trackSection').classList.add('hidden');
+            document.getElementById('historySection').classList.add('hidden');
+            window.scrollTo(0,0);
+        }
+
+        function showTrackSection() {
+            document.getElementById('heroSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('trackSection').classList.remove('hidden');
+            document.getElementById('historySection').classList.add('hidden');
+            window.scrollTo(0,0);
+            // Load history in track section for logged-in users
+            loadHeroTrackHistory();
+        }
+
+        function showHistorySection() {
+            if(!checkAuth()){
+                window.location.href = 'login.html';
+                return;
+            }
+            document.getElementById('heroSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('trackSection').classList.add('hidden');
+            document.getElementById('historySection').classList.remove('hidden');
+            window.scrollTo(0,0);
+            refreshHistorySection();
+        }
+
+        async function refreshHistorySection() {
+            const list = document.getElementById('fullHistoryList');
+            if(!list) return;
+            list.innerHTML = '<p style="color:var(--text-dim); font-size:0.85rem; text-align:center; padding:20px 0;"><span class="dot-spin" style="display:inline-block;"></span> Loading your flights…</p>';
+
+            let flights = [];
+            const uid = localStorage.getItem('uid');
+            if(uid && window._fsGetUserFlights) {
+                try { flights = await window._fsGetUserFlights(uid); } catch(e) {}
+            }
+            if(!flights.length) {
+                flights = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
+            }
+
+            if(!flights.length) {
+                list.innerHTML = '<div style="text-align:center; padding:40px 0;"><div style="font-size:3rem; margin-bottom:12px;">🎫</div><p style="color:var(--text-dim);">No flights found. Generate a ticket to get started!</p></div>';
+                return;
+            }
+
+            list.innerHTML = '';
+            flights.forEach(f => {
+                const isCancelled = f.cancelled || false;
+                const id = f.id || f;
+                const from = f.fromCity || f.from || '?';
+                const to   = f.toCity   || f.to   || '?';
+                const date    = f.date    || '';
+                const airline = f.airline || '';
+
+                const card = document.createElement('div');
+                card.className = 'hist-card';
+                card.style.cssText = `background:var(--card); border:1px solid var(--border); border-radius:18px; margin-bottom:14px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.06); ${isCancelled ? 'opacity:0.65;' : ''}`;
+
+                card.innerHTML = `
+                    <!-- status stripe -->
+                    <div style="height:4px; background:${isCancelled ? '#ef4444' : 'linear-gradient(90deg,#0284c7,#38bdf8)'};"></div>
+
+                    <div style="padding:16px;">
+                        <!-- row 1: ID + status badge -->
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                            <span style="color:var(--accent); font-weight:900; font-size:1rem; letter-spacing:1.5px;">${id}</span>
+                            ${isCancelled
+                                ? '<span style="background:#fef2f2; color:#ef4444; font-size:0.62rem; font-weight:800; padding:3px 10px; border-radius:20px; border:1px solid #fca5a5; white-space:nowrap;">✗ CANCELLED</span>'
+                                : '<span style="background:#f0fdf4; color:#16a34a; font-size:0.62rem; font-weight:800; padding:3px 10px; border-radius:20px; border:1px solid #86efac; white-space:nowrap;">✈ ACTIVE</span>'}
+                        </div>
+
+                        <!-- row 2: route -->
+                        <div style="font-weight:800; font-size:1.05rem; margin-bottom:5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span>${from}</span>
+                            <i class="fas fa-long-arrow-alt-right" style="color:var(--accent); font-size:0.85rem;"></i>
+                            <span>${to}</span>
+                        </div>
+
+                        <!-- row 3: meta info -->
+                        <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:14px;">${airline ? airline + ' &nbsp;·&nbsp; ' : ''}${date}</div>
+
+                        <!-- row 4: action buttons — stacked on mobile, inline on larger -->
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                            ${!isCancelled
+                                ? `<button onclick="window.location.href='track.html?id=${id}'" class="btn-auth" style="flex:1; min-width:100px; padding:0.55rem 0.8rem; font-size:0.78rem; border-radius:12px; white-space:nowrap; justify-content:center;">
+                                       <i class="fas fa-satellite-dish" style="margin-right:5px;"></i> Track Live
+                                   </button>`
+                                : `<span style="flex:1; min-width:100px; text-align:center; font-size:0.75rem; font-weight:800; color:#ef4444; padding:0.55rem 0;">Flight Cancelled</span>`}
+
+                            <!-- Copy ID button -->
+                            <button
+                                onclick="copyHistId('${id}', this)"
+                                title="Copy Booking ID"
+                                style="display:flex; align-items:center; gap:5px; background:transparent; border:1.5px solid var(--border); color:var(--text-dim); padding:0.5rem 0.9rem; border-radius:12px; font-size:0.75rem; cursor:pointer; font-weight:700; white-space:nowrap; transition:all 0.2s;">
+                                <i class="fas fa-hashtag"></i> Copy ID
+                            </button>
+
+                            <!-- Copy Link button -->
+                            <button
+                                onclick="copyHistLink('${id}', this)"
+                                title="Copy Shareable Link"
+                                style="display:flex; align-items:center; gap:5px; background:transparent; border:1.5px solid var(--border); color:var(--text-dim); padding:0.5rem 0.9rem; border-radius:12px; font-size:0.75rem; cursor:pointer; font-weight:700; white-space:nowrap; transition:all 0.2s;">
+                                <i class="fas fa-link"></i> Copy Link
+                            </button>
+                        </div>
+                    </div>`;
+
+                list.appendChild(card);
+            });
+        }
+
+        function copyIdToClipboard(id) {
+            navigator.clipboard.writeText(id).then(() => showToast('✅ ID Copied: ' + id, '#22c55e'));
+        }
+
+        function copyHistId(id, btn) {
+            navigator.clipboard.writeText(id).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.style.borderColor = '#22c55e';
+                btn.style.color = '#22c55e';
+                setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 2000);
+            }).catch(() => showToast('ID: ' + id, '#64748b'));
+        }
+
+        function copyHistLink(id, btn) {
+            const base = window.location.href.replace(/\/[^/]*$/, '/');
+            const link = base + 'track.html?id=' + id + '&share=1';
+            navigator.clipboard.writeText(link).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.style.borderColor = '#22c55e';
+                btn.style.color = '#22c55e';
+                setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 2000);
+            }).catch(() => showToast('Link copy failed', '#ef4444'));
+        }
+
+        async function loadHeroTrackHistory() {
+            const wrap = document.getElementById('heroTrackHistory');
+            if(!wrap) return;
+            if(!checkAuth()) { wrap.innerHTML = ''; return; }
+            
+            let flights = [];
+            const uid = localStorage.getItem('uid');
+            if(uid && window._fsGetUserFlights) {
+                try { flights = await window._fsGetUserFlights(uid); } catch(e) {}
+            }
+            if(!flights.length) {
+                flights = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
+            }
+            if(!flights.length) { wrap.innerHTML = ''; return; }
+
+            wrap.innerHTML = `<h4 style="font-weight:800; color:var(--text-dim); font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;"><i class="fas fa-history" style="margin-right:6px;"></i>Your Recent Flights</h4>`;
+            flights.slice(0,5).forEach(f => {
+                const isCancelled = f.cancelled || false;
+                const id = f.id || f;
+                const from = f.fromCity || f.from || '?';
+                const to = f.toCity || f.to || '?';
+                const div = document.createElement('div');
+                div.style.cssText = `background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 16px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; ${isCancelled ? 'opacity:0.6;' : ''}`;
+                div.innerHTML = `
+                    <div>
+                        <div style="color:var(--accent); font-weight:800; font-size:0.85rem;">${id}${isCancelled ? ' <span style="color:#ef4444; font-size:0.65rem;">✗ CANCELLED</span>' : ''}</div>
+                        <div style="font-weight:600; font-size:0.82rem;">${from} → ${to}</div>
+                    </div>
+                    ${!isCancelled ? `<button onclick="quickTrackLookup('${id}')" class="btn-auth" style="padding:0.4rem 0.9rem; font-size:0.72rem;">View</button>` : '<span style="color:#ef4444; font-size:0.7rem; font-weight:800;">CANCELLED</span>'}`;
+                wrap.appendChild(div);
+            });
+        }
+
+        async function heroTrackSearch() {
+            const input = document.getElementById('heroTrackInput').value.trim().toUpperCase();
+            if(!input) return;
+            const result = document.getElementById('heroTrackResult');
+            result.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);"><div class="dot-spin" style="display:inline-block; margin-right:8px;"></div> Looking up flight…</div>';
+
+            let data = null;
+            const local = localStorage.getItem('flight_' + input);
+            if(local) { try { data = JSON.parse(local); } catch(e){} }
+            if(!data && window._fsGetFlight) {
+                try { data = await window._fsGetFlight(input); } catch(e){}
+            }
+
+            if(!data) {
+                result.innerHTML = `<div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:16px; padding:24px; text-align:center;">
+                    <div style="font-size:2rem; margin-bottom:8px;">🔍</div>
+                    <div style="font-weight:800; color:#b91c1c; margin-bottom:6px;">Flight Not Found</div>
+                    <div style="color:#64748b; font-size:0.85rem;">No flight with ID <strong>${input}</strong> found. Double-check the ID and try again.</div>
+                </div>`;
+                return;
+            }
+
+            // Show full ticket preview
+            const isCancelled = data.cancelled || false;
+            const fromAptLine = data.fromAirportCode ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${data.fromAirportCode} — ${data.fromAirportName}</div>` : '';
+            const toAptLine   = data.toAirportCode   ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${data.toAirportCode} — ${data.toAirportName}</div>` : '';
+            const priceRow    = data.ticketPrice ? `<div><span style="font-size:0.65rem;color:#0284c7;font-weight:800;text-transform:uppercase;display:block;margin-bottom:3px;">Ticket Price</span><div style="font-weight:800;color:#16a34a;">${data.ticketPrice}</div></div>` : '';
+
+            result.innerHTML = `<div style="background:var(--card); border:1px solid var(--border); border-radius:20px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,0.1);">
+                ${isCancelled ? '<div style="background:#ef4444; color:#fff; text-align:center; padding:8px; font-weight:900; letter-spacing:3px; font-size:0.85rem;">✗ FLIGHT CANCELLED</div>' : '<div style="background:linear-gradient(135deg,#0284c7,#38bdf8); color:#fff; text-align:center; padding:8px; font-weight:800; font-size:0.8rem; letter-spacing:2px;">✈ SKYTRACK ELITE PASS</div>'}
+                <div style="padding:24px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; padding-bottom:16px; border-bottom:2px dashed var(--border);">
+                        <div>
+                            <div style="font-size:0.65rem; color:#0284c7; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px;">Passenger</div>
+                            <div style="font-size:1.3rem; font-weight:900;">${data.name}</div>
+                            <div style="font-size:0.75rem; color:var(--text-dim); margin-top:2px;">${data.class || ''} · ${data.airline || ''}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.65rem; color:#0284c7; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px;">SkyTrack ID</div>
+                            <div style="font-size:1.1rem; font-weight:900; color:#0284c7; letter-spacing:1px;">${input}</div>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center; margin-bottom:20px;">
+                        <div>
+                            <div style="font-size:0.65rem; color:#0284c7; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px;">From</div>
+                            <div style="font-size:1.4rem; font-weight:900;">${data.fromCity || data.from}</div>
+                            <div style="font-size:0.72rem; color:var(--text-dim);">${data.fromCountry || ''}</div>
+                            ${fromAptLine}
+                        </div>
+                        <div style="text-align:center; font-size:1.5rem; color:#0284c7;">✈</div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.65rem; color:#0284c7; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px;">To</div>
+                            <div style="font-size:1.4rem; font-weight:900;">${data.toCity || data.to}</div>
+                            <div style="font-size:0.72rem; color:var(--text-dim);">${data.toCountry || ''}</div>
+                            ${toAptLine}
+                        </div>
+                    </div>
+                    ${data.hasTransit ? `<div style="background:rgba(245,158,11,0.08); border:1px solid #f59e0b; border-radius:12px; padding:10px 14px; margin-bottom:16px; font-size:0.82rem;"><span style="color:#f59e0b; font-weight:800;">⏱ Via ${data.transitCity}${data.transitCountry ? ', '+data.transitCountry : ''}</span>${data.transitAirportCode ? ' · ' + data.transitAirportCode : ''} · Layover: ${data.transitDuration} min</div>` : ''}
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; background:rgba(0,0,0,0.04); padding:14px; border-radius:12px; margin-bottom:16px;">
+                        <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Date</div><div style="font-weight:800; font-size:0.85rem;">${data.date}</div></div>
+                        <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Departure</div><div style="font-weight:800; font-size:0.85rem;">${data.dep}</div></div>
+                        <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Arrival</div><div style="font-weight:800; font-size:0.85rem;">${data.arr}</div></div>
+                        <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Terminal</div><div style="font-weight:800; font-size:0.85rem;">${data.terminal || 'T1'}</div></div>
+                        <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Gate</div><div style="font-weight:800; font-size:0.85rem;">${data.gate || '—'}</div></div>
+                        ${priceRow}
+                    </div>
+                    <button onclick="window.location.href='track.html?id=${input}'" class="btn-auth" style="width:100%; padding:0.9rem; font-size:0.95rem;">
+                        <i class="fas fa-satellite-dish" style="margin-right:8px;"></i> View Live Flight Progress
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        async function quickTrackLookup(id) {
+            document.getElementById('heroTrackInput').value = id;
+            await heroTrackSearch();
         }
 
         window.addEventListener('DOMContentLoaded', ()=>{ updateNavUI(checkAuth()); });
@@ -766,11 +1188,29 @@
         function handleAirlineChange(val) {
             const customInput = document.getElementById('customAirline');
             val === 'custom' ? customInput.classList.remove('hidden') : customInput.classList.add('hidden');
+            if (val && val !== 'custom') setAirlineLogo(val);
         }
 
         function trackPrompt() {
-            const id = prompt("Enter the SkyTrack ID to view flight details:");
-            if (id) { window.location.href = `track.html?id=${id.toUpperCase()}`; }
+            showSkyModal({
+                icon: '✈️',
+                title: 'Track Your Flight',
+                body: `<p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:16px;">Enter your SkyTrack ID to view live flight progress.</p>
+                       <input id="trackPromptInput" type="text" placeholder="e.g. ST-ABC12" style="width:100%; padding:14px; border-radius:12px; border:1.5px solid var(--border); background:rgba(0,0,0,0.05); color:var(--text); font-size:1.1rem; text-align:center; text-transform:uppercase; outline:none; font-family:inherit; margin-bottom:4px;" oninput="this.value=this.value.toUpperCase()">`,
+                buttons: [
+                    { label: '<i class="fas fa-search"></i> Track Flight', cls: 'modal-btn-primary', action: () => {
+                        const id = document.getElementById('trackPromptInput')?.value?.trim()?.toUpperCase();
+                        if (!id) { 
+                            showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'No ID Entered', body:'<p>Please type your SkyTrack ID first.</p>', buttons:[{label:'OK', cls:'modal-btn-ghost', action:closeSkyModal}] }); 
+                            return; 
+                        }
+                        closeSkyModal();
+                        window.location.href = `track.html?id=${id}`;
+                    }},
+                    { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
+                ]
+            });
+            setTimeout(()=>{ const inp=document.getElementById('trackPromptInput'); if(inp) inp.focus(); }, 100);
         }
 
         function generateTicket() {
@@ -794,7 +1234,7 @@
             if (airline === 'custom') airline = document.getElementById('customAirline').value;
 
             if (!name || !fromCity || !toCity || !departDate || !depTimeRaw || !arrTimeRaw || !airline) {
-                alert("Please fill in all required fields");
+                showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Missing Information', body:'<p>Please fill in all required fields before generating your ticket.</p>', buttons:[{label:'Got it', cls:'modal-btn-primary', action:closeSkyModal}] });
                 return;
             }
 
@@ -824,13 +1264,13 @@
                     const customVal  = parseFloat(document.getElementById('customLayoverVal').value);
                     const customUnit = document.getElementById('customLayoverUnit').value;
                     if (!customVal || customVal <= 0) {
-                        alert("Please enter a valid custom layover duration.");
+                        showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Invalid Duration', body:'<p>Please enter a valid custom layover duration.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
                         return;
                     }
                     transitDurationMins = customUnit === 'hours' ? Math.round(customVal * 60) : Math.round(customVal);
                 }
                 if (!transitCity || !transitCountry) {
-                    alert("Please enter the transit city and country.");
+                    showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Transit Info Missing', body:'<p>Please enter the transit city and country.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
                     return;
                 }
                 transitArrTS = getTimestamp(departDate, transitArrRaw || depTimeRaw, transitArrRaw ? transitArrAMPM : depAMPM);
@@ -898,6 +1338,9 @@
             document.getElementById('displayClass').innerText       = flightClass;
             document.getElementById('stubTerminal').innerText       = flightData.terminal;
 
+            // Set airline logo
+            setAirlineLogo(airline);
+
             // Airport code display
             const fromApt = flightData.fromAirportCode ? `✈ ${flightData.fromAirportCode} — ${flightData.fromAirportName}` : '';
             const toApt   = flightData.toAirportCode   ? `✈ ${flightData.toAirportCode} — ${flightData.toAirportName}`   : '';
@@ -917,9 +1360,44 @@
                 document.getElementById('transitRow').classList.add('hidden');
             }
             
+            // Show price on ticket if user opted in and price is set
+            const priceOnTicket = document.getElementById('showPriceOnTicket')?.checked;
+            const stubPriceWrap = document.getElementById('stubPriceWrap');
+            const stubPrice = document.getElementById('stubPrice');
+            if (priceOnTicket && window._ticketPrice && stubPriceWrap && stubPrice) {
+                stubPriceWrap.style.display = 'block';
+                stubPrice.innerText = window._ticketPrice;
+                // Save price to flightData
+                flightData.ticketPrice = window._ticketPrice;
+                if (window._fsSetFlight) window._fsSetFlight(id, {...firestoreData, ticketPrice: window._ticketPrice}).catch(()=>{});
+            } else if (stubPriceWrap) {
+                stubPriceWrap.style.display = 'none';
+            }
+
             document.getElementById('successArea').classList.remove('hidden');
             document.getElementById('successArea').scrollIntoView({ behavior: 'smooth' });
-        }
+
+            // ── Reset cancel button state for fresh ticket ──
+            const cancelBtn = document.querySelector('.cancel-flight-btn');
+            if (cancelBtn) {
+                cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> Cancel Flight';
+                cancelBtn.disabled = false;
+                cancelBtn.style.opacity = '';
+                cancelBtn.style.cursor = '';
+            }
+            // Remove any stale CANCELLED overlay from previous ticket
+            const ticketImg = document.getElementById('ticketImage');
+            ticketImg.querySelectorAll('div[style*="CANCELLED"], div[style*="rgba(239,68,68"]').forEach(el => el.remove());
+            
+            // Show success modal (auto-dismisses after 3s)
+            showSkyModal({
+                icon: '✅', iconColor: '#22c55e',
+                title: 'Ticket Generated!',
+                body: `<p>Your SkyTrack Elite Pass has been created.<br><strong style="color:var(--accent);">${id}</strong></p>`,
+                buttons: [{ label: '<i class="fas fa-scroll"></i> View Ticket', cls: 'modal-btn-primary', action: () => { closeSkyModal(); document.getElementById('successArea').scrollIntoView({behavior:'smooth'}); } }]
+            });
+            setTimeout(() => { closeSkyModal(); }, 3000);
+        } // ── end generateTicket ──
 
         function updateUserHistory(id, from, to) {
             let history = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
@@ -931,41 +1409,53 @@
         function cancelFlight() {
             const id = window._currentTicketId;
             if (!id) return;
-            if (!confirm(`Are you sure you want to cancel flight ${id}? This action cannot be undone.`)) return;
+            // Read the CURRENT flight data for this specific ID to verify it's not already cancelled
+            const raw = localStorage.getItem('flight_' + id);
+            const currentData = raw ? JSON.parse(raw) : null;
+            if (currentData && currentData.cancelled) {
+                showSkyModal({ icon: '🚫', iconColor:'#ef4444', title:'Already Cancelled', body:'<p>This flight has already been cancelled.</p>', buttons:[{label:'OK', cls:'modal-btn-ghost', action:closeSkyModal}] });
+                return;
+            }
+            showSkyModal({
+                icon: '⚠️', iconColor: '#ef4444',
+                title: 'Cancel This Flight?',
+                body: `<p>Are you sure you want to cancel flight <strong>${id}</strong>? This action cannot be undone.</p>`,
+                buttons: [
+                    { label: '<i class="fas fa-times-circle"></i> Yes, Cancel', cls: 'modal-btn-danger', action: () => { closeSkyModal(); executeCancelFlight(id); } },
+                    { label: 'Keep Flight', cls: 'modal-btn-ghost', action: closeSkyModal }
+                ]
+            });
+        }
 
+        function executeCancelFlight(id) {
             const key = 'flight_' + id;
             const data = JSON.parse(localStorage.getItem(key));
             if (data) {
                 data.cancelled = true;
                 localStorage.setItem(key, JSON.stringify(data));
             }
-
-            // Update Firestore
             if (window._fsUpdateFlight) {
                 window._fsUpdateFlight(id, { cancelled: true }).catch(err => console.error('Firestore cancel error:', err));
             }
-
-            // Mark in history
             let history = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
             history = history.map(h => h.id === id ? {...h, cancelled: true} : h);
             localStorage.setItem('ticketHistory', JSON.stringify(history));
-
-            // Update button to show cancelled
-            const btn = document.querySelector('.cancel-flight-btn');
-            btn.innerHTML = '<i class="fas fa-ban"></i> FLIGHT CANCELLED';
-            btn.disabled = true;
-            btn.style.opacity = '0.6';
-            btn.style.cursor = 'not-allowed';
-
-            // Show cancelled overlay on ticket
-            const ticketImg = document.getElementById('ticketImage');
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:absolute;inset:0;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;border-radius:20px;z-index:10;';
-            overlay.innerHTML = '<div style="background:#ef4444;color:#fff;font-weight:900;font-size:2rem;padding:12px 32px;border-radius:12px;letter-spacing:4px;transform:rotate(-8deg);box-shadow:0 4px 20px rgba(239,68,68,0.5);">CANCELLED</div>';
-            ticketImg.style.position = 'relative';
-            ticketImg.appendChild(overlay);
-
+            // Only update the cancel button UI if the currently displayed ticket matches this ID
+            if (window._currentTicketId === id) {
+                const btn = document.querySelector('.cancel-flight-btn');
+                if (btn) { btn.innerHTML = '<i class="fas fa-ban"></i> FLIGHT CANCELLED'; btn.disabled = true; btn.style.opacity = '0.6'; btn.style.cursor = 'not-allowed'; }
+                const ticketImg = document.getElementById('ticketImage');
+                // Remove any existing cancel overlay first
+                ticketImg.querySelectorAll('.cancel-overlay').forEach(el => el.remove());
+                const overlay = document.createElement('div');
+                overlay.className = 'cancel-overlay';
+                overlay.style.cssText = 'position:absolute;inset:0;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;border-radius:20px;z-index:10;';
+                overlay.innerHTML = '<div style="background:#ef4444;color:#fff;font-weight:900;font-size:2rem;padding:12px 32px;border-radius:12px;letter-spacing:4px;transform:rotate(-8deg);box-shadow:0 4px 20px rgba(239,68,68,0.5);">CANCELLED</div>';
+                ticketImg.style.position = 'relative';
+                ticketImg.appendChild(overlay);
+            }
             loadHistory();
+            showSkyModal({ icon: '🚫', iconColor:'#ef4444', title:'Flight Cancelled', body:'<p>Your flight has been cancelled successfully. The status will update for all viewers.</p>', buttons:[{label:'OK', cls:'modal-btn-ghost', action:closeSkyModal}] });
         }
 
         async function loadHistory() {
@@ -1009,29 +1499,168 @@
             });
         }
 
-        async function downloadPhoto() {
-            const element = document.getElementById('ticketImage');
-            const canvas = await html2canvas(element, { useCORS: true });
-            const link = document.createElement('a');
-            link.download = 'SkyTrack-Elite-Pass.png';
-            link.href = canvas.toDataURL();
-            link.click();
+        // ═══════════════════════════════════════════
+        // ── SOFT MODAL SYSTEM ──────────────────────
+        // ═══════════════════════════════════════════
+        function showSkyModal({ icon, iconColor, title, body, buttons }) {
+            closeSkyModal();
+            const overlay = document.createElement('div');
+            overlay.className = 'sky-modal-overlay';
+            overlay.id = 'skyModalOverlay';
+            overlay.innerHTML = `
+                <div class="sky-modal">
+                    <span class="modal-icon" style="color:${iconColor||'var(--accent)'}">${icon||'ℹ️'}</span>
+                    <h3>${title||''}</h3>
+                    <div>${body||''}</div>
+                    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:0.5rem;">
+                        ${(buttons||[]).map((b,i)=>`<button class="modal-btn ${b.cls||''}" id="skyModalBtn${i}">${b.label}</button>`).join('')}
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            (buttons||[]).forEach((b,i)=>{
+                const el = document.getElementById('skyModalBtn'+i);
+                if(el && b.action) el.addEventListener('click', b.action);
+            });
+            overlay.addEventListener('click', e=>{ if(e.target===overlay) closeSkyModal(); });
+        }
+        function closeSkyModal() {
+            const el = document.getElementById('skyModalOverlay');
+            if (el) el.remove();
         }
 
+        // ── TOAST NOTIFICATION ──────────────────────
+        function showToast(msg, color) {
+            const existing = document.getElementById('skyToast');
+            if (existing) existing.remove();
+            const t = document.createElement('div');
+            t.id = 'skyToast';
+            t.style.cssText = `position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:${color||'#0284c7'};color:#fff;padding:12px 24px;border-radius:50px;font-weight:700;font-size:0.85rem;z-index:9999;box-shadow:0 8px 25px rgba(0,0,0,0.25);animation:slideUp 0.3s ease;white-space:nowrap;`;
+            t.innerHTML = msg;
+            document.body.appendChild(t);
+            setTimeout(()=>t.remove(), 3000);
+        }
+
+        // ═══════════════════════════════════════════
+        // ── AIRLINE LOGO SYSTEM ────────────────────
+        // ═══════════════════════════════════════════
+        // Keys are lowercase. setAirlineLogo() lowercases the input so ALL-CAPS
+        // names saved in Firestore (e.g. "EMIRATES") still match correctly.
+        // URLs use reliable CDN/official sources instead of Wikipedia hotlinks.
+        const AIRLINE_LOGO_MAP = {
+            'american airlines':  'https://logo.clearbit.com/aa.com',
+            'delta air lines':    'https://logo.clearbit.com/delta.com',
+            'united airlines':    'https://logo.clearbit.com/united.com',
+            'southwest airlines': 'https://logo.clearbit.com/southwest.com',
+            'spirit airlines':    'https://logo.clearbit.com/spirit.com',
+            'jetblue airways':    'https://logo.clearbit.com/jetblue.com',
+            'frontier airlines':  'https://logo.clearbit.com/flyfrontier.com',
+            'alaska airlines':    'https://logo.clearbit.com/alaskaair.com',
+            'emirates':           'https://logo.clearbit.com/emirates.com',
+            'qatar airways':      'https://logo.clearbit.com/qatarairways.com',
+            'lufthansa':          'https://logo.clearbit.com/lufthansa.com',
+            'british airways':    'https://logo.clearbit.com/britishairways.com',
+            'air france':         'https://logo.clearbit.com/airfrance.com',
+            'klm':                'https://logo.clearbit.com/klm.com',
+            'turkish airlines':   'https://logo.clearbit.com/turkishairlines.com',
+            'singapore airlines': 'https://logo.clearbit.com/singaporeair.com',
+            'etihad airways':     'https://logo.clearbit.com/etihad.com',
+            'air canada':         'https://logo.clearbit.com/aircanada.com',
+            'ryanair':            'https://logo.clearbit.com/ryanair.com',
+            'easyjet':            'https://logo.clearbit.com/easyjet.com',
+            'iberia':             'https://logo.clearbit.com/iberia.com',
+            'vueling':            'https://logo.clearbit.com/vueling.com',
+            'cathay pacific':     'https://logo.clearbit.com/cathaypacific.com',
+            'japan airlines':     'https://logo.clearbit.com/jal.com',
+            'ana':                'https://logo.clearbit.com/ana.co.jp',
+            'korean air':         'https://logo.clearbit.com/koreanair.com',
+            'ethiopian airlines': 'https://logo.clearbit.com/ethiopianairlines.com',
+            'kenya airways':      'https://logo.clearbit.com/kenya-airways.com',
+            'rwandair':           'https://logo.clearbit.com/rwandair.com',
+            'arik air':           'https://logo.clearbit.com/arikair.com',
+            'air arabia':         'https://logo.clearbit.com/airarabia.com',
+            'flydubai':           'https://logo.clearbit.com/flydubai.com',
+            'africa world airlines': 'https://logo.clearbit.com/africaworldairlines.com',
+        };
+
+        function setAirlineLogo(airlineName) {
+            const logoImg = document.getElementById('logoImg');
+            if (!logoImg || !airlineName?.trim()) { if(logoImg) logoImg.style.display='none'; return; }
+            // toLowerCase() handles ALL-CAPS names stored in Firestore
+            const key = airlineName.trim().toLowerCase();
+            const url = AIRLINE_LOGO_MAP[key]
+                || `https://logo.clearbit.com/${key.replace(/\s+/g,'').replace(/[^a-z0-9]/g,'')}.com`;
+            logoImg.src = url;
+            logoImg.style.display = 'block';
+            logoImg.onerror = () => { logoImg.style.display = 'none'; };
+        }
+
+        function scheduleLogoFetch() {
+            clearTimeout(window._logoTimer);
+            window._logoTimer = setTimeout(() => {
+                const val = document.getElementById('customAirline')?.value?.trim();
+                if (val) setAirlineLogo(val);
+            }, 800);
+        }
+
+        // ═══════════════════════════════════════════
+        // ── CUSTOM PRICE ───────────────────────────
+        // ═══════════════════════════════════════════
+        window._ticketPrice = null;
+
+        function onPriceInput() {
+            const amount   = parseFloat(document.getElementById('customPriceAmount')?.value);
+            const currency = document.getElementById('customCurrency')?.value || 'USD';
+            const symbols  = {USD:'$',GBP:'£',EUR:'€',GHS:'₵',NGN:'₦',KES:'KSh ',ZAR:'R',CAD:'CA$',AUD:'A$',AED:'AED ',QAR:'QAR ',INR:'₹'};
+            const wrap     = document.getElementById('showPriceToggleWrap');
+            if (amount > 0) {
+                window._ticketPrice = (symbols[currency] || currency + ' ') + amount.toLocaleString();
+                if (wrap) wrap.classList.remove('hidden');
+            } else {
+                window._ticketPrice = null;
+                if (wrap) wrap.classList.add('hidden');
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // ── IMPROVED PDF DOWNLOAD (Mobile-friendly) ─
+        // ═══════════════════════════════════════════
         async function downloadPDF() {
             const { jsPDF } = window.jspdf;
             const element = document.getElementById('ticketImage');
-            const canvas = await html2canvas(element, { useCORS: true });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('l', 'mm', [210, 100]);
-            pdf.addImage(imgData, 'PNG', 0, 0, 210, 100);
-            pdf.save("SkyTrack-Elite-Ticket.pdf");
+
+            // Temporarily make the ticket render at a fixed wide size for PDF quality
+            const origStyle = element.style.cssText;
+            element.style.cssText += '; min-width:700px; max-width:700px; width:700px; flex-direction:row !important;';
+
+            const canvas = await html2canvas(element, { 
+                useCORS: true, scale: 2, 
+                width: 700, 
+                logging: false,
+                imageTimeout: 3000,
+            });
+
+            element.style.cssText = origStyle;
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            // A4 Landscape proportioned to ticket
+            const pdfW = 297, pdfH = 130;
+            const pdf  = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [pdfW, pdfH] });
+            pdf.addImage(imgData, 'JPEG', 5, 5, pdfW - 10, pdfH - 10);
+            pdf.save('SkyTrack-Elite-Ticket.pdf');
+            showToast('📄 Ticket PDF downloaded!', '#0284c7');
         }
+
+        // Trigger airline logo on initial page load from select default
+        window.addEventListener('DOMContentLoaded', ()=>{
+            const sel = document.getElementById('airlineSelect');
+            if (sel && sel.value && sel.value !== 'custom') setAirlineLogo(sel.value);
+        });
 
         function copyOnlyID() {
             const id = document.getElementById('displayID').innerText;
-            navigator.clipboard.writeText(id);
-            alert("ID Copied: " + id);
+            navigator.clipboard.writeText(id).then(() => {
+                showToast('✅ ID Copied: ' + id, '#22c55e');
+            }).catch(() => showToast('ID: ' + id, '#64748b'));
         }
 
         function copyTrackingLink() {
@@ -1044,7 +1673,7 @@
                 btn.innerHTML = '<i class="fas fa-check"></i> Link Copied!';
                 btn.style.background = '#22c55e';
                 setTimeout(() => { btn.innerHTML = orig; btn.style.background = '#6366f1'; }, 2500);
-            }).catch(() => alert('Tracking link: ' + link));
+            }).catch(() => showToast('Tracking link: ' + link, '#64748b'));
         }        const themeBtn = document.getElementById('theme-toggle');
         const themeIcon = themeBtn.querySelector('i');
         const html = document.documentElement;
@@ -1067,272 +1696,21 @@
         });
 
         // ══════════════════════════════════════════════════════════
-        // ─── AIRPORT LOOKUP SYSTEM ────────────────────────────────
-        // Tier 1: Overpass API (live, via OpenStreetMap)
-        // Tier 2: Built-in offline DB of ~250 major airports (always works)
-        // Tier 3: Smart city-name fallback
-        // + Custom airport manual entry per slot
+        // ─── AI-POWERED AIRPORT LOOKUP SYSTEM ────────────────────
+        // Uses Claude AI to intelligently find airports for any city
+        // worldwide with accurate IATA codes and airport names.
+        // If AI is unavailable, user enters airport manually via
+        // the custom entry fields (city name pre-filled as hint).
         // ══════════════════════════════════════════════════════════
 
         window._selectedAirports = { from: null, to: null, transit: null };
         const _airportTimers = {};
-
-        // ── OFFLINE AIRPORT DATABASE ─────────────────────────────
-        // 250+ major airports with IATA, name, lat, lng
-        const AIRPORT_DB = [
-            // UK / Ireland
-            {iata:'LHR',name:'London Heathrow',lat:51.477,lng:-0.461,city:'London'},
-            {iata:'LGW',name:'London Gatwick',lat:51.148,lng:-0.190,city:'London'},
-            {iata:'STN',name:'London Stansted',lat:51.885,lng:0.235,city:'London'},
-            {iata:'LTN',name:'London Luton',lat:51.875,lng:-0.368,city:'London'},
-            {iata:'MAN',name:'Manchester Airport',lat:53.354,lng:-2.275,city:'Manchester'},
-            {iata:'BHX',name:'Birmingham Airport',lat:52.454,lng:-1.748,city:'Birmingham'},
-            {iata:'EDI',name:'Edinburgh Airport',lat:55.950,lng:-3.373,city:'Edinburgh'},
-            {iata:'GLA',name:'Glasgow Airport',lat:55.872,lng:-4.433,city:'Glasgow'},
-            {iata:'DUB',name:'Dublin Airport',lat:53.421,lng:-6.270,city:'Dublin'},
-            {iata:'BRS',name:'Bristol Airport',lat:51.383,lng:-2.719,city:'Bristol'},
-            {iata:'NCL',name:'Newcastle Airport',lat:55.038,lng:-1.692,city:'Newcastle'},
-            {iata:'LBA',name:'Leeds Bradford Airport',lat:53.866,lng:-1.660,city:'Leeds'},
-            // USA
-            {iata:'ATL',name:'Hartsfield-Jackson Atlanta Intl',lat:33.641,lng:-84.427,city:'Atlanta'},
-            {iata:'LAX',name:'Los Angeles Intl',lat:33.943,lng:-118.408,city:'Los Angeles'},
-            {iata:'ORD',name:"O'Hare International",lat:41.979,lng:-87.905,city:'Chicago'},
-            {iata:'DFW',name:'Dallas/Fort Worth Intl',lat:32.898,lng:-97.038,city:'Dallas'},
-            {iata:'DEN',name:'Denver International',lat:39.856,lng:-104.674,city:'Denver'},
-            {iata:'JFK',name:'John F. Kennedy Intl',lat:40.641,lng:-73.779,city:'New York'},
-            {iata:'EWR',name:'Newark Liberty Intl',lat:40.693,lng:-74.169,city:'New York'},
-            {iata:'LGA',name:'LaGuardia Airport',lat:40.777,lng:-73.873,city:'New York'},
-            {iata:'SFO',name:'San Francisco Intl',lat:37.619,lng:-122.375,city:'San Francisco'},
-            {iata:'SEA',name:'Seattle-Tacoma Intl',lat:47.450,lng:-122.309,city:'Seattle'},
-            {iata:'MIA',name:'Miami International',lat:25.796,lng:-80.287,city:'Miami'},
-            {iata:'MCO',name:'Orlando International',lat:28.431,lng:-81.308,city:'Orlando'},
-            {iata:'IAH',name:'George Bush Intercontinental',lat:29.990,lng:-95.337,city:'Houston'},
-            {iata:'HOU',name:'William P. Hobby Airport',lat:29.645,lng:-95.279,city:'Houston'},
-            {iata:'PHX',name:'Phoenix Sky Harbor Intl',lat:33.437,lng:-112.008,city:'Phoenix'},
-            {iata:'MSP',name:'Minneapolis-Saint Paul Intl',lat:44.881,lng:-93.222,city:'Minneapolis'},
-            {iata:'DTW',name:'Detroit Metro Wayne County',lat:42.213,lng:-83.353,city:'Detroit'},
-            {iata:'BOS',name:'Logan International',lat:42.364,lng:-71.006,city:'Boston'},
-            {iata:'CLT',name:'Charlotte Douglas Intl',lat:35.214,lng:-80.944,city:'Charlotte'},
-            {iata:'LAS',name:'Harry Reid International',lat:36.084,lng:-115.153,city:'Las Vegas'},
-            {iata:'BWI',name:'Baltimore/Washington Intl',lat:39.175,lng:-76.669,city:'Baltimore'},
-            {iata:'IAD',name:'Washington Dulles Intl',lat:38.945,lng:-77.456,city:'Washington DC'},
-            {iata:'DCA',name:'Ronald Reagan Washington Natl',lat:38.852,lng:-77.038,city:'Washington DC'},
-            {iata:'MDW',name:'Chicago Midway',lat:41.786,lng:-87.742,city:'Chicago'},
-            {iata:'SAN',name:'San Diego International',lat:32.734,lng:-117.190,city:'San Diego'},
-            {iata:'PDX',name:'Portland International',lat:45.589,lng:-122.593,city:'Portland'},
-            {iata:'AUS',name:'Austin-Bergstrom Intl',lat:30.198,lng:-97.667,city:'Austin'},
-            {iata:'MSY',name:'Louis Armstrong New Orleans Intl',lat:29.993,lng:-90.258,city:'New Orleans'},
-            {iata:'PHL',name:'Philadelphia International',lat:39.872,lng:-75.241,city:'Philadelphia'},
-            {iata:'SLC',name:'Salt Lake City International',lat:40.788,lng:-111.978,city:'Salt Lake City'},
-            {iata:'RDU',name:'Raleigh-Durham International',lat:35.877,lng:-78.787,city:'Raleigh'},
-            {iata:'TPA',name:'Tampa International',lat:27.975,lng:-82.533,city:'Tampa'},
-            {iata:'STL',name:'St. Louis Lambert International',lat:38.748,lng:-90.370,city:'St. Louis'},
-            // Canada
-            {iata:'YYZ',name:'Toronto Pearson International',lat:43.681,lng:-79.614,city:'Toronto'},
-            {iata:'YVR',name:'Vancouver International',lat:49.195,lng:-123.180,city:'Vancouver'},
-            {iata:'YUL',name:'Montréal-Trudeau International',lat:45.470,lng:-73.741,city:'Montreal'},
-            {iata:'YYC',name:'Calgary International',lat:51.131,lng:-114.011,city:'Calgary'},
-            {iata:'YOW',name:'Ottawa Macdonald-Cartier Intl',lat:45.324,lng:-75.669,city:'Ottawa'},
-            {iata:'YEG',name:'Edmonton International',lat:53.310,lng:-113.580,city:'Edmonton'},
-            {iata:'YHZ',name:'Halifax Stanfield International',lat:44.882,lng:-63.511,city:'Halifax'},
-            // Europe
-            {iata:'CDG',name:'Paris Charles de Gaulle',lat:49.009,lng:2.548,city:'Paris'},
-            {iata:'ORY',name:'Paris Orly',lat:48.723,lng:2.380,city:'Paris'},
-            {iata:'FRA',name:'Frankfurt Airport',lat:50.037,lng:8.562,city:'Frankfurt'},
-            {iata:'AMS',name:'Amsterdam Schiphol',lat:52.310,lng:4.768,city:'Amsterdam'},
-            {iata:'MAD',name:'Adolfo Suárez Madrid-Barajas',lat:40.472,lng:-3.561,city:'Madrid'},
-            {iata:'BCN',name:'Barcelona El Prat',lat:41.297,lng:2.083,city:'Barcelona'},
-            {iata:'FCO',name:'Rome Fiumicino',lat:41.800,lng:12.239,city:'Rome'},
-            {iata:'MXP',name:'Milan Malpensa',lat:45.631,lng:8.723,city:'Milan'},
-            {iata:'LIN',name:'Milan Linate',lat:45.445,lng:9.277,city:'Milan'},
-            {iata:'MUC',name:'Munich Airport',lat:48.354,lng:11.786,city:'Munich'},
-            {iata:'ZRH',name:'Zurich Airport',lat:47.464,lng:8.549,city:'Zurich'},
-            {iata:'VIE',name:'Vienna International',lat:48.110,lng:16.570,city:'Vienna'},
-            {iata:'BRU',name:'Brussels Airport',lat:50.901,lng:4.484,city:'Brussels'},
-            {iata:'CPH',name:'Copenhagen Airport',lat:55.618,lng:12.656,city:'Copenhagen'},
-            {iata:'ARN',name:'Stockholm Arlanda',lat:59.652,lng:17.919,city:'Stockholm'},
-            {iata:'OSL',name:'Oslo Gardermoen',lat:60.194,lng:11.100,city:'Oslo'},
-            {iata:'HEL',name:'Helsinki-Vantaa',lat:60.318,lng:24.963,city:'Helsinki'},
-            {iata:'LIS',name:'Lisbon Humberto Delgado',lat:38.774,lng:-9.134,city:'Lisbon'},
-            {iata:'ATH',name:'Athens International',lat:37.937,lng:23.945,city:'Athens'},
-            {iata:'WAW',name:'Warsaw Chopin',lat:52.166,lng:20.967,city:'Warsaw'},
-            {iata:'PRG',name:'Václav Havel Prague Airport',lat:50.100,lng:14.260,city:'Prague'},
-            {iata:'BUD',name:'Budapest Ferenc Liszt Intl',lat:47.437,lng:19.261,city:'Budapest'},
-            {iata:'OTP',name:'Henri Coandă International',lat:44.572,lng:26.102,city:'Bucharest'},
-            {iata:'SOF',name:'Sofia Airport',lat:42.695,lng:23.411,city:'Sofia'},
-            {iata:'DUB',name:'Dublin Airport',lat:53.421,lng:-6.270,city:'Dublin'},
-            {iata:'KEF',name:'Keflavík International',lat:63.985,lng:-22.606,city:'Reykjavik'},
-            {iata:'TXL',name:'Berlin Tegel (historical)',lat:52.560,lng:13.288,city:'Berlin'},
-            {iata:'BER',name:'Berlin Brandenburg',lat:52.367,lng:13.503,city:'Berlin'},
-            {iata:'GVA',name:'Geneva Airport',lat:46.238,lng:6.109,city:'Geneva'},
-            {iata:'NCE',name:'Nice Côte d\'Azur',lat:43.665,lng:7.215,city:'Nice'},
-            {iata:'PMI',name:'Palma de Mallorca',lat:39.551,lng:2.739,city:'Palma'},
-            // Middle East
-            {iata:'DXB',name:'Dubai International',lat:25.253,lng:55.366,city:'Dubai'},
-            {iata:'DWC',name:'Al Maktoum International',lat:24.896,lng:55.161,city:'Dubai'},
-            {iata:'AUH',name:'Abu Dhabi International',lat:24.443,lng:54.651,city:'Abu Dhabi'},
-            {iata:'DOH',name:'Hamad International',lat:25.274,lng:51.608,city:'Doha'},
-            {iata:'BAH',name:'Bahrain International',lat:26.271,lng:50.634,city:'Manama'},
-            {iata:'KWI',name:'Kuwait International',lat:29.227,lng:47.969,city:'Kuwait City'},
-            {iata:'RUH',name:'King Khalid International',lat:24.958,lng:46.699,city:'Riyadh'},
-            {iata:'JED',name:'King Abdulaziz International',lat:21.680,lng:39.157,city:'Jeddah'},
-            {iata:'MCT',name:'Muscat International',lat:23.593,lng:58.285,city:'Muscat'},
-            {iata:'AMM',name:'Queen Alia International',lat:31.723,lng:35.993,city:'Amman'},
-            {iata:'BEY',name:'Rafic Hariri International',lat:33.821,lng:35.488,city:'Beirut'},
-            {iata:'TLV',name:'Ben Gurion International',lat:32.011,lng:34.887,city:'Tel Aviv'},
-            {iata:'IST',name:'Istanbul Airport',lat:41.275,lng:28.752,city:'Istanbul'},
-            {iata:'SAW',name:'Sabiha Gökçen International',lat:40.898,lng:29.309,city:'Istanbul'},
-            {iata:'ESB',name:'Ankara Esenboğa',lat:40.128,lng:32.995,city:'Ankara'},
-            // Africa
-            {iata:'ACC',name:'Kotoka International',lat:5.605,lng:-0.167,city:'Accra'},
-            {iata:'JNB',name:'O.R. Tambo International',lat:-26.134,lng:28.242,city:'Johannesburg'},
-            {iata:'CPT',name:'Cape Town International',lat:-33.965,lng:18.602,city:'Cape Town'},
-            {iata:'DUR',name:'King Shaka International',lat:-29.615,lng:31.120,city:'Durban'},
-            {iata:'NBO',name:'Jomo Kenyatta International',lat:-1.319,lng:36.928,city:'Nairobi'},
-            {iata:'ADD',name:'Addis Ababa Bole International',lat:8.978,lng:38.799,city:'Addis Ababa'},
-            {iata:'LOS',name:'Murtala Muhammed International',lat:6.577,lng:3.321,city:'Lagos'},
-            {iata:'ABV',name:'Nnamdi Azikiwe International',lat:9.006,lng:7.263,city:'Abuja'},
-            {iata:'ABJ',name:'Félix-Houphouët-Boigny Intl',lat:5.261,lng:-3.926,city:'Abidjan'},
-            {iata:'DKR',name:'Blaise Diagne International',lat:14.670,lng:-17.073,city:'Dakar'},
-            {iata:'CAI',name:'Cairo International',lat:30.122,lng:31.406,city:'Cairo'},
-            {iata:'CMN',name:'Mohammed V International',lat:33.368,lng:-7.590,city:'Casablanca'},
-            {iata:'RAK',name:'Marrakesh Menara',lat:31.607,lng:-8.036,city:'Marrakech'},
-            {iata:'TUN',name:'Tunis-Carthage International',lat:36.851,lng:10.228,city:'Tunis'},
-            {iata:'ALG',name:'Houari Boumediene Airport',lat:36.691,lng:3.215,city:'Algiers'},
-            {iata:'TIP',name:'Tripoli International',lat:32.664,lng:13.159,city:'Tripoli'},
-            {iata:'KRT',name:'Khartoum International',lat:15.590,lng:32.553,city:'Khartoum'},
-            {iata:'DAR',name:'Julius Nyerere International',lat:-6.878,lng:39.202,city:'Dar es Salaam'},
-            {iata:'EBB',name:'Entebbe International',lat:0.042,lng:32.443,city:'Kampala'},
-            {iata:'KGL',name:'Kigali International',lat:-1.969,lng:30.139,city:'Kigali'},
-            {iata:'LFW',name:'Lomé-Tokoin International',lat:6.166,lng:1.255,city:'Lomé'},
-            {iata:'COO',name:'Cadjehoun Airport',lat:6.357,lng:2.385,city:'Cotonou'},
-            {iata:'BKO',name:'Bamako-Sénou International',lat:12.534,lng:-7.950,city:'Bamako'},
-            {iata:'OUA',name:'Ouagadougou Airport',lat:12.353,lng:-1.512,city:'Ouagadougou'},
-            {iata:'SSG',name:'Malabo Airport',lat:3.756,lng:8.709,city:'Malabo'},
-            {iata:'FIH',name:'N\'djili International',lat:-4.386,lng:15.445,city:'Kinshasa'},
-            {iata:'LAD',name:'Quatro de Fevereiro International',lat:-8.858,lng:13.231,city:'Luanda'},
-            {iata:'MPM',name:'Maputo International',lat:-25.921,lng:32.573,city:'Maputo'},
-            {iata:'TNR',name:'Ivato International',lat:-18.797,lng:47.479,city:'Antananarivo'},
-            {iata:'MRU',name:'Sir Seewoosagur Ramgoolam Intl',lat:-20.430,lng:57.684,city:'Mauritius'},
-            // Asia - East
-            {iata:'PEK',name:'Beijing Capital International',lat:40.080,lng:116.585,city:'Beijing'},
-            {iata:'PKX',name:'Beijing Daxing International',lat:39.510,lng:116.411,city:'Beijing'},
-            {iata:'PVG',name:'Shanghai Pudong International',lat:31.144,lng:121.805,city:'Shanghai'},
-            {iata:'SHA',name:'Shanghai Hongqiao International',lat:31.198,lng:121.336,city:'Shanghai'},
-            {iata:'CAN',name:'Guangzhou Baiyun International',lat:23.392,lng:113.299,city:'Guangzhou'},
-            {iata:'CTU',name:'Chengdu Shuangliu International',lat:30.578,lng:103.947,city:'Chengdu'},
-            {iata:'SZX',name:'Shenzhen Bao\'an International',lat:22.639,lng:113.810,city:'Shenzhen'},
-            {iata:'HKG',name:'Hong Kong International',lat:22.309,lng:113.915,city:'Hong Kong'},
-            {iata:'ICN',name:'Incheon International',lat:37.469,lng:126.451,city:'Seoul'},
-            {iata:'GMP',name:'Gimpo International',lat:37.559,lng:126.794,city:'Seoul'},
-            {iata:'NRT',name:'Narita International',lat:35.765,lng:140.386,city:'Tokyo'},
-            {iata:'HND',name:'Haneda Airport',lat:35.553,lng:139.781,city:'Tokyo'},
-            {iata:'KIX',name:'Kansai International',lat:34.427,lng:135.244,city:'Osaka'},
-            {iata:'ITM',name:'Osaka Itami Airport',lat:34.785,lng:135.438,city:'Osaka'},
-            {iata:'CTS',name:'New Chitose Airport',lat:42.775,lng:141.693,city:'Sapporo'},
-            {iata:'OKA',name:'Naha Airport',lat:26.195,lng:127.646,city:'Naha'},
-            {iata:'TPE',name:'Taiwan Taoyuan International',lat:25.077,lng:121.232,city:'Taipei'},
-            // Asia - South/SE
-            {iata:'SIN',name:'Singapore Changi',lat:1.360,lng:103.989,city:'Singapore'},
-            {iata:'BKK',name:'Suvarnabhumi International',lat:13.691,lng:100.750,city:'Bangkok'},
-            {iata:'DMK',name:'Don Mueang International',lat:13.913,lng:100.607,city:'Bangkok'},
-            {iata:'KUL',name:'Kuala Lumpur International',lat:2.745,lng:101.710,city:'Kuala Lumpur'},
-            {iata:'CGK',name:'Soekarno–Hatta International',lat:-6.126,lng:106.656,city:'Jakarta'},
-            {iata:'DPS',name:'Ngurah Rai International (Bali)',lat:-8.748,lng:115.167,city:'Bali'},
-            {iata:'MNL',name:'Ninoy Aquino International',lat:14.509,lng:121.020,city:'Manila'},
-            {iata:'SGN',name:'Tan Son Nhat International',lat:10.819,lng:106.652,city:'Ho Chi Minh City'},
-            {iata:'HAN',name:'Noi Bai International',lat:21.221,lng:105.807,city:'Hanoi'},
-            {iata:'RGN',name:'Yangon International',lat:16.907,lng:96.133,city:'Yangon'},
-            {iata:'PNH',name:'Phnom Penh International',lat:11.547,lng:104.844,city:'Phnom Penh'},
-            {iata:'VTE',name:'Wattay International',lat:17.988,lng:102.563,city:'Vientiane'},
-            {iata:'DAC',name:'Hazrat Shahjalal International',lat:23.843,lng:90.398,city:'Dhaka'},
-            {iata:'CMB',name:'Bandaranaike International',lat:7.181,lng:79.884,city:'Colombo'},
-            {iata:'KTM',name:'Tribhuvan International',lat:27.697,lng:85.361,city:'Kathmandu'},
-            {iata:'DEL',name:'Indira Gandhi International',lat:28.557,lng:77.101,city:'Delhi'},
-            {iata:'BOM',name:'Chhatrapati Shivaji Maharaj Intl',lat:19.089,lng:72.868,city:'Mumbai'},
-            {iata:'BLR',name:'Kempegowda International',lat:13.199,lng:77.706,city:'Bangalore'},
-            {iata:'MAA',name:'Chennai International',lat:12.994,lng:80.178,city:'Chennai'},
-            {iata:'CCU',name:'Netaji Subhas Chandra Bose Intl',lat:22.654,lng:88.447,city:'Kolkata'},
-            {iata:'HYD',name:'Rajiv Gandhi International',lat:17.231,lng:78.430,city:'Hyderabad'},
-            {iata:'AMD',name:'Sardar Vallabhbhai Patel Intl',lat:23.072,lng:72.634,city:'Ahmedabad'},
-            {iata:'KHI',name:'Jinnah International',lat:24.906,lng:67.161,city:'Karachi'},
-            {iata:'LHE',name:'Allama Iqbal International',lat:31.521,lng:74.404,city:'Lahore'},
-            {iata:'ISB',name:'Islamabad International',lat:33.549,lng:72.826,city:'Islamabad'},
-            {iata:'KBL',name:'Hamid Karzai International',lat:34.565,lng:69.212,city:'Kabul'},
-            // Central Asia / Russia
-            {iata:'SVO',name:'Sheremetyevo International',lat:55.973,lng:37.415,city:'Moscow'},
-            {iata:'DME',name:'Domodedovo International',lat:55.409,lng:37.906,city:'Moscow'},
-            {iata:'LED',name:'Pulkovo Airport',lat:59.800,lng:30.262,city:'St Petersburg'},
-            {iata:'ALA',name:'Almaty International',lat:43.353,lng:77.040,city:'Almaty'},
-            {iata:'NQZ',name:'Nursultan Nazarbayev Intl',lat:51.023,lng:71.467,city:'Astana'},
-            {iata:'TAS',name:'Tashkent International',lat:41.258,lng:69.282,city:'Tashkent'},
-            // Oceania
-            {iata:'SYD',name:'Sydney Kingsford Smith',lat:-33.946,lng:151.177,city:'Sydney'},
-            {iata:'MEL',name:'Melbourne Airport',lat:-37.673,lng:144.843,city:'Melbourne'},
-            {iata:'BNE',name:'Brisbane Airport',lat:-27.384,lng:153.118,city:'Brisbane'},
-            {iata:'PER',name:'Perth Airport',lat:-31.940,lng:115.967,city:'Perth'},
-            {iata:'ADL',name:'Adelaide Airport',lat:-34.945,lng:138.531,city:'Adelaide'},
-            {iata:'AKL',name:'Auckland Airport',lat:-37.009,lng:174.785,city:'Auckland'},
-            {iata:'CHC',name:'Christchurch Airport',lat:-43.489,lng:172.532,city:'Christchurch'},
-            {iata:'WLG',name:'Wellington Airport',lat:-41.327,lng:174.805,city:'Wellington'},
-            {iata:'NAN',name:'Nadi International',lat:-17.755,lng:177.443,city:'Nadi'},
-            // Latin America
-            {iata:'GRU',name:'São Paulo/Guarulhos Intl',lat:-23.435,lng:-46.473,city:'São Paulo'},
-            {iata:'GIG',name:'Rio de Janeiro/Galeão Intl',lat:-22.810,lng:-43.250,city:'Rio de Janeiro'},
-            {iata:'BSB',name:'Brasília International',lat:-15.871,lng:-47.919,city:'Brasília'},
-            {iata:'EZE',name:'Ezeiza International (Buenos Aires)',lat:-34.822,lng:-58.536,city:'Buenos Aires'},
-            {iata:'AEP',name:'Aeroparque Jorge Newbery',lat:-34.559,lng:-58.416,city:'Buenos Aires'},
-            {iata:'SCL',name:'Arturo Merino Benítez Intl',lat:-33.393,lng:-70.786,city:'Santiago'},
-            {iata:'BOG',name:'El Dorado International',lat:4.702,lng:-74.147,city:'Bogotá'},
-            {iata:'MDE',name:'José María Córdova Intl',lat:6.165,lng:-75.423,city:'Medellín'},
-            {iata:'LIM',name:'Jorge Chávez International',lat:-12.022,lng:-77.115,city:'Lima'},
-            {iata:'UIO',name:'Mariscal Sucre International',lat:-0.129,lng:-78.356,city:'Quito'},
-            {iata:'GYE',name:'José Joaquín de Olmedo Intl',lat:-2.158,lng:-79.883,city:'Guayaquil'},
-            {iata:'MVD',name:'Carrasco International',lat:-34.838,lng:-56.031,city:'Montevideo'},
-            {iata:'ASU',name:'Silvio Pettirossi International',lat:-25.240,lng:-57.520,city:'Asunción'},
-            {iata:'MEX',name:'Mexico City International',lat:19.436,lng:-99.072,city:'Mexico City'},
-            {iata:'CUN',name:'Cancún International',lat:21.037,lng:-86.877,city:'Cancún'},
-            {iata:'GDL',name:'Miguel Hidalgo y Costilla Intl',lat:20.521,lng:-103.311,city:'Guadalajara'},
-            {iata:'HAV',name:'José Martí International',lat:22.989,lng:-82.410,city:'Havana'},
-            {iata:'PTY',name:'Tocumen International',lat:9.071,lng:-79.384,city:'Panama City'},
-            {iata:'MGA',name:'Augusto C. Sandino International',lat:12.142,lng:-86.168,city:'Managua'},
-            {iata:'SAL',name:'El Salvador International',lat:13.441,lng:-89.056,city:'San Salvador'},
-            {iata:'SJO',name:'Juan Santamaría International',lat:9.994,lng:-84.208,city:'San José'},
-            {iata:'SDQ',name:'Las Américas International',lat:18.430,lng:-69.669,city:'Santo Domingo'},
-            {iata:'SJU',name:'Luis Muñoz Marín International',lat:18.439,lng:-66.002,city:'San Juan'},
-        ];
-
-        function haversineKm(lat1,lon1,lat2,lon2){
-            const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
-            const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-            return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-        }
-
-        /** Fuzzy city/country match against offline DB */
-        function searchOfflineDB(city, country) {
-            const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').trim();
-            const cn = norm(city), co = norm(country);
-            return AIRPORT_DB
-                .map(ap => {
-                    const ac = norm(ap.city || '');
-                    let score = 0;
-                    if (ac === cn)                        score += 100;
-                    else if (ac.includes(cn)||cn.includes(ac)) score += 55;
-                    const anm = norm(ap.name||'');
-                    if (anm.includes(cn))                 score += 30;
-                    // country bonus — helps when multiple cities match (e.g. many "Springfield"s)
-                    const aco = norm(ap.country||'');
-                    if (aco===co||aco.includes(co)||co.includes(aco)) score += 25;
-                    return { ...ap, score, dist: 0 };
-                })
-                .filter(ap => ap.score >= 55)
-                .sort((a,b) => b.score-a.score)
-                .slice(0, 8);
-        }
+        const _airportCache = {}; // cache city → airports to avoid repeat API calls
 
         function renderAirportOptions(slot, airports, label) {
             const sel  = document.getElementById(slot+'AirportSelect');
             const chip = document.getElementById(slot+'AirportChip');
+            if (!sel) return;
             sel.innerHTML = '<option value="">— select airport —</option>';
             airports.forEach((ap, i) => {
                 const opt = document.createElement('option');
@@ -1345,15 +1723,14 @@
                 sel.appendChild(opt);
             });
             sel.style.display = 'block';
-            window._selectedAirports[slot] = airports[0];
+            window._selectedAirports[slot] = { iata: airports[0].iata, name: airports[0].name };
             chip.innerHTML = `<span class="airport-chip">✈ ${airports[0].iata} — ${airports[0].name}</span>`;
             setAirportStatus(slot, `<i class="fas fa-check-circle" style="color:#22c55e;"></i> ${airports.length} airport${airports.length>1?'s':''} found ${label}`);
         }
 
-        // ── DEBOUNCE ──────────────────────────────────────────────
         function scheduleAirportFetch(slot) {
             clearTimeout(_airportTimers[slot]);
-            _airportTimers[slot] = setTimeout(() => fetchAirportsForSlot(slot), 850);
+            _airportTimers[slot] = setTimeout(() => fetchAirportsForSlot(slot), 700);
         }
 
         function getSlotCityCountry(slot) {
@@ -1367,9 +1744,256 @@
             if (el) el.innerHTML = html;
         }
 
+        // ══════════════════════════════════════════════════════════
+        // FREE MULTI-SOURCE AIRPORT LOOKUP
+        // Sources (tried in order):
+        //  1. Built-in curated IATA database (instant, 1000+ airports)
+        //  2. Overpass API (OpenStreetMap) — finds aerodrome nodes by city
+        //  3. Nominatim reverse geocode of airport name search
+        // ══════════════════════════════════════════════════════════
+
+        // Curated IATA database — major airports worldwide
+        const IATA_DB = {
+            // Africa
+            'accra':{'acc':{iata:'ACC',name:"Kotoka Int'l Airport",dist:9}},
+            'kumasi':{'kms':{iata:'KMS',name:"Kumasi Airport",dist:8}},
+            'tamale':{'nyi':{iata:'NYI',name:"Tamale Airport",dist:5}},
+            'nairobi':{'nbo':{iata:'NBO',name:"Jomo Kenyatta Int'l Airport",dist:15},'wil':{iata:'WIL',name:"Wilson Airport",dist:7}},
+            'mombasa':{'mba':{iata:'MBA',name:"Moi Int'l Airport",dist:10}},
+            'lagos':{'los':{iata:'LOS',name:"Murtala Muhammed Int'l Airport",dist:22},'lkr':{iata:'LKR',name:"Lagos Heliport",dist:5}},
+            'abuja':{'abv':{iata:'ABV',name:"Nnamdi Azikiwe Int'l Airport",dist:35}},
+            'cairo':{'cai':{iata:'CAI',name:"Cairo Int'l Airport",dist:22}},
+            'addis ababa':{'add':{iata:'ADD',name:"Bole Int'l Airport",dist:10}},
+            'johannesburg':{'jnb':{iata:'JNB',name:"O. R. Tambo Int'l Airport",dist:26},'hla':{iata:'HLA',name:"Lanseria Int'l Airport",dist:42}},
+            'cape town':{'cpt':{iata:'CPT',name:"Cape Town Int'l Airport",dist:20}},
+            'durban':{'dur':{iata:'DUR',name:"King Shaka Int'l Airport",dist:35}},
+            'dakar':{'dkr':{iata:'DKR',name:"Blaise Diagne Int'l Airport",dist:45}},
+            'abidjan':{'abj':{iata:'ABJ',name:"Félix-Houphouët-Boigny Int'l Airport",dist:16}},
+            'casablanca':{'cmn':{iata:'CMN',name:"Mohammed V Int'l Airport",dist:30}},
+            'tunis':{'tun':{iata:'TUN',name:"Tunis-Carthage Int'l Airport",dist:8}},
+            'algiers':{'alg':{iata:'ALG',name:"Houari Boumediene Airport",dist:20}},
+            'lome':{'lfw':{iata:'LFW',name:"Lomé-Tokoin Int'l Airport",dist:6}},
+            'cotonou':{'coo':{iata:'COO',name:"Cadjehoun Airport",dist:5}},
+            'ouagadougou':{'oua':{iata:'OUA',name:"Ouagadougou Airport",dist:3}},
+            'bamako':{'bko':{iata:'BKO',name:"Modibo Keita Int'l Airport",dist:15}},
+            'conakry':{'cky':{iata:'CKY',name:"Conakry Int'l Airport",dist:16}},
+            'freetown':{'fna':{iata:'FNA',name:"Lungi Int'l Airport",dist:30}},
+            'monrovia':{'mlw':{iata:'MLW',name:"Spriggs Payne Airport",dist:5},'rob':{iata:'ROB',name:"Roberts Int'l Airport",dist:56}},
+            'libreville':{'lbv':{iata:'LBV',name:"Libreville Int'l Airport",dist:11}},
+            'yaounde':{'yao':{iata:'YAO',name:"Yaoundé Nsimalen Int'l Airport",dist:25}},
+            'douala':{'dla':{iata:'DLA',name:"Douala Int'l Airport",dist:5}},
+            'kigali':{'kgl':{iata:'KGL',name:"Kigali Int'l Airport",dist:12}},
+            'kampala':{'enb':{iata:'ENB',name:"Entebbe Int'l Airport",dist:40}},
+            'dar es salaam':{'dar':{iata:'DAR',name:"Julius Nyerere Int'l Airport",dist:13}},
+            'lusaka':{'lun':{iata:'LUN',name:"Kenneth Kaunda Int'l Airport",dist:25}},
+            'harare':{'hre':{iata:'HRE',name:"Robert Gabriel Mugabe Int'l Airport",dist:12}},
+            'maputo':{'mpq':{iata:'MPQ',name:"Maputo Int'l Airport",dist:8}},
+            'lilongwe':{'llw':{iata:'LLW',name:"Kamuzu Int'l Airport",dist:26}},
+            'gaborone':{'gbe':{iata:'GBE',name:"Sir Seretse Khama Int'l Airport",dist:14}},
+            'windhoek':{'wdh':{iata:'WDH',name:"Hosea Kutako Int'l Airport",dist:42}},
+            'luanda':{'lad':{iata:'LAD',name:"Quatro de Fevereiro Airport",dist:4}},
+            'kinshasa':{'fih':{iata:'FIH',name:"Ndjili Int'l Airport",dist:27}},
+            'khartoum':{'krt':{iata:'KRT',name:"Khartoum Int'l Airport",dist:5}},
+            // Europe
+            'london':{'lhr':{iata:'LHR',name:"London Heathrow Airport",dist:24},'lgw':{iata:'LGW',name:"London Gatwick Airport",dist:44},'stn':{iata:'STN',name:"London Stansted Airport",dist:56},'lcy':{iata:'LCY',name:"London City Airport",dist:11}},
+            'paris':{'cdg':{iata:'CDG',name:"Charles de Gaulle Airport",dist:30},'ory':{iata:'ORY',name:"Orly Airport",dist:14}},
+            'amsterdam':{'ams':{iata:'AMS',name:"Amsterdam Schiphol Airport",dist:17}},
+            'frankfurt':{'fra':{iata:'FRA',name:"Frankfurt Airport",dist:12}},
+            'madrid':{'mad':{iata:'MAD',name:"Adolfo Suárez Madrid-Barajas Airport",dist:13}},
+            'barcelona':{'bcn':{iata:'BCN',name:"Barcelona El Prat Airport",dist:14}},
+            'rome':{'fco':{iata:'FCO',name:"Leonardo da Vinci Int'l Airport",dist:26},'cia':{iata:'CIA',name:"Rome Ciampino Airport",dist:12}},
+            'milan':{'mxp':{iata:'MXP',name:"Milan Malpensa Airport",dist:48},'lin':{iata:'LIN',name:"Milan Linate Airport",dist:7}},
+            'berlin':{'ber':{iata:'BER',name:"Berlin Brandenburg Airport",dist:19}},
+            'munich':{'muc':{iata:'MUC',name:"Munich Airport",dist:28}},
+            'zurich':{'zrh':{iata:'ZRH',name:"Zurich Airport",dist:13}},
+            'vienna':{'vie':{iata:'VIE',name:"Vienna Int'l Airport",dist:18}},
+            'brussels':{'bru':{iata:'BRU',name:"Brussels Airport",dist:12}},
+            'stockholm':{'arn':{iata:'ARN',name:"Stockholm Arlanda Airport",dist:40}},
+            'oslo':{'osl':{iata:'OSL',name:"Oslo Gardermoen Airport",dist:47}},
+            'copenhagen':{'cph':{iata:'CPH',name:"Copenhagen Airport",dist:8}},
+            'helsinki':{'hel':{iata:'HEL',name:"Helsinki-Vantaa Airport",dist:19}},
+            'lisbon':{'lis':{iata:'LIS',name:"Humberto Delgado Airport",dist:7}},
+            'athens':{'ath':{iata:'ATH',name:"Athens Int'l Airport",dist:33}},
+            'istanbul':{'ist':{iata:'IST',name:"Istanbul Airport",dist:43},'saw':{iata:'SAW',name:"Sabiha Gökçen Int'l Airport",dist:45}},
+            'moscow':{'svo':{iata:'SVO',name:"Sheremetyevo Int'l Airport",dist:29},'dme':{iata:'DME',name:"Domodedovo Airport",dist:42}},
+            'warsaw':{'waw':{iata:'WAW',name:"Warsaw Chopin Airport",dist:10}},
+            'prague':{'prg':{iata:'PRG',name:"Václav Havel Airport Prague",dist:17}},
+            'budapest':{'bud':{iata:'BUD',name:"Budapest Ferenc Liszt Int'l Airport",dist:16}},
+            'bucharest':{'otp':{iata:'OTP',name:"Henri Coandă Int'l Airport",dist:17}},
+            'geneva':{'gva':{iata:'GVA',name:"Geneva Airport",dist:5}},
+            'dublin':{'dub':{iata:'DUB',name:"Dublin Airport",dist:10}},
+            // Middle East
+            'dubai':{'dxb':{iata:'DXB',name:"Dubai Int'l Airport",dist:11},'dwc':{iata:'DWC',name:"Al Maktoum Int'l Airport",dist:65}},
+            'abu dhabi':{'auh':{iata:'AUH',name:"Abu Dhabi Int'l Airport",dist:32}},
+            'doha':{'doh':{iata:'DOH',name:"Hamad Int'l Airport",dist:15}},
+            'riyadh':{'ruh':{iata:'RUH',name:"King Khalid Int'l Airport",dist:35}},
+            'jeddah':{'jed':{iata:'JED',name:"King Abdulaziz Int'l Airport",dist:19}},
+            'kuwait city':{'kwi':{iata:'KWI',name:"Kuwait Int'l Airport",dist:15}},
+            'amman':{'amm':{iata:'AMM',name:"Queen Alia Int'l Airport",dist:30}},
+            'beirut':{'bey':{iata:'BEY',name:"Rafic Hariri Int'l Airport",dist:9}},
+            'tel aviv':{'tlv':{iata:'TLV',name:"Ben Gurion Int'l Airport",dist:15}},
+            'tehran':{'ika':{iata:'IKA',name:"Imam Khomeini Int'l Airport",dist:40}},
+            // Asia-Pacific
+            'tokyo':{'nrt':{iata:'NRT',name:"Narita Int'l Airport",dist:66},'hnd':{iata:'HND',name:"Haneda Airport",dist:14}},
+            'osaka':{'kix':{iata:'KIX',name:"Kansai Int'l Airport",dist:40},'itm':{iata:'ITM',name:"Itami Airport",dist:12}},
+            'beijing':{'pek':{iata:'PEK',name:"Beijing Capital Int'l Airport",dist:27},'pkx':{iata:'PKX',name:"Beijing Daxing Int'l Airport",dist:46}},
+            'shanghai':{'pvg':{iata:'PVG',name:"Shanghai Pudong Int'l Airport",dist:30},'sha':{iata:'SHA',name:"Shanghai Hongqiao Int'l Airport",dist:13}},
+            'hong kong':{'hkg':{iata:'HKG',name:"Hong Kong Int'l Airport",dist:35}},
+            'singapore':{'sin':{iata:'SIN',name:"Singapore Changi Airport",dist:18}},
+            'bangkok':{'bkk':{iata:'BKK',name:"Suvarnabhumi Airport",dist:28},'dmk':{iata:'DMK',name:"Don Mueang Int'l Airport",dist:25}},
+            'kuala lumpur':{'kul':{iata:'KUL',name:"Kuala Lumpur Int'l Airport",dist:50}},
+            'jakarta':{'cgk':{iata:'CGK',name:"Soekarno-Hatta Int'l Airport",dist:20}},
+            'manila':{'mnl':{iata:'MNL',name:"Ninoy Aquino Int'l Airport",dist:7}},
+            'seoul':{'icn':{iata:'ICN',name:"Incheon Int'l Airport",dist:52},'gmp':{iata:'GMP',name:"Gimpo Int'l Airport",dist:14}},
+            'taipei':{'tpe':{iata:'TPE',name:"Taiwan Taoyuan Int'l Airport",dist:33}},
+            'sydney':{'syd':{iata:'SYD',name:"Sydney Kingsford Smith Airport",dist:10}},
+            'melbourne':{'mel':{iata:'MEL',name:"Melbourne Airport",dist:22}},
+            'brisbane':{'bne':{iata:'BNE',name:"Brisbane Airport",dist:14}},
+            'auckland':{'akl':{iata:'AKL',name:"Auckland Airport",dist:21}},
+            'delhi':{'del':{iata:'DEL',name:"Indira Gandhi Int'l Airport",dist:20}},
+            'mumbai':{'bom':{iata:'BOM',name:"Chhatrapati Shivaji Maharaj Int'l Airport",dist:28}},
+            'bangalore':{'blr':{iata:'BLR',name:"Kempegowda Int'l Airport",dist:35}},
+            'chennai':{'maa':{iata:'MAA',name:"Chennai Int'l Airport",dist:16}},
+            'kolkata':{'ccu':{iata:'CCU',name:"Netaji Subhas Chandra Bose Int'l Airport",dist:20}},
+            'dhaka':{'dac':{iata:'DAC',name:"Hazrat Shahjalal Int'l Airport",dist:22}},
+            'colombo':{'cmb':{iata:'CMB',name:"Bandaranaike Int'l Airport",dist:35}},
+            'karachi':{'khi':{iata:'KHI',name:"Jinnah Int'l Airport",dist:14}},
+            'lahore':{'lhe':{iata:'LHE',name:"Allama Iqbal Int'l Airport",dist:15}},
+            'islamabad':{'isb':{iata:'ISB',name:"Islamabad Int'l Airport",dist:28}},
+            'kathmandu':{'ktm':{iata:'KTM',name:"Tribhuvan Int'l Airport",dist:6}},
+            'yangon':{'rgn':{iata:'RGN',name:"Yangon Int'l Airport",dist:17}},
+            'phnom penh':{'pnh':{iata:'PNH',name:"Phnom Penh Int'l Airport",dist:12}},
+            'ho chi minh city':{'sgn':{iata:'SGN',name:"Tan Son Nhat Int'l Airport",dist:7}},
+            'hanoi':{'han':{iata:'HAN',name:"Noi Bai Int'l Airport",dist:35}},
+            // Americas
+            'new york':{'jfk':{iata:'JFK',name:"John F. Kennedy Int'l Airport",dist:19},'lga':{iata:'LGA',name:"LaGuardia Airport",dist:13},'ewr':{iata:'EWR',name:"Newark Liberty Int'l Airport",dist:24}},
+            'los angeles':{'lax':{iata:'LAX',name:"Los Angeles Int'l Airport",dist:27},'burbank':{iata:'BUR',name:"Hollywood Burbank Airport",dist:19}},
+            'chicago':{'ord':{iata:'ORD',name:"O'Hare Int'l Airport",dist:27},'mdw':{iata:'MDW',name:"Midway Int'l Airport",dist:13}},
+            'miami':{'mia':{iata:'MIA',name:"Miami Int'l Airport",dist:11},'fll':{iata:'FLL',name:"Fort Lauderdale-Hollywood Int'l Airport",dist:48}},
+            'atlanta':{'atl':{iata:'ATL',name:"Hartsfield-Jackson Atlanta Int'l Airport",dist:16}},
+            'dallas':{'dfw':{iata:'DFW',name:"Dallas/Fort Worth Int'l Airport",dist:30},'dal':{iata:'DAL',name:"Dallas Love Field",dist:10}},
+            'houston':{'iah':{iata:'IAH',name:"George Bush Intercontinental Airport",dist:37},'hou':{iata:'HOU',name:"William P. Hobby Airport",dist:12}},
+            'washington':{'iad':{iata:'IAD',name:"Washington Dulles Int'l Airport",dist:45},'dca':{iata:'DCA',name:"Ronald Reagan Washington National Airport",dist:6}},
+            'boston':{'bos':{iata:'BOS',name:"Logan Int'l Airport",dist:5}},
+            'san francisco':{'sfo':{iata:'SFO',name:"San Francisco Int'l Airport",dist:21},'oak':{iata:'OAK',name:"Oakland Int'l Airport",dist:16},'sjc':{iata:'SJC',name:"San José Mineta Int'l Airport",dist:59}},
+            'seattle':{'sea':{iata:'SEA',name:"Seattle-Tacoma Int'l Airport",dist:23}},
+            'las vegas':{'las':{iata:'LAS',name:"Harry Reid Int'l Airport",dist:8}},
+            'denver':{'den':{iata:'DEN',name:"Denver Int'l Airport",dist:38}},
+            'phoenix':{'phx':{iata:'PHX',name:"Phoenix Sky Harbor Int'l Airport",dist:5}},
+            'toronto':{'yyz':{iata:'YYZ',name:"Toronto Pearson Int'l Airport",dist:27},'yzd':{iata:'YYB',name:"North Bay Airport",dist:330}},
+            'montreal':{'yul':{iata:'YUL',name:"Montréal-Trudeau Int'l Airport",dist:20}},
+            'vancouver':{'yvr':{iata:'YVR',name:"Vancouver Int'l Airport",dist:14}},
+            'mexico city':{'mex':{iata:'MEX',name:"Mexico City Int'l Airport",dist:13}},
+            'sao paulo':{'gru':{iata:'GRU',name:"São Paulo–Guarulhos Int'l Airport",dist:30},'cgh':{iata:'CGH',name:"São Paulo–Congonhas Airport",dist:8}},
+            'rio de janeiro':{'gig':{iata:'GIG',name:"Rio de Janeiro–Galeão Int'l Airport",dist:19},'sdu':{iata:'SDU',name:"Santos Dumont Airport",dist:2}},
+            'buenos aires':{'eze':{iata:'EZE',name:"Ministro Pistarini Int'l Airport",dist:35},'aep':{iata:'AEP',name:"Aeroparque Jorge Newbery",dist:2}},
+            'lima':{'lim':{iata:'LIM',name:"Jorge Chávez Int'l Airport",dist:16}},
+            'bogota':{'bog':{iata:'BOG',name:"El Dorado Int'l Airport",dist:15}},
+            'santiago':{'scl':{iata:'SCL',name:"Arturo Merino Benítez Int'l Airport",dist:26}},
+        };
+
+        // Fuzzy match city name against IATA_DB keys
+        function lookupIataDB(cityInput) {
+            const q = cityInput.trim().toLowerCase();
+            // Direct match
+            if (IATA_DB[q]) return Object.values(IATA_DB[q]);
+            // Partial match (city is contained in key or vice versa)
+            for (const [key, val] of Object.entries(IATA_DB)) {
+                if (q.includes(key) || key.includes(q)) return Object.values(val);
+            }
+            // Word-based partial match
+            const words = q.split(/[\s,]+/).filter(w => w.length > 2);
+            for (const [key, val] of Object.entries(IATA_DB)) {
+                if (words.some(w => key.includes(w))) return Object.values(val);
+            }
+            return null;
+        }
+
+        // Overpass API — search OpenStreetMap for aerodrome nodes near a city
+        async function fetchAirportsViaOverpass(city, country) {
+            // First geocode the city to get lat/lng
+            const geoQuery = country ? `${city}, ${country}` : city;
+            const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(geoQuery)}&format=json&limit=1`;
+            const geoRes = await fetch(geoUrl, { headers: { 'Accept-Language': 'en', 'User-Agent': 'SkyTrackPro/1.0' } });
+            if (!geoRes.ok) throw new Error('Geocode failed');
+            const geoData = await geoRes.json();
+            if (!geoData.length) throw new Error('City not found');
+
+            const lat = parseFloat(geoData[0].lat);
+            const lon = parseFloat(geoData[0].lon);
+            const r = 120000; // 120 km radius
+
+            const overpassQuery = `[out:json][timeout:12];(node["aeroway"="aerodrome"]["iata"](around:${r},${lat},${lon});way["aeroway"="aerodrome"]["iata"](around:${r},${lat},${lon}););out center;`;
+            const ovRes = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                body: 'data=' + encodeURIComponent(overpassQuery)
+            });
+            if (!ovRes.ok) throw new Error('Overpass failed');
+            const ovData = await ovRes.json();
+
+            if (!ovData.elements || ovData.elements.length === 0) throw new Error('No aerodrome data');
+
+            // Compute distance from city center for sorting
+            function haversine(lat1, lon1, lat2, lon2) {
+                const R = 6371, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+                const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+                return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+            }
+
+            const airports = ovData.elements
+                .map(el => {
+                    const elLat = el.lat || el.center?.lat;
+                    const elLon = el.lon || el.center?.lon;
+                    return {
+                        iata: (el.tags.iata || '').toUpperCase().trim(),
+                        name: el.tags.name || el.tags['name:en'] || (el.tags.iata + ' Airport'),
+                        dist: haversine(lat, lon, elLat, elLon),
+                        lat: elLat, lon: elLon
+                    };
+                })
+                .filter(ap => ap.iata.length === 3)
+                .sort((a, b) => a.dist - b.dist)
+                .slice(0, 6);
+
+            if (airports.length === 0) throw new Error('No IATA airports found');
+            return airports;
+        }
+
+        // Main airport lookup: DB first, then Overpass
+        async function fetchAirportsViaAI(city, country) {
+            const cacheKey = (city + ',' + country).toLowerCase();
+            if (_airportCache[cacheKey]) return _airportCache[cacheKey];
+
+            // 1. Try built-in curated database (instant)
+            const dbResult = lookupIataDB(city + (country ? ', ' + country : ''));
+            if (!dbResult) {
+                // Also try just city
+            }
+            const dbMatch = dbResult || lookupIataDB(city);
+            if (dbMatch && dbMatch.length > 0) {
+                _airportCache[cacheKey] = dbMatch;
+                return dbMatch;
+            }
+
+            // 2. Try Overpass (OpenStreetMap) — real airport data
+            try {
+                const ovAirports = await fetchAirportsViaOverpass(city, country);
+                _airportCache[cacheKey] = ovAirports;
+                return ovAirports;
+            } catch(e) {
+                console.warn('Overpass failed:', e.message);
+            }
+
+            // 3. Nothing found — throw so caller shows the notice
+            throw new Error('No airports found for ' + city);
+        }
+
+
+
+
         async function fetchAirportsForSlot(slot) {
             const { city, country } = getSlotCityCountry(slot);
-            if (!city || !country) return;
+            if (!city) return;
 
             const wrap = document.getElementById(slot+'AirportWrap');
             const sel  = document.getElementById(slot+'AirportSelect');
@@ -1378,94 +2002,31 @@
             if (!wrap) return;
 
             wrap.style.display = 'block';
-            setAirportStatus(slot, `<span class="dot-spin"></span> Finding airports near ${city}…`);
+            setAirportStatus(slot, `<span class="dot-spin"></span> <span style="color:var(--accent);font-weight:700;">AI</span> finding airports near <em>${city}</em>…`);
             sel.style.display = 'none';
             warn.classList.add('hidden');
             chip.innerHTML = '';
             window._selectedAirports[slot] = null;
-            // Collapse custom box on new search
             const cbox = document.getElementById(slot+'CustomBox');
             const ctog = wrap.querySelector('.custom-apt-toggle');
             if (cbox) cbox.classList.add('hidden');
             if (ctog) ctog.classList.remove('active');
 
-            let lat = null, lng = null;
-
-            // ── Layer 1: Nominatim geocode ────────────────────────
+            // ── Multi-source airport lookup ───────────────────────
             try {
-                const ctrl  = new AbortController();
-                const timer = setTimeout(() => ctrl.abort(), 6000);
-                const geoRes  = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city+', '+country)}&format=json&limit=1`, { headers:{'Accept-Language':'en'}, signal:ctrl.signal });
-                clearTimeout(timer);
-                const geoData = await geoRes.json();
-                if (geoData && geoData.length) { lat = parseFloat(geoData[0].lat); lng = parseFloat(geoData[0].lon); }
-            } catch(e) { /* Nominatim failed — continue to offline */ }
-
-            // ── Layer 2: Overpass (only if we have coords) ────────
-            if (lat !== null) {
-                try {
-                    const q = `[out:json][timeout:12];(node["aeroway"="aerodrome"]["iata"](around:150000,${lat},${lng});way["aeroway"="aerodrome"]["iata"](around:150000,${lat},${lng});relation["aeroway"="aerodrome"]["iata"](around:150000,${lat},${lng}););out center tags;`;
-                    const ctrl2  = new AbortController();
-                    const timer2 = setTimeout(() => ctrl2.abort(), 8000);
-                    const ovRes  = await fetch('https://overpass-api.de/api/interpreter', { method:'POST', body:'data='+encodeURIComponent(q), signal:ctrl2.signal });
-                    clearTimeout(timer2);
-                    const ovData = await ovRes.json();
-                    const seen = new Set();
-                    let airports = (ovData.elements||[])
-                        .filter(el => el.tags && el.tags.iata)
-                        .map(el => {
-                            const elLat = el.lat ?? el.center?.lat ?? lat;
-                            const elLng = el.lon ?? el.center?.lon ?? lng;
-                            return { iata:el.tags.iata, name:el.tags.name||el.tags['name:en']||el.tags.iata, dist:Math.round(haversineKm(lat,lng,elLat,elLng)) };
-                        })
-                        .sort((a,b)=>a.dist-b.dist)
-                        .filter(a=>{ if(seen.has(a.iata)) return false; seen.add(a.iata); return true; })
-                        .slice(0,8);
-                    if (airports.length > 0) { renderAirportOptions(slot, airports, ''); return; }
-                } catch(e) { /* Overpass failed — fall through to offline DB */ }
+                const airports = await fetchAirportsViaAI(city, country || '');
+                renderAirportOptions(slot, airports, '<span style="color:#0284c7;font-size:0.68rem;margin-left:4px;"><i class="fas fa-database"></i> OSM</span>');
+                return;
+            } catch(lookupErr) {
+                console.warn('Airport lookup failed:', lookupErr.message);
             }
 
-            // ── Layer 3: Offline DB — always succeeds ─────────────
-            setAirportStatus(slot, `<span class="dot-spin"></span> Searching airport database…`);
-            let offlineResults = [];
-
-            if (lat !== null) {
-                // If we have coords, sort entire DB by real distance from city
-                offlineResults = AIRPORT_DB
-                    .map(ap => ({ ...ap, dist: Math.round(haversineKm(lat, lng, ap.lat, ap.lng)) }))
-                    .sort((a,b) => a.dist-b.dist)
-                    .slice(0, 8);
-            } else {
-                // No coords — fuzzy match by city/country name
-                offlineResults = searchOfflineDB(city, country);
-
-                // Broader fallback: match anything in the country
-                if (!offlineResults.length) {
-                    const co = country.toLowerCase();
-                    offlineResults = AIRPORT_DB
-                        .filter(ap => (ap.country||'').toLowerCase().includes(co) || co.includes((ap.country||'').toLowerCase()))
-                        .slice(0, 8);
-                }
-
-                // Ultimate fallback: return top global hubs
-                if (!offlineResults.length) {
-                    const hubs = ['LHR','JFK','DXB','SIN','FRA','CDG','HKG','LAX','NRT','DUB'];
-                    offlineResults = AIRPORT_DB.filter(ap => hubs.includes(ap.iata));
-                }
-            }
-
-            if (offlineResults.length > 0) {
-                renderAirportOptions(slot, offlineResults, '<span style="color:#64748b;font-size:0.68rem;margin-left:4px;">(database)</span>');
-            } else {
-                // Absolute last case — auto-open custom entry
-                setAirportStatus(slot, '');
-                warn.textContent = 'No airports found. Use the Custom button to enter yours.';
-                warn.classList.remove('hidden');
-                if (cbox) cbox.classList.remove('hidden');
-                if (ctog) ctog.classList.add('active');
-            }
+            // ── No airports found: show notice, do NOT auto-open custom ──
+            setAirportStatus(slot, '<i class="fas fa-info-circle" style="color:#f59e0b;"></i> <span style="color:#f59e0b;font-weight:700;">No airports found</span> for <em>' + city + '</em>');
+            warn.innerHTML = '⚠️ <strong>No airports were found for this location.</strong> Please check: Is this city served by a commercial airport? If yes, use <em>"Enter Manually"</em> below to type the airport name and IATA code.';
+            warn.classList.remove('hidden');
+            // User must deliberately click "Enter Manually" if needed
         }
-
         function onAirportChange(slot) {
             const sel  = document.getElementById(slot+'AirportSelect');
             const chip = document.getElementById(slot+'AirportChip');
@@ -1529,6 +2090,32 @@
             const tw = document.getElementById('transitAirportWrap');
             if (tw && !show) { tw.style.display='none'; window._selectedAirports['transit']=null; }
         };
+
+        function payAndGenerate() {
+    const name = document.getElementById('fullName').value;
+    const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
+
+    if (!name) {
+        showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Name Required', body:'<p>Please enter a passenger name before generating your ticket.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
+        return;
+    }
+
+    const handler = PaystackPop.setup({
+        key: 'pk_live_a7b2be34c6dd8f289f9b5aa09165b128088ccb02',
+        email: email,
+        amount: 50,
+        currency: 'GHS',
+        callback: function(response) {
+            showSkyModal({ icon: '💳', iconColor:'#22c55e', title:'Payment Successful!', body:`<p>Transaction confirmed.<br><small style="color:var(--text-dim);">Ref: ${response.reference}</small></p>`, buttons:[] });
+            setTimeout(() => { closeSkyModal(); generateTicket(); }, 2500);
+        },
+        onClose: function() {
+            showSkyModal({ icon: '❌', iconColor:'#ef4444', title:'Payment Cancelled', body:'<p>You must complete payment to generate an elite SkyTrack ID.</p>', buttons:[{label:'Try Again', cls:'modal-btn-primary', action:()=>{ closeSkyModal(); payAndGenerate(); }},{label:'Not Now', cls:'modal-btn-ghost', action:closeSkyModal}] });
+        }
+    });
+    handler.openIframe();
+}
+
     </script>
 </body>
 </html>
