@@ -726,15 +726,14 @@
                     </div>` : ''}
                 `;
 
-                // Inject airline logo
+                // Inject airline logo — real photo first, SVG fallback on error
                 if (savedData?.airline) {
                     const logoEl = document.createElement('div');
                     logoEl.style.cssText = 'text-align:right; margin-bottom:10px;';
                     const img = document.createElement('img');
-                    img.src = getTrackLogoUrl(savedData.airline);
                     img.alt = savedData.airline;
-                    img.style.cssText = 'height:38px; max-width:130px; object-fit:contain;';
-                    img.onerror = () => { logoEl.style.display = 'none'; };
+                    img.style.cssText = 'height:38px; max-width:140px; object-fit:contain;';
+                    applyLogoToImg(img, savedData.airline);
                     logoEl.appendChild(img);
                     ticketCard.insertBefore(logoEl, ticketCard.firstChild);
                 }
@@ -1009,7 +1008,7 @@
 
                 if (now < takeoff) {
                     progress    = 0;
-                    statusText  = "BOARDING";
+                    statusText  = "BOARDING / TAXI";
                     statusColor = "#f59e0b";
                 } else if (hasTransit && now >= transitArr && now < transitDep) {
                     const legProgress = (transitArr - takeoff) / totalDuration;
@@ -1050,23 +1049,11 @@
             const loadingEl = document.getElementById('mapLoading');
             const errorEl   = document.getElementById('mapError');
 
-            // Prefer airport name for geocoding — gives precise airport coordinates
-            // Fall back to city+country if airport name not available
-            function buildGeoQuery(airportName, airportCode, city, country) {
-                if (airportName && airportName.trim()) {
-                    // Use airport name directly for best precision
-                    return airportName.trim();
-                }
-                if (airportCode && airportCode.trim()) {
-                    return airportCode.trim() + ' airport';
-                }
-                return [city, country].filter(Boolean).join(', ');
-            }
-
-            const fromQuery    = buildGeoQuery(savedData.fromAirportName, savedData.fromAirportCode, savedData.fromCity, savedData.fromCountry) || savedData.from;
-            const toQuery      = buildGeoQuery(savedData.toAirportName,   savedData.toAirportCode,   savedData.toCity,   savedData.toCountry)   || savedData.to;
+            // Use the properly-cased city+country fields for accurate geocoding
+            const fromQuery    = [savedData.fromCity, savedData.fromCountry].filter(Boolean).join(', ') || savedData.from;
+            const toQuery      = [savedData.toCity, savedData.toCountry].filter(Boolean).join(', ') || savedData.to;
             const transitQuery = savedData.hasTransit
-                ? (buildGeoQuery(savedData.transitAirportName, savedData.transitAirportCode, savedData.transitCity, savedData.transitCountry) || savedData.transit)
+                ? ([savedData.transitCity, savedData.transitCountry].filter(Boolean).join(', ') || savedData.transit)
                 : null;
 
             let origin, dest, transitPt = null;
@@ -1159,58 +1146,7 @@
 
         // ─── GEOCODING — multi-source with retries ───────────────
         // Inline city fallback so map always has coords even when APIs are down
-        // Airport names are included for precise placement when airport name is used as query
         const GEO_FALLBACK = {
-            // ── Airports by name (precise runway coords) ──
-            "kotoka int'l airport":{'lat':5.6052,'lng':-0.1668},
-            "kotoka international airport":{'lat':5.6052,'lng':-0.1668},
-            'acc airport':{'lat':5.6052,'lng':-0.1668},
-            'kumasi airport':{'lat':6.7146,'lng':-1.5908},
-            'tamale airport':{'lat':9.5572,'lng':-0.8632},
-            'heathrow airport':{'lat':51.4700,'lng':-0.4543},
-            'london heathrow airport':{'lat':51.4700,'lng':-0.4543},
-            'london gatwick airport':{'lat':51.1537,'lng':-0.1821},
-            'charles de gaulle airport':{'lat':49.0097,'lng':2.5479},
-            'amsterdam schiphol airport':{'lat':52.3105,'lng':4.7683},
-            'frankfurt airport':{'lat':50.0379,'lng':8.5622},
-            'jomo kenyatta int\'l airport':{'lat':-1.3192,'lng':36.9275},
-            'murtala muhammed int\'l airport':{'lat':6.5774,'lng':3.3212},
-            'bole int\'l airport':{'lat':8.9779,'lng':38.7993},
-            'o. r. tambo int\'l airport':{'lat':-26.1367,'lng':28.2411},
-            'cairo int\'l airport':{'lat':30.1219,'lng':31.4056},
-            'blaise diagne int\'l airport':{'lat':14.6700,'lng':-17.0700},
-            "félix-houphouët-boigny int'l airport":{'lat':5.2613,'lng':-3.9263},
-            'hamad int\'l airport':{'lat':25.2609,'lng':51.6138},
-            'dubai int\'l airport':{'lat':25.2532,'lng':55.3657},
-            'incheon int\'l airport':{'lat':37.4602,'lng':126.4407},
-            'singapore changi airport':{'lat':1.3644,'lng':103.9915},
-            'narita int\'l airport':{'lat':35.7647,'lng':140.3864},
-            'haneda airport':{'lat':35.5493,'lng':139.7798},
-            'beijing capital int\'l airport':{'lat':40.0799,'lng':116.6031},
-            'john f. kennedy int\'l airport':{'lat':40.6413,'lng':-73.7781},
-            'laguardia airport':{'lat':40.7769,'lng':-73.8740},
-            'los angeles int\'l airport':{'lat':33.9425,'lng':-118.4081},
-            "o'hare int'l airport":{'lat':41.9742,'lng':-87.9073},
-            'hartsfield-jackson atlanta int\'l airport':{'lat':33.6407,'lng':-84.4277},
-            'toronto pearson int\'l airport':{'lat':43.6777,'lng':-79.6248},
-            'sydney kingsford smith airport':{'lat':-33.9461,'lng':151.1772},
-            'dubai international airport':{'lat':25.2532,'lng':55.3657},
-            'indira gandhi int\'l airport':{'lat':28.5562,'lng':77.1000},
-            'chhatrapati shivaji maharaj int\'l airport':{'lat':19.0896,'lng':72.8656},
-            'soekarno-hatta int\'l airport':{'lat':-6.1275,'lng':106.6537},
-            'el dorado int\'l airport':{'lat':4.7016,'lng':-74.1469},
-            'suvarnabhumi airport':{'lat':13.6811,'lng':100.7474},
-            'kuala lumpur int\'l airport':{'lat':2.7456,'lng':101.7099},
-            'ninoy aquino int\'l airport':{'lat':14.5086,'lng':121.0194},
-            'kigali int\'l airport':{'lat':-1.9686,'lng':30.1395},
-            'entebbe int\'l airport':{'lat':0.0424,'lng':32.4433},
-            'julius nyerere int\'l airport':{'lat':-6.8781,'lng':39.2026},
-            'ndjili int\'l airport':{'lat':-4.3857,'lng':15.4446},
-            'lomé-tokoin int\'l airport':{'lat':6.1656,'lng':1.2545},
-            'ouagadougou airport':{'lat':12.3532,'lng':-1.5124},
-            'bamako senou int\'l airport':{'lat':12.5335,'lng':-7.9499},
-            'conakry int\'l airport':{'lat':9.5769,'lng':-13.6121},
-            // ── Cities ──
             'accra':{'lat':5.5600,'lng':-0.2057},'kumasi':{'lat':6.6885,'lng':-1.6244},
             'london':{'lat':51.5074,'lng':-0.1278},'paris':{'lat':48.8566,'lng':2.3522},
             'new york':{'lat':40.7128,'lng':-74.0060},'los angeles':{'lat':34.0522,'lng':-118.2437},
@@ -1269,18 +1205,11 @@
         };
 
         function fallbackGeocode(cityName) {
-            const key = cityName.trim().toLowerCase();
-            // Direct match (works for both city and airport names)
+            const key = cityName.trim().toLowerCase().split(',')[0].trim();
             if (GEO_FALLBACK[key]) return GEO_FALLBACK[key];
-            // Normalise apostrophes and try again
-            const keyNorm = key.replace(/[''`]/g, "'");
-            if (GEO_FALLBACK[keyNorm]) return GEO_FALLBACK[keyNorm];
-            // City-only fallback (strip after comma)
-            const cityKey = key.split(',')[0].trim();
-            if (GEO_FALLBACK[cityKey]) return GEO_FALLBACK[cityKey];
-            // Partial match
+            // Try partial match
             for (const [k, v] of Object.entries(GEO_FALLBACK)) {
-                if (key.includes(k) || k.includes(cityKey)) return v;
+                if (key.includes(k) || k.includes(key)) return v;
             }
             return null;
         }
@@ -1305,33 +1234,12 @@
             // First try fallback DB (instant, no network)
             const fbResult = fallbackGeocode(cityName);
 
-            // If query looks like an airport name, search specifically as aerodrome
-            const isAirportQuery = /airport|int'l|international|aerodrome|field/i.test(cityName);
-
-            // Primary: Nominatim — try airport-specific search first if applicable
+            // Primary: Nominatim with city search
             const cityOnly = cityName.split(',')[0].trim();
+            const url1 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityOnly)}&format=json&limit=1&featureType=city`;
+            const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1`;
 
-            let result = null;
-
-            if (isAirportQuery) {
-                // Search as a place (aerodrome) for precise airport coordinates
-                const aptUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1&featureType=settlement`;
-                result = await geocodeWithRetry(aptUrl, 1);
-                if (!result) {
-                    // Try without featureType for airports
-                    const aptUrl2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityOnly)}&format=json&limit=3`;
-                    const res2 = await geocodeWithRetry(aptUrl2, 1);
-                    // For airports, return first result (usually the aerodrome node)
-                    result = res2;
-                }
-            }
-
-            if (!result) {
-                const url1 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityOnly)}&format=json&limit=1&featureType=city`;
-                const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1`;
-                result = await geocodeWithRetry(url1, 2) || await geocodeWithRetry(url2, 2);
-            }
-
+            const result = await geocodeWithRetry(url1, 2) || await geocodeWithRetry(url2, 2);
             if (result) return result;
 
             // Fallback: photon geocoder (European, different server)
@@ -1451,58 +1359,217 @@
         // ─── KICK OFF ─────────────────────────────────────────────
         loadFlightData();
 
-        // ─── AIRLINE LOGO SYSTEM ─────────────────────────────────
-        const TRACK_LOGO_MAP = {
-            'american airlines':  'https://logo.clearbit.com/aa.com',
-            'delta air lines':    'https://logo.clearbit.com/delta.com',
-            'united airlines':    'https://logo.clearbit.com/united.com',
-            'southwest airlines': 'https://logo.clearbit.com/southwest.com',
-            'spirit airlines':    'https://logo.clearbit.com/spirit.com',
-            'jetblue airways':    'https://logo.clearbit.com/jetblue.com',
-            'frontier airlines':  'https://logo.clearbit.com/flyfrontier.com',
-            'alaska airlines':    'https://logo.clearbit.com/alaskaair.com',
-            'emirates':           'https://logo.clearbit.com/emirates.com',
-            'qatar airways':      'https://logo.clearbit.com/qatarairways.com',
-            'lufthansa':          'https://logo.clearbit.com/lufthansa.com',
-            'british airways':    'https://logo.clearbit.com/britishairways.com',
-            'air france':         'https://logo.clearbit.com/airfrance.com',
-            'klm':                'https://logo.clearbit.com/klm.com',
-            'turkish airlines':   'https://logo.clearbit.com/turkishairlines.com',
-            'singapore airlines': 'https://logo.clearbit.com/singaporeair.com',
-            'etihad airways':     'https://logo.clearbit.com/etihad.com',
-            'air canada':         'https://logo.clearbit.com/aircanada.com',
-            'ryanair':            'https://logo.clearbit.com/ryanair.com',
-            'easyjet':            'https://logo.clearbit.com/easyjet.com',
-            'iberia':             'https://logo.clearbit.com/iberia.com',
-            'vueling':            'https://logo.clearbit.com/vueling.com',
-            'cathay pacific':     'https://logo.clearbit.com/cathaypacific.com',
-            'japan airlines':     'https://logo.clearbit.com/jal.com',
-            'ana':                'https://logo.clearbit.com/ana.co.jp',
-            'korean air':         'https://logo.clearbit.com/koreanair.com',
-            'ethiopian airlines': 'https://logo.clearbit.com/ethiopianairlines.com',
-            'kenya airways':      'https://logo.clearbit.com/kenya-airways.com',
-            'rwandair':           'https://logo.clearbit.com/rwandair.com',
-            'arik air':           'https://logo.clearbit.com/arikair.com',
-            'air arabia':         'https://logo.clearbit.com/airarabia.com',
-            'flydubai':           'https://logo.clearbit.com/flydubai.com',
-            'africa world airlines': 'https://logo.clearbit.com/africaworldairlines.com',
+        // ═══════════════════════════════════════════════════════════════════
+        // ── AIRLINE LOGO SYSTEM ─────────────────────────────────────────────
+        // Each entry: { url: '<real photo URL>', svg: '<inline SVG fallback>' }
+        // Logic: Try real URL first → if it fails (blocked/404/CORS) the
+        //        onerror handler instantly swaps to the inline SVG data URI.
+        //        SVG fallbacks are embedded so they NEVER require a network hit.
+        // ═══════════════════════════════════════════════════════════════════
+        const AIRLINE_LOGOS = {
+            'american airlines': {
+                url: 'https://bootflare.com/wp-content/uploads/2023/03/American-Airlines-Logo2-1536x966.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 70'><rect width='260' height='70' rx='8' fill='%23001489'/><text x='130' y='28' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='%23C8102E' text-anchor='middle' letter-spacing='1'>AMERICAN</text><text x='130' y='52' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='white' text-anchor='middle' letter-spacing='1'>AIRLINES</text></svg>`
+            },
+            'delta air lines': {
+                url: 'https://tse1.mm.bing.net/th/id/OIP.0tWvpic_drnLEDLtFMVfBwHaEK?rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23003366'/><polygon points='10,54 34,10 58,54' fill='%23E01933'/><text x='128' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='24' fill='white' text-anchor='middle'>delta</text></svg>`
+            },
+            'united airlines': {
+                url: 'https://logodix.com/logo/1145688.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%230033A0'/><text x='100' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='20' fill='white' text-anchor='middle'>UNITED</text></svg>`
+            },
+            'southwest airlines': {
+                url: 'https://logo.clearbit.com/southwest.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 65'><rect width='240' height='65' rx='8' fill='%23304CB2'/><text x='120' y='28' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='%23FFBF27' text-anchor='middle'>SOUTHWEST</text><text x='120' y='52' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='%23E31837' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'spirit airlines': {
+                url: 'https://logos-world.net/wp-content/uploads/2023/01/Spirit-Airlines-Logo-2007.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23FFD700'/><text x='100' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='%23231F20' text-anchor='middle'>SPIRIT</text></svg>`
+            },
+            'jetblue airways': {
+                url: 'https://th.bing.com/th/id/R.96d53f1a468dcb027a2cbc4e03ffb793?rik=PIRtayvR04V96w&pid=ImgRaw&r=0',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%230033A0'/><text x='100' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='white' text-anchor='middle'>jetBlue</text></svg>`
+            },
+            'frontier airlines': {
+                url: 'https://tse4.mm.bing.net/th/id/OIP.EI0tu4QuAQ4IoN25TsbIygHaEK?rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 60'><rect width='210' height='60' rx='6' fill='%2300843D'/><text x='105' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='17' fill='white' text-anchor='middle'>FRONTIER</text></svg>`
+            },
+            'alaska airlines': {
+                url: 'https://th.bing.com/th/id/R.2f5befb4c9d9e8de560c5ccb614f8a3d?rik=pcdPHjm8EpzzBA&pid=ImgRaw&r=0',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%230F2356'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='%2300A3E0' text-anchor='middle'>ALASKA</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'emirates': {
+                url: 'https://tse4.mm.bing.net/th/id/OIP.Y309OpAxYo4NSPp0TUf0bQHaEK?rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23D71921'/><text x='100' y='42' font-family='Georgia,serif' font-size='26' fill='%23C5A028' text-anchor='middle' font-style='italic'>Emirates</text></svg>`
+            },
+            'qatar airways': {
+                url: 'https://logos-world.net/wp-content/uploads/2020/03/Qatar-Airways-Emblem.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%236C1D45'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='%23C5A028' text-anchor='middle'>QATAR</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'lufthansa': {
+                url: 'https://logo.clearbit.com/lufthansa.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'><rect width='220' height='60' rx='6' fill='%230066CC'/><circle cx='32' cy='30' r='20' fill='%23FFCC00'/><text x='130' y='39' font-family='Arial Black,Arial' font-weight='900' font-size='18' fill='white' text-anchor='middle'>LUFTHANSA</text></svg>`
+            },
+            'british airways': {
+                url: 'https://tse2.mm.bing.net/th/id/OIP.x5CeO0eoNM7ADUHJdVg_ywHaEK?rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%230B2559'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>BRITISH</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='%23EB2226' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'air france': {
+                url: 'https://logo.clearbit.com/airfrance.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23002157'/><text x='100' y='26' font-family='Arial,sans-serif' font-weight='700' font-size='13' fill='white' text-anchor='middle'>AIR</text><text x='100' y='48' font-family='Arial,sans-serif' font-weight='700' font-size='20' fill='%23D2001A' text-anchor='middle'>FRANCE</text></svg>`
+            },
+            'klm': {
+                url: 'https://logo.clearbit.com/klm.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60'><rect width='160' height='60' rx='6' fill='%2300A1DE'/><text x='80' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='28' fill='white' text-anchor='middle'>KLM</text></svg>`
+            },
+            'turkish airlines': {
+                url: 'https://logos-world.net/wp-content/uploads/2020/03/Turkish-Airlines-Logo-2010-2017.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23C8102E'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>TURKISH</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'singapore airlines': {
+                url: 'https://logo.clearbit.com/singaporeair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'><rect width='220' height='60' rx='6' fill='%23011F5B'/><text x='110' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='%23F0C04A' text-anchor='middle'>SINGAPORE</text><text x='110' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'etihad airways': {
+                url: 'https://th.bing.com/th/id/OIP.1tfPPYGUWfE--JwYtWfjHQHaEK?o=7rm=3&rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23BD9B5F'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>ETIHAD</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='%23231F20' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'air canada': {
+                url: 'https://logos-world.net/wp-content/uploads/2021/05/Air-Canada-Logo-1987-1994.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23F01428'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='white' text-anchor='middle'>AIR</text><text x='90' y='50' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='white' text-anchor='middle'>CANADA</text></svg>`
+            },
+            'ryanair': {
+                url: 'https://logo.clearbit.com/ryanair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23073590'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='%23F7A600' text-anchor='middle'>Ryanair</text></svg>`
+            },
+            'easyjet': {
+                url: 'https://logo.clearbit.com/easyjet.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23FF6600'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='white' text-anchor='middle'>easyJet</text></svg>`
+            },
+            'iberia': {
+                url: 'https://logo.clearbit.com/iberia.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60'><rect width='160' height='60' rx='6' fill='%23C8102E'/><text x='80' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='24' fill='%23F7D000' text-anchor='middle'>iberia</text></svg>`
+            },
+            'vueling': {
+                url: 'https://logo.clearbit.com/vueling.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23FFD100'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='%23231F20' text-anchor='middle'>vueling</text></svg>`
+            },
+            'cathay pacific': {
+                url: 'https://logo.clearbit.com/cathaypacific.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23006564'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>CATHAY</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>PACIFIC</text></svg>`
+            },
+            'japan airlines': {
+                url: 'https://logo.clearbit.com/jal.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 60'><rect width='210' height='60' rx='6' fill='%23D71920'/><circle cx='28' cy='30' r='18' fill='white'/><text x='120' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>JAPAN</text><text x='120' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'ana': {
+                url: 'https://logo.clearbit.com/ana.co.jp',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 60'><rect width='140' height='60' rx='6' fill='%230B2066'/><text x='70' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='28' fill='white' text-anchor='middle'>ANA</text></svg>`
+            },
+            'korean air': {
+                url: 'https://logo.clearbit.com/koreanair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%230041A3'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>KOREAN</text><text x='90' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='%23E31837' text-anchor='middle'>AIR</text></svg>`
+            },
+            'ethiopian airlines': {
+                url: 'https://th.bing.com/th/id/OIP.gPJToKW6EiuYLaRGQijZZQHaEK?o=7rm=3&rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 60'><rect width='210' height='60' rx='6' fill='%23009A44'/><text x='105' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='12' fill='%23FEDD00' text-anchor='middle'>ETHIOPIAN</text><text x='105' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='12' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'kenya airways': {
+                url: 'https://logo.clearbit.com/kenya-airways.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23C8102E'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>KENYA</text><text x='90' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'rwandair': {
+                url: 'https://logo.clearbit.com/rwandair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%2300609C'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='20' fill='white' text-anchor='middle'>RwandAir</text></svg>`
+            },
+            'arik air': {
+                url: 'https://logo.clearbit.com/arikair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 170 60'><rect width='170' height='60' rx='6' fill='%23006938'/><text x='85' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='white' text-anchor='middle'>ARIK AIR</text></svg>`
+            },
+            'air arabia': {
+                url: 'https://logo.clearbit.com/airarabia.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23E31837'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='14' fill='white' text-anchor='middle'>AIR</text><text x='90' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='14' fill='white' text-anchor='middle'>ARABIA</text></svg>`
+            },
+            'flydubai': {
+                url: 'https://logo.clearbit.com/flydubai.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23E31837'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='white' text-anchor='middle'>flydubai</text></svg>`
+            },
+            'africa world airlines': {
+                url: 'https://logo.clearbit.com/africaworldairlines.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'><rect width='220' height='60' rx='6' fill='%23E31837'/><text x='110' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='11' fill='white' text-anchor='middle'>AFRICA WORLD</text><text x='110' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='11' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'ghana airways': {
+                url: 'https://logo.clearbit.com/ghanaairways.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23006B3F'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='%23FCD116' text-anchor='middle'>GHANA</text><text x='90' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'south african airways': {
+                url: 'https://logo.clearbit.com/flysaa.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'><rect width='220' height='60' rx='6' fill='%23003DA5'/><text x='110' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='11' fill='white' text-anchor='middle'>SOUTH AFRICAN</text><text x='110' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='11' fill='%23FFB81C' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
         };
 
+        // Generates a branded SVG badge for any unlisted airline — always works
+        function _makeFallbackSVG(name) {
+            const esc = (name || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&apos;','"':'&quot;'}[c]));
+            const words = esc.toUpperCase().split(' ');
+            const mid = Math.ceil(words.length / 2);
+            const l1 = words.slice(0, mid).join(' ');
+            const l2 = words.slice(mid).join(' ');
+            return 'data:image/svg+xml;charset=utf-8,'
+                + `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'>`
+                + `<rect width='220' height='60' rx='6' fill='%230284c7'/>`
+                + (l2
+                    ? `<text x='110' y='26' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>${l1}</text>`
+                    + `<text x='110' y='47' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>${l2}</text>`
+                    : `<text x='110' y='38' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='white' text-anchor='middle'>${l1}</text>`)
+                + `</svg>`;
+        }
+
+        // Lookup by lowercase key (handles ALL-CAPS names from Firestore)
+        function _getLogoEntry(name) {
+            if (!name?.trim()) return null;
+            return AIRLINE_LOGOS[name.trim().toLowerCase()] || null;
+        }
+
+        // Apply logo to any <img> element: real photo first, SVG fallback on error
+        function applyLogoToImg(imgEl, airlineName) {
+            if (!imgEl || !airlineName?.trim()) { if (imgEl) imgEl.style.display = 'none'; return; }
+            const entry  = _getLogoEntry(airlineName);
+            const svgUrl = entry ? entry.svg : _makeFallbackSVG(airlineName);
+            imgEl.style.display = 'block';
+            if (entry?.url) {
+                imgEl.src = entry.url;
+                imgEl.onerror = () => { imgEl.onerror = null; imgEl.src = svgUrl; };
+            } else {
+                imgEl.src = svgUrl;
+                imgEl.onerror = null;
+            }
+        }
+
+        // Convenience: set the ticket logo on index.html
+        function setAirlineLogo(airlineName) {
+            applyLogoToImg(document.getElementById('logoImg'), airlineName);
+        }
+
+
+        // track.html-specific logo helpers (use shared AIRLINE_LOGOS engine above)
         function getTrackLogoUrl(name) {
             if (!name) return null;
-            const key = name.trim().toLowerCase(); // handles ALL-CAPS from Firestore
-            return TRACK_LOGO_MAP[key]
-                || `https://logo.clearbit.com/${key.replace(/\s+/g,'').replace(/[^a-z0-9]/g,'')}.com`;
+            const entry = _getLogoEntry(name);
+            return entry ? entry.url : _makeFallbackSVG(name);
         }
 
         function setTrackAirlineLogo(airlineName) {
             const wrap = document.getElementById('trackAirlineLogoWrap');
             const img  = document.getElementById('trackAirlineLogo');
-            if (!wrap || !img || !airlineName?.trim()) { if(wrap) wrap.style.display='none'; return; }
-            img.src = getTrackLogoUrl(airlineName);
+            if (!wrap || !img || !airlineName?.trim()) { if (wrap) wrap.style.display = 'none'; return; }
+            applyLogoToImg(img, airlineName);
             wrap.style.display = 'flex';
-            img.onerror = () => { wrap.style.display = 'none'; };
+            // Ensure wrap hides if SVG itself somehow fails (edge case)
+            img.addEventListener('error', () => { wrap.style.display = 'none'; }, { once: true });
         }
+
 
     </script>
 </body>
