@@ -978,7 +978,7 @@
 
                 if (now < takeoff) {
                     progress    = 0;
-                    statusText  = "BOARDING / TAXI";
+                    statusText  = "BOARDING";
                     statusColor = "#f59e0b";
                 } else if (hasTransit && now >= transitArr && now < transitDep) {
                     const legProgress = (transitArr - takeoff) / totalDuration;
@@ -1544,3 +1544,4 @@
     </script>
 </body>
 </html>
+
