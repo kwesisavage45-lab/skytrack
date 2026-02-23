@@ -1111,7 +1111,7 @@
             const priceRow    = data.ticketPrice ? `<div><span style="font-size:0.65rem;color:#0284c7;font-weight:800;text-transform:uppercase;display:block;margin-bottom:3px;">Ticket Price</span><div style="font-weight:800;color:#16a34a;">${data.ticketPrice}</div></div>` : '';
 
             result.innerHTML = `<div style="background:var(--card); border:1px solid var(--border); border-radius:20px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,0.1);">
-                ${isCancelled ? '<div style="background:#ef4444; color:#fff; text-align:center; padding:8px; font-weight:900; letter-spacing:3px; font-size:0.85rem;">✗ FLIGHT CANCELLED</div>' : '<div style="background:linear-gradient(135deg,#0284c7,#38bdf8); color:#fff; text-align:center; padding:8px; font-weight:800; font-size:0.8rem; letter-spacing:2px;">✈ SKYTRACK ELITE PASS</div>'}
+                ${isCancelled ? '<div style="background:#ef4444; color:#fff; text-align:center; padding:8px; font-weight:900; letter-spacing:3px; font-size:0.85rem;">✗ FLIGHT CANCELLED</div>' : `<div id="heroTrackAirlineHeader" style="background:#fff; display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:2px solid #e2e8f0;"><img id="heroTrackLogoImg" alt="${data.airline||''}" style="height:44px; max-width:160px; object-fit:contain; display:block;"><span style="font-weight:900; font-size:1.5rem; letter-spacing:-0.5px; color:#0f172a;">${(data.airline||'').toUpperCase()}</span></div>`}
                 <div style="padding:24px;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; padding-bottom:16px; border-bottom:2px dashed var(--border);">
                         <div>
@@ -1153,6 +1153,12 @@
                     </button>
                 </div>
             </div>`;
+
+            // Inject airline logo into the header we just rendered
+            if (!isCancelled && data.airline) {
+                const heroLogoImg = document.getElementById('heroTrackLogoImg');
+                if (heroLogoImg) applyLogoToImg(heroLogoImg, data.airline);
+            }
         }
 
         async function quickTrackLookup(id) {
@@ -1764,9 +1770,60 @@
         // ═══════════════════════════════════════════
         // ── IMPROVED PDF DOWNLOAD (Mobile-friendly) ─
         // ═══════════════════════════════════════════
+
+        // Converts any <img> to a base64 data URI via an offscreen canvas.
+        // If the src is already a data URI (SVG fallback) it passes straight through.
+        // For external URLs we proxy through a canvas — if CORS blocks it we
+        // immediately fall back to the pre-built SVG data URI so the logo is
+        // always visible in the PDF.
+        function toDataURL(imgEl, airlineName) {
+            return new Promise(resolve => {
+                const src = imgEl?.src || '';
+                // Already a data URI — use as-is
+                if (src.startsWith('data:')) { resolve(src); return; }
+
+                // Try drawing the external image onto a canvas
+                const probe = new Image();
+                probe.crossOrigin = 'anonymous';
+                probe.onload = () => {
+                    try {
+                        const c = document.createElement('canvas');
+                        c.width = probe.naturalWidth || 200;
+                        c.height = probe.naturalHeight || 60;
+                        c.getContext('2d').drawImage(probe, 0, 0);
+                        resolve(c.toDataURL('image/png'));
+                    } catch {
+                        // CORS tainted — use SVG fallback
+                        const entry = _getLogoEntry(airlineName);
+                        resolve(entry ? entry.svg : _makeFallbackSVG(airlineName));
+                    }
+                };
+                probe.onerror = () => {
+                    const entry = _getLogoEntry(airlineName);
+                    resolve(entry ? entry.svg : _makeFallbackSVG(airlineName));
+                };
+                probe.src = src + (src.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+            });
+        }
+
         async function downloadPDF() {
             const { jsPDF } = window.jspdf;
             const element = document.getElementById('ticketImage');
+            const logoImg = document.getElementById('logoImg');
+
+            // ── Convert logo to base64 BEFORE html2canvas runs ──────────────
+            // html2canvas cannot read cross-origin pixel data, so any external
+            // logo URL renders as a blank rectangle. Swapping to a data URI
+            // first means the canvas sees only same-origin content.
+            const airlineName = document.getElementById('displayAirline')?.innerText?.trim() || '';
+            let origLogoSrc = null;
+            if (logoImg && logoImg.src && !logoImg.src.startsWith('data:')) {
+                origLogoSrc = logoImg.src;
+                const b64 = await toDataURL(logoImg, airlineName);
+                logoImg.src = b64;
+                // Give the browser one frame to swap the src
+                await new Promise(r => requestAnimationFrame(r));
+            }
 
             // Temporarily make the ticket render at a fixed wide size for PDF quality
             const origStyle = element.style.cssText;
@@ -1780,6 +1837,9 @@
             });
 
             element.style.cssText = origStyle;
+
+            // Restore original logo src so the on-screen ticket still looks right
+            if (origLogoSrc && logoImg) logoImg.src = origLogoSrc;
 
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
             // A4 Landscape proportioned to ticket
@@ -2243,7 +2303,7 @@
     const handler = PaystackPop.setup({
         key: 'pk_live_a7b2be34c6dd8f289f9b5aa09165b128088ccb02',
         email: email,
-        amount: 50,
+        amount: 200,
         currency: 'GHS',
         callback: function(response) {
             showSkyModal({ icon: '💳', iconColor:'#22c55e', title:'Payment Successful!', body:`<p>Transaction confirmed.<br><small style="color:var(--text-dim);">Ref: ${response.reference}</small></p>`, buttons:[] });
@@ -2259,4 +2319,3 @@
     </script>
 </body>
 </html>
-
