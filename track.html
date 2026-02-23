@@ -678,7 +678,7 @@
                 const priceRow    = savedData.ticketPrice ? `<div><span class="label">Ticket Price</span><div style="font-weight:800;color:#16a34a;font-size:1rem;">${savedData.ticketPrice}</div></div>` : '';
 
                 ticketCard.innerHTML = `
-                    ${isCancelled ? '<div style="background:#ef4444;color:#fff;text-align:center;padding:10px;font-weight:900;letter-spacing:3px;font-size:0.9rem;border-radius:10px;margin-bottom:16px;">✗ FLIGHT CANCELLED</div>' : '<div style="background:linear-gradient(135deg,#0284c7,#38bdf8);color:#fff;text-align:center;padding:10px;font-weight:800;font-size:0.8rem;letter-spacing:2px;border-radius:10px;margin-bottom:16px;">✈ SKYTRACK ELITE PASS</div>'}
+                    ${isCancelled ? '<div style="background:#ef4444;color:#fff;text-align:center;padding:10px;font-weight:900;letter-spacing:3px;font-size:0.9rem;border-radius:10px;margin-bottom:16px;">✗ FLIGHT CANCELLED</div>' : `<div id="trackAirlineHeader" style="background:#fff;display:flex;align-items:center;gap:14px;padding:14px 20px;border-radius:10px;margin-bottom:16px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.06);"><img id="trackLogoImg" alt="${savedData.airline||''}" style="height:44px;max-width:160px;object-fit:contain;display:block;"><span style="font-weight:900;font-size:1.5rem;letter-spacing:-0.5px;color:#0f172a;">${(savedData.airline||'').toUpperCase()}</span></div>`}
                     
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px dashed #e2e8f0; padding-bottom:18px; margin-bottom:18px;">
                         <div>
@@ -726,16 +726,10 @@
                     </div>` : ''}
                 `;
 
-                // Inject airline logo — real photo first, SVG fallback on error
-                if (savedData?.airline) {
-                    const logoEl = document.createElement('div');
-                    logoEl.style.cssText = 'text-align:right; margin-bottom:10px;';
-                    const img = document.createElement('img');
-                    img.alt = savedData.airline;
-                    img.style.cssText = 'height:38px; max-width:140px; object-fit:contain;';
-                    applyLogoToImg(img, savedData.airline);
-                    logoEl.appendChild(img);
-                    ticketCard.insertBefore(logoEl, ticketCard.firstChild);
+                // Apply airline logo to the branded header we just rendered
+                if (!isCancelled && savedData?.airline) {
+                    const trackLogoImg = document.getElementById('trackLogoImg');
+                    if (trackLogoImg) applyLogoToImg(trackLogoImg, savedData.airline);
                 }
             } else {
                 ticketCard.classList.add('hidden');
