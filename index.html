@@ -709,7 +709,7 @@
 
                     <div class="ticket-stub">
                         <div>
-                            <span class="pass-label">SkyTrack ID</span>
+                            <span class="pass-label">Flight ID</span>
                             <div style="display: flex; align-items: center; gap: 5px;">
                                 <div id="displayID" class="ticket-id-val">--</div>
                                 <i class="fas fa-copy" onclick="copyOnlyID()" style="cursor: pointer; font-size: 0.8rem; color: var(--accent);"></i>
@@ -727,7 +727,10 @@
                             <span class="pass-label">Ticket Price</span>
                             <div id="stubPrice" style="font-size: 1rem; font-weight: 800; color:#22c55e;">---</div>
                         </div>
-                        <div class="barcode">123456789</div>
+                        <div class="barcode-wrap" style="text-align:center;">
+                            <div id="barcodeNumber" style="font-size:0.65rem; font-weight:700; letter-spacing:2px; color:#64748b; font-family:'Courier New',monospace; margin-bottom:2px;">0000000000000</div>
+                            <div class="barcode" id="barcodeValue">123456789</div>
+                        </div>
                     </div>
                 </div>
 
@@ -1016,6 +1019,14 @@
                                 style="display:flex; align-items:center; gap:5px; background:transparent; border:1.5px solid var(--border); color:var(--text-dim); padding:0.5rem 0.9rem; border-radius:12px; font-size:0.75rem; cursor:pointer; font-weight:700; white-space:nowrap; transition:all 0.2s;">
                                 <i class="fas fa-link"></i> Copy Link
                             </button>
+
+                            <!-- PDF Download button -->
+                            <button
+                                onclick="downloadHistoryPDF('${id}')"
+                                title="Download PDF Ticket"
+                                style="display:flex; align-items:center; gap:5px; background:#6366f1; border:1.5px solid #6366f1; color:#fff; padding:0.5rem 0.9rem; border-radius:12px; font-size:0.75rem; cursor:pointer; font-weight:700; white-space:nowrap; transition:all 0.2s;">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </button>
                         </div>
                     </div>`;
 
@@ -1077,7 +1088,10 @@
                         <div style="color:var(--accent); font-weight:800; font-size:0.85rem;">${id}${isCancelled ? ' <span style="color:#ef4444; font-size:0.65rem;">✗ CANCELLED</span>' : ''}</div>
                         <div style="font-weight:600; font-size:0.82rem;">${from} → ${to}</div>
                     </div>
-                    ${!isCancelled ? `<button onclick="quickTrackLookup('${id}')" class="btn-auth" style="padding:0.4rem 0.9rem; font-size:0.72rem;">View</button>` : '<span style="color:#ef4444; font-size:0.7rem; font-weight:800;">CANCELLED</span>'}`;
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        ${!isCancelled ? `<button onclick="quickTrackLookup('${id}')" class="btn-auth" style="padding:0.4rem 0.9rem; font-size:0.72rem;">View</button>` : '<span style="color:#ef4444; font-size:0.7rem; font-weight:800;">CANCELLED</span>'}
+                        <button onclick="downloadHistoryPDF('${id}')" class="btn-auth" style="padding:0.4rem 0.9rem; font-size:0.72rem; background:#6366f1;"><i class="fas fa-file-pdf"></i> PDF</button>
+                    </div>`;
                 wrap.appendChild(div);
             });
         }
@@ -1120,7 +1134,7 @@
                             <div style="font-size:0.75rem; color:var(--text-dim); margin-top:2px;">${data.class || ''} · ${data.airline || ''}</div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-size:0.65rem; color:#0284c7; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px;">SkyTrack ID</div>
+                            <div style="font-size:0.65rem; color:#0284c7; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px;">Flight ID</div>
                             <div style="font-size:1.1rem; font-weight:900; color:#0284c7; letter-spacing:1px;">${input}</div>
                         </div>
                     </div>
@@ -1201,7 +1215,7 @@
             showSkyModal({
                 icon: '✈️',
                 title: 'Track Your Flight',
-                body: `<p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:16px;">Enter your SkyTrack ID to view live flight progress.</p>
+                body: `<p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:16px;">Enter your Flight ID to view live flight progress.</p>
                        <input id="trackPromptInput" type="text" placeholder="e.g. ST-ABC12" style="width:100%; padding:14px; border-radius:12px; border:1.5px solid var(--border); background:rgba(0,0,0,0.05); color:var(--text); font-size:1.1rem; text-align:center; text-transform:uppercase; outline:none; font-family:inherit; margin-bottom:4px;" oninput="this.value=this.value.toUpperCase()">`,
                 buttons: [
                     { label: '<i class="fas fa-search"></i> Track Flight', cls: 'modal-btn-primary', action: () => {
@@ -1283,7 +1297,9 @@
                 if (transitArrTS <= depTS) transitArrTS += 24 * 60 * 60 * 1000;
             }
 
-            const id = "ST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+            const idPrefixes = ["ST", "ER", "RY", "CH"];
+            const idPrefix = idPrefixes[Math.floor(Math.random() * idPrefixes.length)];
+            const id = idPrefix + "-" + Math.random().toString(36).substr(2, 5).toUpperCase();
 
             const flightData = {
                 name:        name.toUpperCase(),
@@ -1354,6 +1370,12 @@
             document.getElementById('displayToAirport').innerText   = toApt;
             document.getElementById('stubAirportCode').innerText    = flightData.fromAirportCode || '---';
 
+            // Generate random 13-digit barcode number
+            let barcodeNum = '';
+            for (let i = 0; i < 13; i++) barcodeNum += Math.floor(Math.random() * 10);
+            document.getElementById('barcodeNumber').innerText = barcodeNum;
+            document.getElementById('barcodeValue').innerText = barcodeNum;
+
             // Transit display
             if (hasTransit) {
                 document.getElementById('displayTransit').innerText = flightData.transit;
@@ -1399,7 +1421,7 @@
             showSkyModal({
                 icon: '✅', iconColor: '#22c55e',
                 title: 'Ticket Generated!',
-                body: `<p>Your SkyTrack Elite Pass has been created.<br><strong style="color:var(--accent);">${id}</strong></p>`,
+                body: `<p>Your Elite Flight Pass has been created.<br><strong style="color:var(--accent);">${id}</strong></p>`,
                 buttons: [{ label: '<i class="fas fa-scroll"></i> View Ticket', cls: 'modal-btn-primary', action: () => { closeSkyModal(); document.getElementById('successArea').scrollIntoView({behavior:'smooth'}); } }]
             });
             setTimeout(() => { closeSkyModal(); }, 3000);
@@ -1500,7 +1522,10 @@
                             <span class="history-id">${item.id}${isCancelled ? ' <span style="color:#ef4444;font-size:0.7rem;">✗ CANCELLED</span>' : ''}</span>
                             <span class="history-route">${item.from} <i class="fas fa-arrow-right" style="font-size:0.6rem;"></i> ${item.to}</span>
                         </div>
-                        ${isCancelled ? '<span style="color:#ef4444;font-size:0.7rem;font-weight:800;">CANCELLED</span>' : `<button class="btn-auth" style="padding: 0.4rem 0.8rem; font-size: 0.7rem;" onclick="window.location.href='track.html?id=${item.id}'">Track</button>`}
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            ${isCancelled ? '<span style="color:#ef4444;font-size:0.7rem;font-weight:800;">CANCELLED</span>' : `<button class="btn-auth" style="padding: 0.4rem 0.8rem; font-size: 0.7rem;" onclick="window.location.href='track.html?id=${item.id}'">Track</button>`}
+                            <button class="btn-auth" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; background:#6366f1;" onclick="downloadHistoryPDF('${item.id}')"><i class="fas fa-file-pdf"></i> PDF</button>
+                        </div>
                     </div>`;
             });
         }
@@ -1855,6 +1880,114 @@
             const sel = document.getElementById('airlineSelect');
             if (sel && sel.value && sel.value !== 'custom') setAirlineLogo(sel.value);
         });
+
+        // ── Download PDF for a historical flight by ID ──────────────────────
+        async function downloadHistoryPDF(flightId) {
+            // Load flight data from localStorage or Firestore
+            let data = null;
+            const raw = localStorage.getItem('flight_' + flightId);
+            if (raw) { try { data = JSON.parse(raw); } catch(e){} }
+            if (!data && window._fsGetFlight) {
+                try { data = await window._fsGetFlight(flightId); } catch(e){}
+            }
+            if (!data) { showToast('⚠️ Flight data not found', '#ef4444'); return; }
+
+            showToast('⏳ Generating PDF...', '#0284c7');
+
+            const { jsPDF } = window.jspdf;
+            const airlineName = (data.airline || '').toUpperCase();
+            const logoEntry = _getLogoEntry(data.airline || '');
+            const logoSrc = logoEntry ? logoEntry.svg : _makeFallbackSVG(data.airline || '');
+
+            // Build a temporary ticket element
+            const tmp = document.createElement('div');
+            tmp.style.cssText = 'position:fixed; left:-9999px; top:0; width:700px; background:#fff; color:#1a1a1a; border-radius:20px; display:flex; overflow:hidden; font-family:Inter,sans-serif; z-index:-1;';
+
+            // Generate a barcode display number from the ID
+            const barcodeDisplay = data.barcodeNumber || (flightId.replace(/-/g,'') + '000000').substr(0,13);
+
+            const fromApt = data.fromAirportCode ? `✈ ${data.fromAirportCode} — ${data.fromAirportName}` : '';
+            const toApt   = data.toAirportCode   ? `✈ ${data.toAirportCode} — ${data.toAirportName}`     : '';
+            const priceHTML = data.ticketPrice ? `<div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Ticket Price</span><div style="font-size:1rem;font-weight:800;color:#22c55e;">${data.ticketPrice}</div></div>` : '';
+
+            tmp.innerHTML = `
+                <div style="flex:2; padding:30px; border-right:2px dashed #e2e8f0; position:relative;">
+                    <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px;">
+                        <img src="${logoSrc}" style="height:40px; max-width:160px; object-fit:contain;" crossorigin="anonymous" onerror="this.onerror=null;this.src='${_makeFallbackSVG(data.airline||'')}'" alt="${airlineName}">
+                        <span style="font-weight:800; font-size:1.4rem; letter-spacing:-1px;">${airlineName}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                        <div>
+                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Passenger</span>
+                            <div style="font-size:1.2rem;font-weight:700;">${data.name || ''}</div>
+                            <div style="font-size:0.7rem;color:#64748b;">${data.class || ''}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Class</span>
+                            <div style="font-size:1.1rem;font-weight:700;">${data.class || ''}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:20px; padding:15px; background:#f8fafc; border-radius:12px;">
+                        <div>
+                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">From</span>
+                            <div style="font-size:1.8rem;font-weight:900;">${data.fromCity || ''}</div>
+                            <div style="font-size:0.7rem;color:#64748b;">${data.fromCountry || ''}</div>
+                            ${fromApt ? `<div style="font-size:0.65rem;color:#0284c7;font-weight:800;margin-top:2px;">${fromApt}</div>` : ''}
+                        </div>
+                        <div style="font-size:2rem; align-self:center;">✈</div>
+                        <div style="text-align:right;">
+                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">To</span>
+                            <div style="font-size:1.8rem;font-weight:900;">${data.toCity || ''}</div>
+                            <div style="font-size:0.7rem;color:#64748b;">${data.toCountry || ''}</div>
+                            ${toApt ? `<div style="font-size:0.65rem;color:#0284c7;font-weight:800;margin-top:2px;">${toApt}</div>` : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Departure</span><div style="font-size:1.1rem;font-weight:700;">${data.dep || ''}</div></div>
+                        <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Departure Date</span><div style="font-size:1.1rem;font-weight:700;">${data.date || ''}</div></div>
+                        <div style="text-align:right;"><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Arrival Time</span><div style="font-size:1.1rem;font-weight:700;">${data.arr || ''}</div></div>
+                    </div>
+                </div>
+                <div style="flex:0.8; padding:30px; background:#f8fafc; display:flex; flex-direction:column; justify-content:space-between;">
+                    <div>
+                        <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Flight ID</span>
+                        <div style="color:#0284c7;font-weight:800;font-size:1rem;">${flightId}</div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Terminal</span>
+                        <div style="font-size:0.8rem;font-weight:700;">${data.terminal || 'T1'}</div>
+                    </div>
+                    <div>
+                        <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Airport Code</span>
+                        <div style="font-size:0.85rem;font-weight:800;color:#0284c7;letter-spacing:1px;">${data.fromAirportCode || '---'}</div>
+                    </div>
+                    ${priceHTML}
+                    <div style="text-align:center;">
+                        <div style="font-size:0.65rem;font-weight:700;letter-spacing:2px;color:#64748b;font-family:'Courier New',monospace;margin-bottom:2px;">${barcodeDisplay}</div>
+                        <div style="font-family:'Libre Barcode 128',cursive;font-size:3rem;">${barcodeDisplay}</div>
+                    </div>
+                </div>`;
+
+            document.body.appendChild(tmp);
+
+            await new Promise(r => requestAnimationFrame(r));
+            await new Promise(r => setTimeout(r, 200));
+
+            try {
+                const canvas = await html2canvas(tmp, { useCORS: true, scale: 2, width: 700, logging: false, imageTimeout: 3000 });
+                document.body.removeChild(tmp);
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const pdfW = 297, pdfH = 130;
+                const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [pdfW, pdfH] });
+                pdf.addImage(imgData, 'JPEG', 5, 5, pdfW - 10, pdfH - 10);
+                pdf.save(`Flight-Ticket-${flightId}.pdf`);
+                showToast('📄 PDF downloaded!', '#0284c7');
+            } catch(err) {
+                document.body.removeChild(tmp);
+                showToast('❌ PDF generation failed', '#ef4444');
+                console.error(err);
+            }
+        }
 
         function copyOnlyID() {
             const id = document.getElementById('displayID').innerText;
