@@ -2538,7 +2538,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        price_amount: 7,
+                        price_amount: 1,
                         price_currency: 'usd',
                         order_id: orderId,
                         order_description: 'SkyTrack Pro Elite Ticket',
@@ -2561,7 +2561,7 @@
                 showSkyModal({
                     icon: '₿', iconColor: '#f7971e', title: 'Complete Crypto Payment',
                     body: `
-                        <p style="margin-bottom:12px;">A NOWPayments page has opened in a new tab. Complete your payment there, then click <strong>I've Paid</strong> below.</p>
+                        <p style="margin-bottom:12px;">A NOWPayments page will be opened in a new tab. Complete your payment there, then click <strong>I've Paid</strong> below.</p>
                         <div style="background:rgba(247,151,30,0.1); border:1px dashed #f7971e; border-radius:10px; padding:12px; font-size:0.78rem; color:var(--text-dim); text-align:left;">
                             <strong style="color:#f7971e;">Order ID:</strong> ${data.id || orderId}<br>
                             <strong style="color:#f7971e;">Amount:</strong> ~$7.00 USD<br>
@@ -2569,7 +2569,7 @@
                         </div>`,
                     buttons: [
                         { label: "✅ I've Paid — Generate Ticket", cls: 'modal-btn-primary', action: () => { closeSkyModal(); generateTicket(); } },
-                        { label: '🔗 Reopen Payment Page', cls: 'modal-btn-ghost', action: () => { window.open(invoiceUrl, '_blank'); } },
+                        { label: '🔗 Open Payment Page', cls: 'modal-btn-ghost', action: () => { window.open(invoiceUrl, '_blank'); } },
                         { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
                     ]
                 });
