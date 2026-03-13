@@ -11,6 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://js.paystack.co/v1/inline.js"></script>
+    <script src="https://unpkg.com/@nowpaymentsio/nowpayments-api-js/dist/nowpayments-api-js.min.js"></script>
     <style>
         :root {
             --bg: #0f172a;
@@ -653,7 +654,7 @@
                 <div style="text-align:center; margin-top:18px; margin-bottom:6px;">
                     <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(56,189,248,0.08); border:1px dashed var(--accent); padding:5px 16px; border-radius:50px; font-size:0.78rem; color:var(--text-dim); font-style:italic;">
                         <i class="fas fa-ticket-alt" style="color:var(--accent);"></i>
-                        Flight ticket generation — <strong style="color:var(--accent);">GHS 50 / ~$4.55</strong> per ticket
+                        Flight ticket generation — <strong style="color:var(--accent);">GHS 60 / ~$5.5</strong> per ticket
                     </span>
                 </div>
 
@@ -2424,36 +2425,170 @@
             if (tw && !show) { tw.style.display='none'; window._selectedAirports['transit']=null; }
         };
 
+        // ── Payment Method Selection ────────────────────────────────
         function payAndGenerate() {
-    const name = document.getElementById('fullName').value;
-    const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
-
-    if (!name) {
-        showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Name Required', body:'<p>Please enter a passenger name before generating your ticket.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
-        return;
-    }
-
-    const handler = PaystackPop.setup({
-        key: 'pk_live_a7b2be34c6dd8f289f9b5aa09165b128088ccb02',
-        email: email,
-        amount: 5500,
-        currency: 'GHS',
-        callback: function(response) {
-            showSkyModal({ icon: '💳', iconColor:'#22c55e', title:'Payment Successful!', body:`<p>Transaction confirmed.<br><small style="color:var(--text-dim);">Ref: ${response.reference}</small></p>`, buttons:[] });
-            setTimeout(() => { closeSkyModal(); generateTicket(); }, 2500);
-        },
-        onClose: function() {
-            showSkyModal({ icon: '❌', iconColor:'#ef4444', title:'Payment Cancelled', body:'<p>You must complete payment to generate an elite SkyTrack ID.</p>', buttons:[{label:'Try Again', cls:'modal-btn-primary', action:()=>{ closeSkyModal(); payAndGenerate(); }},{label:'Not Now', cls:'modal-btn-ghost', action:closeSkyModal}] });
+            const name = document.getElementById('fullName').value;
+            if (!name) {
+                showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Name Required', body:'<p>Please enter a passenger name before generating your ticket.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
+                return;
+            }
+            showPaymentMethodModal();
         }
-    });
-    handler.openIframe();
-}
+
+        function showPaymentMethodModal() {
+            const overlay = document.createElement('div');
+            overlay.className = 'sky-modal-overlay';
+            overlay.id = 'payMethodOverlay';
+            overlay.innerHTML = `
+                <div class="sky-modal" style="max-width:480px;">
+                    <span class="modal-icon">✈️</span>
+                    <h3 style="margin-bottom:6px;">Choose Payment Method</h3>
+                    <p style="margin-bottom:1.8rem;">Select how you'd like to pay for your SkyTrack Elite ID</p>
+                    <div style="display:flex; flex-direction:column; gap:14px;">
+
+                        <button onclick="closePayMethodModal(); payWithPaystack();" style="
+                            display:flex; align-items:center; gap:14px;
+                            background: linear-gradient(135deg,#00c3ff,#0074d9);
+                            border:none; border-radius:16px; padding:16px 20px;
+                            cursor:pointer; color:#fff; font-family:inherit;
+                            box-shadow:0 4px 20px rgba(0,196,255,0.3);
+                            transition: transform 0.2s, box-shadow 0.2s;
+                            text-align:left;" 
+                            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 28px rgba(0,196,255,0.45)'"
+                            onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(0,196,255,0.3)'">
+                            <div style="font-size:2rem; flex-shrink:0;">💳</div>
+                            <div>
+                                <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Paystack</div>
+                                <div style="font-size:0.78rem; opacity:0.85;">Pay with card, mobile money, or bank transfer (GHS 60.00)</div>
+                            </div>
+                            <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
+                        </button>
+
+                        <button onclick="closePayMethodModal(); payWithCrypto();" style="
+                            display:flex; align-items:center; gap:14px;
+                            background: linear-gradient(135deg,#f7971e,#f4a700);
+                            border:none; border-radius:16px; padding:16px 20px;
+                            cursor:pointer; color:#fff; font-family:inherit;
+                            box-shadow:0 4px 20px rgba(247,151,30,0.3);
+                            transition: transform 0.2s, box-shadow 0.2s;
+                            text-align:left;"
+                            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 28px rgba(247,151,30,0.45)'"
+                            onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(247,151,30,0.3)'">
+                            <div style="font-size:2rem; flex-shrink:0;">₿</div>
+                            <div>
+                                <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Crypto (NOWPayments)</div>
+                                <div style="font-size:0.78rem; opacity:0.85;">Pay with BTC, ETH, USDT, BNB, and 300+ coins (~$5 USD)</div>
+                            </div>
+                            <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
+                        </button>
+
+                    </div>
+                    <button onclick="closePayMethodModal();" class="modal-btn modal-btn-ghost" style="margin-top:18px; width:100%;">
+                        Cancel
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
+        }
+
+        function closePayMethodModal() {
+            const el = document.getElementById('payMethodOverlay');
+            if (el) el.remove();
+        }
+
+        // ── Paystack flow ───────────────────────────────────────────
+        function payWithPaystack() {
+            const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
+            const handler = PaystackPop.setup({
+                key: 'pk_live_a7b2be34c6dd8f289f9b5aa09165b128088ccb02',
+                email: email,
+                amount: 6000,
+                currency: 'GHS',
+                callback: function(response) {
+                    showSkyModal({ icon: '💳', iconColor:'#22c55e', title:'Payment Successful!', body:`<p>Transaction confirmed.<br><small style="color:var(--text-dim);">Ref: ${response.reference}</small></p>`, buttons:[] });
+                    setTimeout(() => { closeSkyModal(); generateTicket(); }, 2500);
+                },
+                onClose: function() {
+                    showSkyModal({ icon: '❌', iconColor:'#ef4444', title:'Payment Cancelled', body:'<p>You must complete payment to generate an elite SkyTrack ID.</p>', buttons:[{label:'Try Again', cls:'modal-btn-primary', action:()=>{ closeSkyModal(); payAndGenerate(); }},{label:'Not Now', cls:'modal-btn-ghost', action:closeSkyModal}] });
+                }
+            });
+            handler.openIframe();
+        }
+
+        // ── NOWPayments credentials ─────────────────────────────────
+        const NOWPAYMENTS_API_KEY    = 'V07FAJN-KBBMDJA-K8CR6YY-T9KTCNJ';
+        const NOWPAYMENTS_PUBLIC_KEY = 'abccebb1-95f3-425e-87bf-3ead68384c85';
+
+        // ── NOWPayments crypto flow ─────────────────────────────────
+        async function payWithCrypto() {
+            const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
+
+            // Show loading modal
+            showSkyModal({
+                icon: '⏳', iconColor: '#f7971e', title: 'Creating Crypto Invoice…',
+                body: '<p>Connecting to NOWPayments. Please wait a moment.</p>', buttons: []
+            });
+
+            try {
+                const orderId = 'SKYTRACK-' + Date.now();
+
+                const res = await fetch('https://api.nowpayments.io/v1/invoice', {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': NOWPAYMENTS_API_KEY,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        price_amount: 7,
+                        price_currency: 'usd',
+                        order_id: orderId,
+                        order_description: 'SkyTrack Pro Elite Ticket',
+                        success_url: window.location.href,
+                        cancel_url: window.location.href
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.message || ('NOWPayments API error: ' + res.status));
+                }
+
+                closeSkyModal();
+
+                const invoiceUrl = data.invoice_url || ('https://nowpayments.io/payment/?iid=' + data.id);
+                window.open(invoiceUrl, '_blank');
+
+                showSkyModal({
+                    icon: '₿', iconColor: '#f7971e', title: 'Complete Crypto Payment',
+                    body: `
+                        <p style="margin-bottom:12px;">A NOWPayments page has opened in a new tab. Complete your payment there, then click <strong>I've Paid</strong> below.</p>
+                        <div style="background:rgba(247,151,30,0.1); border:1px dashed #f7971e; border-radius:10px; padding:12px; font-size:0.78rem; color:var(--text-dim); text-align:left;">
+                            <strong style="color:#f7971e;">Order ID:</strong> ${data.id || orderId}<br>
+                            <strong style="color:#f7971e;">Amount:</strong> ~$7.00 USD<br>
+                            <strong style="color:#f7971e;">Accepted:</strong> BTC, ETH, USDT, BNB &amp; 300+ coins
+                        </div>`,
+                    buttons: [
+                        { label: "✅ I've Paid — Generate Ticket", cls: 'modal-btn-primary', action: () => { closeSkyModal(); generateTicket(); } },
+                        { label: '🔗 Reopen Payment Page', cls: 'modal-btn-ghost', action: () => { window.open(invoiceUrl, '_blank'); } },
+                        { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
+                    ]
+                });
+
+            } catch (err) {
+                closeSkyModal();
+                showSkyModal({
+                    icon: '❌', iconColor: '#ef4444', title: 'Crypto Payment Error',
+                    body: `<p>Could not create crypto invoice. Please try again or use Paystack instead.</p>
+                           <p style="font-size:0.75rem; color:var(--text-dim); margin-top:8px; font-family:monospace;">${err.message}</p>`,
+                    buttons: [
+                        { label: 'Try Paystack Instead', cls: 'modal-btn-primary', action: () => { closeSkyModal(); payWithPaystack(); } },
+                        { label: 'Try Again', cls: 'modal-btn-ghost', action: () => { closeSkyModal(); payWithCrypto(); } },
+                        { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
+                    ]
+                });
+            }
+        }
 
     </script>
 </body>
 </html>
-
-
-
-
-
