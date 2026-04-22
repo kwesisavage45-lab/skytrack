@@ -2558,7 +2558,7 @@
         function payWithPaystack() {
             const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
             const handler = PaystackPop.setup({
-                key: 'pk_live_a4f0436853c9bb7a47d0c627f5a56fcb1bbc80b4',
+                key: 'pk_live_a7b2be34c6dd8f289f9b5aa09165b128088ccb02',
                 email: email,
                 amount: 7500,
                 currency: 'GHS',
@@ -2715,20 +2715,74 @@
             showCryptoVerifyModal(invoiceId, orderId, invoiceUrl, true);
         }
 
+        // ── Deep-link helper: opens the user's ACTIVE transaction page ─────
+        // 1. Queries the NOWPayments API for a payment already created under orderId.
+        // 2. If a payment_id exists (user already selected a currency), opens
+        //    https://nowpayments.io/payment/?pid=PAYMENT_ID — skipping the
+        //    currency-selection landing page entirely.
+        // 3. If no payment found yet, falls back to the invoice_url.
+        // Always uses the named window target 'nowpayments_tab' to reuse the
+        // existing NOWPayments tab instead of spawning a new one.
+        async function openActivePaymentPage(orderId, invoiceUrl, btnEl) {
+            const origLabel = btnEl ? btnEl.textContent : '';
+            if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Loading…'; }
+
+            // Fast path: use cached paymentId if already fetched in this session
+            try {
+                const raw = localStorage.getItem('skytrack_pending_crypto');
+                if (raw) {
+                    const sess = JSON.parse(raw);
+                    if (sess.paymentId) {
+                        window.open(`https://nowpayments.io/payment/?pid=${sess.paymentId}`, 'nowpayments_tab');
+                        if (btnEl) { btnEl.disabled = false; btnEl.textContent = origLabel; }
+                        return;
+                    }
+                }
+            } catch(e) {}
+
+            try {
+                const res = await fetch(
+                    `https://api.nowpayments.io/v1/payment/?order_id=${encodeURIComponent(orderId)}&limit=1`,
+                    { headers: { 'x-api-key': NOWPAYMENTS_API_KEY } }
+                );
+                const data = await res.json();
+                const payments = (data && data.data) ? data.data : [];
+                if (payments.length > 0 && payments[0].payment_id) {
+                    // Jump straight to the active transaction — no currency picker
+                    const pid = payments[0].payment_id;
+                    // Cache the paymentId in session so the next click is instant
+                    try {
+                        const raw = localStorage.getItem('skytrack_pending_crypto');
+                        if (raw) {
+                            const sess = JSON.parse(raw);
+                            sess.paymentId = pid;
+                            localStorage.setItem('skytrack_pending_crypto', JSON.stringify(sess));
+                        }
+                    } catch(e) {}
+                    window.open(`https://nowpayments.io/payment/?pid=${pid}`, 'nowpayments_tab');
+                } else {
+                    // User hasn't selected a currency yet — open invoice landing page
+                    window.open(invoiceUrl, 'nowpayments_tab');
+                }
+            } catch(e) {
+                // API unreachable — safe fallback
+                window.open(invoiceUrl, 'nowpayments_tab');
+            } finally {
+                if (btnEl) { btnEl.disabled = false; btnEl.textContent = origLabel; }
+            }
+        }
+
         // ── Shared modal for crypto verification (used by both flows) ─
         // isResume = true  → user is returning to an existing transaction
-        //                    button says "Open Active Payment Page" and reuses the named tab
+        //                    button says "Open Active Payment Page" and deep-links via API
         // isResume = false → brand-new invoice just created
-        //                    button says "Open Payment Page" and opens a fresh tab (_blank)
+        //                    button says "Open Payment Page" and opens a fresh tab
         function showCryptoVerifyModal(invoiceId, orderId, invoiceUrl, isResume) {
-            const payBtnLabel  = isResume ? '↗ Open Active Payment Page' : '🔗 Open Payment Page';
-            const payBtnTarget = isResume ? 'nowpayments_tab' : '_blank';
-
             showSkyModal({
                 icon: '₿', iconColor: '#f7971e', title: 'Complete Crypto Payment',
                 body: `
                     <p style="margin-bottom:12px;">${isResume
-                        ? 'Your payment is still in progress. Click <strong>Open Active Payment Page</strong> to return to it, then click <strong>Verify Payment</strong> once done.'
+                        ? 'Your payment is still in progress. Click <strong>Open Active Payment Page</strong> to jump directly to your transaction, then click <strong>Verify Payment</strong> once done.'
                         : 'Complete your payment in the NOWPayments tab, then click <strong>Verify Payment</strong> — we will confirm with NOWPayments before generating your ticket.'
                     }</p>
                     <div style="background:rgba(247,151,30,0.1); border:1px dashed #f7971e; border-radius:10px; padding:12px; font-size:0.78rem; color:var(--text-dim); text-align:left;">
@@ -2738,9 +2792,19 @@
                     </div>
                     <div id="cryptoVerifyStatus" style="margin-top:10px; font-size:0.78rem; color:var(--text-dim); min-height:18px;"></div>`,
                 buttons: [
-                    { label: '✅ Verify Payment',  cls: 'modal-btn-primary', action: () => { verifyCryptoPayment(invoiceId, orderId, invoiceUrl); } },
-                    { label: payBtnLabel,          cls: 'modal-btn-ghost',   action: () => { window.open(invoiceUrl, payBtnTarget); } },
-                    { label: 'Cancel',             cls: 'modal-btn-ghost',   action: () => { closeSkyModal(); } }
+                    { label: '\u2705 Verify Payment',
+                      cls: 'modal-btn-primary',
+                      action: () => { verifyCryptoPayment(invoiceId, orderId, invoiceUrl); } },
+                    { label: isResume ? '\u2197 Open Active Payment Page' : '\uD83D\uDD17 Open Payment Page',
+                      cls: 'modal-btn-ghost',
+                      action: (e) => {
+                          if (isResume) {
+                              openActivePaymentPage(orderId, invoiceUrl, e.currentTarget);
+                          } else {
+                              window.open(invoiceUrl, '_blank');
+                          }
+                      }},
+                    { label: 'Cancel', cls: 'modal-btn-ghost', action: () => { closeSkyModal(); } }
                 ]
             });
         }
@@ -2847,7 +2911,7 @@
                 const payments = data.data || [];
                 if (!res.ok || !payments.length) {
                     // No payment record found yet
-                    if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">❌ No payment found yet. Please complete the payment or wait for the confirmation process in the NOWPayments tab and try again.</span>';
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">❌ No payment found yet. Please complete the payment in the NOWPayments tab and try again.</span>';
                     if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.style.opacity = ''; }
                     return;
                 }
