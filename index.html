@@ -654,7 +654,7 @@
                 <div style="text-align:center; margin-top:18px; margin-bottom:6px;">
                     <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(56,189,248,0.08); border:1px dashed var(--accent); padding:5px 16px; border-radius:50px; font-size:0.78rem; color:var(--text-dim); font-style:italic;">
                         <i class="fas fa-ticket-alt" style="color:var(--accent);"></i>
-                        Flight ticket generation — <strong style="color:var(--accent);">GHS 60 / ~$5.5</strong> per ticket
+                        Flight ticket generation — <strong style="color:var(--accent);">GHS 75 / ~$7</strong> per ticket
                     </span>
                 </div>
 
@@ -1185,8 +1185,11 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             updateNavUI(checkAuth());
-            // Show resume banner if user had a pending crypto payment session
-            setTimeout(checkAndShowResumeBanner, 800);
+        });
+
+        // Check for pending crypto session after all scripts have loaded
+        window.addEventListener('load', () => {
+            setTimeout(checkAndShowResumeBanner, 1200);
         });
 
         document.querySelectorAll('.time-mask').forEach(input => {
@@ -2489,7 +2492,7 @@
                             <div style="font-size:2rem; flex-shrink:0;">💳</div>
                             <div>
                                 <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Paystack</div>
-                                <div style="font-size:0.78rem; opacity:0.85;">Pay with card, mobile money, or bank transfer (GHS 60.00)</div>
+                                <div style="font-size:0.78rem; opacity:0.85;">Pay with card, mobile money, or bank transfer (GHS 75.00)</div>
                             </div>
                             <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
                         </button>
@@ -2507,7 +2510,7 @@
                             <div style="font-size:2rem; flex-shrink:0;">₿</div>
                             <div>
                                 <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Crypto (NOWPayments)</div>
-                                <div style="font-size:0.78rem; opacity:0.85;">Pay with BTC, ETH, USDT, BNB, and 300+ coins (~$0.10 USD)</div>
+                                <div style="font-size:0.78rem; opacity:0.85;">Pay with BTC, ETH, USDT, BNB, and 300+ coins (~$7 USD)</div>
                             </div>
                             <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
                         </button>
@@ -2529,9 +2532,9 @@
         function payWithPaystack() {
             const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
             const handler = PaystackPop.setup({
-                key: 'pk_live_a7b2be34c6dd8f289f9b5aa09165b128088ccb02',
+                key: 'pk_live_a4f0436853c9bb7a47d0c627f5a56fcb1bbc80b4',
                 email: email,
-                amount: 6000,
+                amount: 7500,
                 currency: 'GHS',
                 callback: function(response) {
                     // Mark payment as verified BEFORE calling generateTicket
@@ -2581,9 +2584,9 @@
         function checkAndShowResumeBanner() {
             const session = getPendingCryptoSession();
             if (!session) return;
-
-            // Don't show banner if a modal is already open
-            if (document.querySelector('.sky-modal-overlay')) return;
+            // Remove any existing banner before adding a new one
+            const existing = document.getElementById('cryptoResumeBanner');
+            if (existing) existing.remove();
 
             const banner = document.createElement('div');
             banner.id = 'cryptoResumeBanner';
@@ -2636,7 +2639,7 @@
                     <p style="margin-bottom:12px;">Complete your payment in the NOWPayments tab, then click <strong>Verify Payment</strong> — we will confirm with NOWPayments before generating your ticket.</p>
                     <div style="background:rgba(247,151,30,0.1); border:1px dashed #f7971e; border-radius:10px; padding:12px; font-size:0.78rem; color:var(--text-dim); text-align:left;">
                         <strong style="color:#f7971e;">Order ID:</strong> ${invoiceId || orderId}<br>
-                        <strong style="color:#f7971e;">Amount:</strong> ~$0.10 USD<br>
+                        <strong style="color:#f7971e;">Amount:</strong> ~$7.00 USD<br>
                         <strong style="color:#f7971e;">Accepted:</strong> BTC, ETH, USDT, BNB &amp; 300+ coins
                     </div>
                     <div id="cryptoVerifyStatus" style="margin-top:10px; font-size:0.78rem; color:var(--text-dim); min-height:18px;"></div>`,
@@ -2685,7 +2688,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        price_amount: 0.1,
+                        price_amount: 7,
                         price_currency: 'usd',
                         order_id: orderId,
                         order_description: 'SkyTrack Pro Elite Ticket',
