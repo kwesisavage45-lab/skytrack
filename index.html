@@ -1183,7 +1183,11 @@
             await heroTrackSearch();
         }
 
-        window.addEventListener('DOMContentLoaded', ()=>{ updateNavUI(checkAuth()); });
+        window.addEventListener('DOMContentLoaded', () => {
+            updateNavUI(checkAuth());
+            // Show resume banner if user had a pending crypto payment session
+            setTimeout(checkAndShowResumeBanner, 800);
+        });
 
         document.querySelectorAll('.time-mask').forEach(input => {
             input.addEventListener('input', (e) => {
@@ -2503,7 +2507,7 @@
                             <div style="font-size:2rem; flex-shrink:0;">₿</div>
                             <div>
                                 <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Crypto (NOWPayments)</div>
-                                <div style="font-size:0.78rem; opacity:0.85;">Pay with BTC, ETH, USDT, BNB, and 300+ coins (~$5 USD)</div>
+                                <div style="font-size:0.78rem; opacity:0.85;">Pay with BTC, ETH, USDT, BNB, and 300+ coins (~$0.10 USD)</div>
                             </div>
                             <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
                         </button>
@@ -2546,9 +2550,123 @@
         const NOWPAYMENTS_API_KEY    = 'V07FAJN-KBBMDJA-K8CR6YY-T9KTCNJ';
         const NOWPAYMENTS_PUBLIC_KEY = 'abccebb1-95f3-425e-87bf-3ead68384c85';
 
+        // ── Pending crypto session helpers ──────────────────────────
+        // Saves invoice details so the user can resume if they close the tab
+        function savePendingCryptoSession(invoiceId, orderId, invoiceUrl) {
+            localStorage.setItem('skytrack_pending_crypto', JSON.stringify({
+                invoiceId, orderId, invoiceUrl,
+                createdAt: Date.now()
+            }));
+        }
+
+        function clearPendingCryptoSession() {
+            localStorage.removeItem('skytrack_pending_crypto');
+        }
+
+        function getPendingCryptoSession() {
+            try {
+                const raw = localStorage.getItem('skytrack_pending_crypto');
+                if (!raw) return null;
+                const session = JSON.parse(raw);
+                // Expire sessions older than 2 hours (NOWPayments invoices expire)
+                if (Date.now() - session.createdAt > 2 * 60 * 60 * 1000) {
+                    clearPendingCryptoSession();
+                    return null;
+                }
+                return session;
+            } catch(e) { return null; }
+        }
+
+        // ── Show resume banner if a pending session exists ──────────
+        function checkAndShowResumeBanner() {
+            const session = getPendingCryptoSession();
+            if (!session) return;
+
+            // Don't show banner if a modal is already open
+            if (document.querySelector('.sky-modal-overlay')) return;
+
+            const banner = document.createElement('div');
+            banner.id = 'cryptoResumeBanner';
+            banner.style.cssText = `
+                position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+                background: linear-gradient(135deg, #1a1200, #2d1f00);
+                border: 1.5px solid #f7971e; border-radius: 18px;
+                padding: 14px 20px; z-index: 8000; max-width: 420px; width: 90%;
+                box-shadow: 0 8px 32px rgba(247,151,30,0.3);
+                display: flex; align-items: center; gap: 14px;
+                animation: slideUp 0.4s ease;
+            `;
+            banner.innerHTML = `
+                <div style="font-size:1.8rem; flex-shrink:0;">₿</div>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:800; font-size:0.88rem; color:#f7971e; margin-bottom:2px;">Pending Crypto Payment</div>
+                    <div style="font-size:0.75rem; color:#94a3b8; line-height:1.4;">You have an unverified crypto payment. Resume to check its status and generate your ticket.</div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
+                    <button onclick="resumeCryptoPayment()" style="background:#f7971e; color:#fff; border:none; border-radius:10px; padding:7px 14px; font-weight:800; font-size:0.75rem; cursor:pointer; white-space:nowrap;">Resume</button>
+                    <button onclick="dismissCryptoResume()" style="background:transparent; color:#64748b; border:1px solid #334155; border-radius:10px; padding:5px 14px; font-weight:600; font-size:0.72rem; cursor:pointer; white-space:nowrap;">Dismiss</button>
+                </div>
+            `;
+            document.body.appendChild(banner);
+        }
+
+        function dismissCryptoResume() {
+            const banner = document.getElementById('cryptoResumeBanner');
+            if (banner) banner.remove();
+            // Don't clear the session — user might still want to resume later
+        }
+
+        function resumeCryptoPayment() {
+            const session = getPendingCryptoSession();
+            const banner  = document.getElementById('cryptoResumeBanner');
+            if (banner) banner.remove();
+            if (!session) {
+                showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Session Expired', body:'<p>Your previous payment session has expired. Please start a new payment.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
+                return;
+            }
+            const { invoiceId, orderId, invoiceUrl } = session;
+            showCryptoVerifyModal(invoiceId, orderId, invoiceUrl);
+        }
+
+        // ── Shared modal for crypto verification (used by both flows) ─
+        function showCryptoVerifyModal(invoiceId, orderId, invoiceUrl) {
+            showSkyModal({
+                icon: '₿', iconColor: '#f7971e', title: 'Complete Crypto Payment',
+                body: `
+                    <p style="margin-bottom:12px;">Complete your payment in the NOWPayments tab, then click <strong>Verify Payment</strong> — we will confirm with NOWPayments before generating your ticket.</p>
+                    <div style="background:rgba(247,151,30,0.1); border:1px dashed #f7971e; border-radius:10px; padding:12px; font-size:0.78rem; color:var(--text-dim); text-align:left;">
+                        <strong style="color:#f7971e;">Order ID:</strong> ${invoiceId || orderId}<br>
+                        <strong style="color:#f7971e;">Amount:</strong> ~$0.10 USD<br>
+                        <strong style="color:#f7971e;">Accepted:</strong> BTC, ETH, USDT, BNB &amp; 300+ coins
+                    </div>
+                    <div id="cryptoVerifyStatus" style="margin-top:10px; font-size:0.78rem; color:var(--text-dim); min-height:18px;"></div>`,
+                buttons: [
+                    { label: '✅ Verify Payment',    cls: 'modal-btn-primary', action: () => { verifyCryptoPayment(invoiceId, orderId, invoiceUrl); } },
+                    { label: '🔗 Open Payment Page', cls: 'modal-btn-ghost',   action: () => { window.open(invoiceUrl, '_blank'); } },
+                    { label: 'Cancel',               cls: 'modal-btn-ghost',   action: () => { closeSkyModal(); } }
+                ]
+            });
+        }
+
         // ── NOWPayments crypto flow ─────────────────────────────────
         async function payWithCrypto() {
             const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
+
+            // If a valid pending session already exists, offer to resume instead of creating a new invoice
+            const existing = getPendingCryptoSession();
+            if (existing) {
+                showSkyModal({
+                    icon: '₿', iconColor: '#f7971e', title: 'Pending Payment Found',
+                    body: `<p style="margin-bottom:10px;">You already have an unverified crypto payment in progress.</p>
+                           <p style="font-size:0.82rem; color:var(--text-dim);">Would you like to resume verifying it, or start a brand new payment?</p>`,
+                    buttons: [
+                        { label: '↩ Resume Previous', cls: 'modal-btn-primary', action: () => { closeSkyModal(); showCryptoVerifyModal(existing.invoiceId, existing.orderId, existing.invoiceUrl); } },
+                        { label: '+ New Payment',      cls: 'modal-btn-ghost',   action: () => { clearPendingCryptoSession(); closeSkyModal(); payWithCrypto(); } },
+                        { label: 'Cancel',             cls: 'modal-btn-ghost',   action: closeSkyModal }
+                    ]
+                });
+                return;
+            }
 
             // Show loading modal
             showSkyModal({
@@ -2557,7 +2675,8 @@
             });
 
             try {
-                const orderId = 'SKYTRACK-' + Date.now();
+                const orderId  = 'SKYTRACK-' + Date.now();
+                const baseUrl  = window.location.href.split('?')[0]; // clean URL without query params
 
                 const res = await fetch('https://api.nowpayments.io/v1/invoice', {
                     method: 'POST',
@@ -2566,12 +2685,12 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        price_amount: 0.2,
+                        price_amount: 0.1,
                         price_currency: 'usd',
                         order_id: orderId,
                         order_description: 'SkyTrack Pro Elite Ticket',
-                        success_url: window.location.href,
-                        cancel_url: window.location.href
+                        success_url: baseUrl,
+                        cancel_url:  baseUrl
                     })
                 });
 
@@ -2585,24 +2704,12 @@
 
                 const invoiceUrl = data.invoice_url || ('https://nowpayments.io/payment/?iid=' + data.id);
                 const invoiceId  = data.id;
-                window.open(invoiceUrl, '_blank');
 
-                showSkyModal({
-                    icon: '₿', iconColor: '#f7971e', title: 'Complete Crypto Payment',
-                    body: `
-                        <p style="margin-bottom:12px;">A NOWPayments page opened in a new tab. Complete payment there, then click <strong>Verify Payment</strong> — we will confirm with NOWPayments before generating your ticket.</p>
-                        <div style="background:rgba(247,151,30,0.1); border:1px dashed #f7971e; border-radius:10px; padding:12px; font-size:0.78rem; color:var(--text-dim); text-align:left;">
-                            <strong style="color:#f7971e;">Order ID:</strong> ${invoiceId || orderId}<br>
-                            <strong style="color:#f7971e;">Amount:</strong> ~$0.2.00 USD<br>
-                            <strong style="color:#f7971e;">Accepted:</strong> BTC, ETH, USDT, BNB &amp; 300+ coins
-                        </div>
-                        <div id="cryptoVerifyStatus" style="margin-top:10px; font-size:0.78rem; color:var(--text-dim); min-height:18px;"></div>`,
-                    buttons: [
-                        { label: '✅ Verify Payment', cls: 'modal-btn-primary', action: () => { verifyCryptoPayment(invoiceId, orderId, invoiceUrl); } },
-                        { label: '🔗 Open Payment Page', cls: 'modal-btn-ghost', action: () => { window.open(invoiceUrl, '_blank'); } },
-                        { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
-                    ]
-                });
+                // ── Persist session so user can resume if they close/navigate away ──
+                savePendingCryptoSession(invoiceId, orderId, invoiceUrl);
+
+                window.open(invoiceUrl, '_blank');
+                showCryptoVerifyModal(invoiceId, orderId, invoiceUrl);
 
             } catch (err) {
                 closeSkyModal();
@@ -2612,8 +2719,8 @@
                            <p style="font-size:0.75rem; color:var(--text-dim); margin-top:8px; font-family:monospace;">${err.message}</p>`,
                     buttons: [
                         { label: 'Try Paystack Instead', cls: 'modal-btn-primary', action: () => { closeSkyModal(); payWithPaystack(); } },
-                        { label: 'Try Again', cls: 'modal-btn-ghost', action: () => { closeSkyModal(); payWithCrypto(); } },
-                        { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
+                        { label: 'Try Again',            cls: 'modal-btn-ghost',   action: () => { closeSkyModal(); payWithCrypto(); } },
+                        { label: 'Cancel',               cls: 'modal-btn-ghost',   action: closeSkyModal }
                     ]
                 });
             }
@@ -2656,6 +2763,7 @@
                 if (CONFIRMED_STATUSES.includes(status)) {
                     // ✅ Real payment confirmed by NOWPayments
                     window._paymentVerified = true;
+                    clearPendingCryptoSession(); // session fulfilled — clean up
                     closeSkyModal();
                     showSkyModal({
                         icon: '₿', iconColor: '#22c55e', title: 'Crypto Payment Confirmed!',
@@ -2670,6 +2778,7 @@
                     if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.style.opacity = ''; }
 
                 } else if (['failed', 'refunded', 'expired'].includes(status)) {
+                    clearPendingCryptoSession(); // dead session — remove it
                     if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">❌ Payment ${status}. Please start a new payment.</span>`;
                     if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.style.opacity = ''; }
 
