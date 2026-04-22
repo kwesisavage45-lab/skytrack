@@ -1236,7 +1236,31 @@
             setTimeout(()=>{ const inp=document.getElementById('trackPromptInput'); if(inp) inp.focus(); }, 100);
         }
 
+        // ── Payment gate ─────────────────────────────────────────────
+        // This flag MUST be set to true by a verified payment callback
+        // before generateTicket() will execute. It is consumed (reset to
+        // false) immediately after one ticket is generated, so it cannot
+        // be reused for a second free ticket.
+        window._paymentVerified = false;
+
         function generateTicket() {
+            // ── PAYMENT GATE ─────────────────────────────────────────
+            if (!window._paymentVerified) {
+                showSkyModal({
+                    icon: '🔒', iconColor: '#ef4444',
+                    title: 'Payment Required',
+                    body: '<p>You must complete payment before a ticket can be generated. Please choose a payment method to proceed.</p>',
+                    buttons: [
+                        { label: '💳 Pay Now', cls: 'modal-btn-primary', action: () => { closeSkyModal(); payAndGenerate(); } },
+                        { label: 'Cancel',     cls: 'modal-btn-ghost',   action: closeSkyModal }
+                    ]
+                });
+                return;
+            }
+            // Consume the flag immediately — one payment = one ticket
+            window._paymentVerified = false;
+            // ─────────────────────────────────────────────────────────
+
             const name        = document.getElementById('fullName').value.trim();
             const fromCity    = document.getElementById('fromCity').value.trim();
             const fromCountry = document.getElementById('fromCountry').value.trim();
@@ -2506,6 +2530,8 @@
                 amount: 6000,
                 currency: 'GHS',
                 callback: function(response) {
+                    // Mark payment as verified BEFORE calling generateTicket
+                    window._paymentVerified = true;
                     showSkyModal({ icon: '💳', iconColor:'#22c55e', title:'Payment Successful!', body:`<p>Transaction confirmed.<br><small style="color:var(--text-dim);">Ref: ${response.reference}</small></p>`, buttons:[] });
                     setTimeout(() => { closeSkyModal(); generateTicket(); }, 2500);
                 },
@@ -2558,19 +2584,21 @@
                 closeSkyModal();
 
                 const invoiceUrl = data.invoice_url || ('https://nowpayments.io/payment/?iid=' + data.id);
+                const invoiceId  = data.id;
                 window.open(invoiceUrl, '_blank');
 
                 showSkyModal({
                     icon: '₿', iconColor: '#f7971e', title: 'Complete Crypto Payment',
                     body: `
-                        <p style="margin-bottom:12px;">A NOWPayments page will be opened in a new tab. Complete your payment there, then click <strong>I've Paid</strong> below.</p>
+                        <p style="margin-bottom:12px;">A NOWPayments page opened in a new tab. Complete payment there, then click <strong>Verify Payment</strong> — we will confirm with NOWPayments before generating your ticket.</p>
                         <div style="background:rgba(247,151,30,0.1); border:1px dashed #f7971e; border-radius:10px; padding:12px; font-size:0.78rem; color:var(--text-dim); text-align:left;">
-                            <strong style="color:#f7971e;">Order ID:</strong> ${data.id || orderId}<br>
+                            <strong style="color:#f7971e;">Order ID:</strong> ${invoiceId || orderId}<br>
                             <strong style="color:#f7971e;">Amount:</strong> ~$7.00 USD<br>
                             <strong style="color:#f7971e;">Accepted:</strong> BTC, ETH, USDT, BNB &amp; 300+ coins
-                        </div>`,
+                        </div>
+                        <div id="cryptoVerifyStatus" style="margin-top:10px; font-size:0.78rem; color:var(--text-dim); min-height:18px;"></div>`,
                     buttons: [
-                        { label: "✅ I've Paid — Generate Ticket", cls: 'modal-btn-primary', action: () => { closeSkyModal(); generateTicket(); } },
+                        { label: '✅ Verify Payment', cls: 'modal-btn-primary', action: () => { verifyCryptoPayment(invoiceId, orderId, invoiceUrl); } },
                         { label: '🔗 Open Payment Page', cls: 'modal-btn-ghost', action: () => { window.open(invoiceUrl, '_blank'); } },
                         { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
                     ]
@@ -2588,6 +2616,71 @@
                         { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
                     ]
                 });
+            }
+        }
+
+        // ── NOWPayments server-side verification ────────────────────
+        // Checks the actual payment status via the NOWPayments API.
+        // Only sets _paymentVerified = true when status is 'finished',
+        // 'confirmed', or 'partially_paid' (NOWPayments confirmed states).
+        async function verifyCryptoPayment(invoiceId, orderId, invoiceUrl) {
+            const statusEl = document.getElementById('cryptoVerifyStatus');
+            if (statusEl) statusEl.innerHTML = '<span style="color:#f7971e;">⏳ Checking payment status with NOWPayments…</span>';
+
+            // Disable the Verify button to prevent hammering
+            const modal = document.querySelector('.sky-modal');
+            const verifyBtn = modal ? modal.querySelector('.modal-btn-primary') : null;
+            if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.style.opacity = '0.6'; }
+
+            try {
+                // NOWPayments: list payments filtered by our order_id
+                const res = await fetch(
+                    `https://api.nowpayments.io/v1/payment/?order_id=${encodeURIComponent(orderId)}&limit=1`,
+                    { headers: { 'x-api-key': NOWPAYMENTS_API_KEY } }
+                );
+                const data = await res.json();
+
+                const payments = data.data || [];
+                if (!res.ok || !payments.length) {
+                    // No payment record found yet
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">❌ No payment found yet. Please complete the payment in the NOWPayments tab and try again.</span>';
+                    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.style.opacity = ''; }
+                    return;
+                }
+
+                const payment = payments[0];
+                const status  = payment.payment_status || '';
+
+                const CONFIRMED_STATUSES = ['finished', 'confirmed', 'partially_paid', 'sending'];
+
+                if (CONFIRMED_STATUSES.includes(status)) {
+                    // ✅ Real payment confirmed by NOWPayments
+                    window._paymentVerified = true;
+                    closeSkyModal();
+                    showSkyModal({
+                        icon: '₿', iconColor: '#22c55e', title: 'Crypto Payment Confirmed!',
+                        body: `<p>Your payment has been verified by NOWPayments.<br><small style="color:var(--text-dim);">Status: <strong>${status}</strong></small></p>`,
+                        buttons: []
+                    });
+                    setTimeout(() => { closeSkyModal(); generateTicket(); }, 2000);
+
+                } else if (['waiting', 'confirming', 'exchanging'].includes(status)) {
+                    // Payment found but not yet confirmed on-chain
+                    if (statusEl) statusEl.innerHTML = `<span style="color:#f7971e;">⏳ Payment detected (status: <strong>${status}</strong>) — still confirming on the blockchain. Please wait a minute and try verifying again.</span>`;
+                    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.style.opacity = ''; }
+
+                } else if (['failed', 'refunded', 'expired'].includes(status)) {
+                    if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">❌ Payment ${status}. Please start a new payment.</span>`;
+                    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.style.opacity = ''; }
+
+                } else {
+                    if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">❌ Unexpected status: <strong>${status}</strong>. Payment not confirmed. Please complete the payment first.</span>`;
+                    if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.style.opacity = ''; }
+                }
+
+            } catch (err) {
+                if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">❌ Verification error: ${err.message}. Please try again.</span>`;
+                if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.style.opacity = ''; }
             }
         }
 
