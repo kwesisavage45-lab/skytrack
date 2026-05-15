@@ -533,87 +533,187 @@
                     <input type="text" id="customAirline" class="hidden" placeholder="Enter Airline Name" style="margin-top:10px;" oninput="scheduleLogoFetch()">
                 </div>
 
-                <div id="returnGroup" class="input-group hidden" style="margin-bottom: 20px;">
-                    <label>Return Date</label>
-                    <input type="date" id="returnDate">
-                </div>
+                <!-- ══ ROUND TRIP DETAILS PANEL ══ -->
+                <div id="returnGroup" class="hidden" style="margin-bottom:20px;">
+                    <div style="border:2px solid #22c55e; border-radius:20px; overflow:hidden;">
+                        <!-- Header -->
+                        <div style="background:linear-gradient(135deg,#166534,#15803d); padding:14px 20px; display:flex; align-items:center; gap:12px;">
+                            <i class="fas fa-sync-alt" style="color:#86efac; font-size:1.1rem;"></i>
+                            <div>
+                                <div style="font-weight:900; font-size:1rem; color:#fff; letter-spacing:0.5px;">Return Flight Details</div>
+                                <div style="font-size:0.72rem; color:#bbf7d0; margin-top:1px;">Fill in your return journey info below</div>
+                            </div>
+                        </div>
 
-                <!-- Transit Section -->
-                <div class="transit-toggle-row">
-                    <input type="checkbox" id="hasTransit" onchange="toggleTransit(this.checked)">
-                    <label for="hasTransit"><i class="fas fa-route" style="color:var(--accent); margin-right:6px;"></i> Will there be a transit stop in your travel?</label>
-                </div>
-                <div id="transitFields" class="transit-fields hidden">
-                    <div class="grid-inputs">
-                        <div class="input-group">
-                            <label>Transit — City <span style="color:#ef4444;">*</span></label>
-                            <input type="text" id="transitCity" placeholder="e.g. Dubai" oninput="scheduleAirportFetch('transit')">
-                        </div>
-                        <div class="input-group">
-                            <label>Transit — Country <span style="color:#ef4444;">*</span></label>
-                            <input type="text" id="transitCountry" placeholder="e.g. United Arab Emirates" oninput="scheduleAirportFetch('transit')">
-                        </div>
-                    </div>
-                    <div class="input-group" id="transitAirportWrap" style="margin-bottom:16px; display:none;">
-                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                            <label style="margin-bottom:0;">Transit Airport</label>
-                            <button type="button" class="custom-apt-toggle" onclick="toggleCustomAirport('transit')">
-                                <i class="fas fa-pen" style="font-size:0.65rem;"></i> Custom
-                            </button>
-                        </div>
-                        <div class="airport-status" id="transitAirportStatus"></div>
-                        <select class="airport-select" id="transitAirportSelect" onchange="onAirportChange('transit')">
-                            <option value="">— select airport —</option>
-                        </select>
-                        <div class="airport-warn hidden" id="transitAirportWarn"></div>
-                        <div id="transitAirportChip"></div>
-                        <div class="custom-apt-box hidden" id="transitCustomBox">
-                            <div class="custom-apt-row">
-                                <div>
-                                    <label class="custom-apt-label">IATA Code</label>
-                                    <input type="text" id="transitCustomCode" class="custom-apt-input" placeholder="e.g. DXB" maxlength="4" oninput="this.value=this.value.toUpperCase()">
-                                </div>
-                                <div style="flex:2;">
-                                    <label class="custom-apt-label">Airport Name</label>
-                                    <input type="text" id="transitCustomName" class="custom-apt-input" placeholder="e.g. Dubai International">
-                                </div>
-                                <button type="button" class="custom-apt-confirm" onclick="confirmCustomAirport('transit')">✓ Set</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid-inputs">
-                        <div class="input-group">
-                            <label>Transit Arrival Time</label>
-                            <div class="time-wrapper">
-                                <input type="text" id="transitArrTime" placeholder="HH:MM" maxlength="5" class="time-mask">
-                                <select id="transitArrAMPM"><option>AM</option><option>PM</option></select>
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label>Transit Layover Duration</label>
-                            <select id="transitDuration" onchange="handleLayoverChange(this.value)">
-                                <option value="30">30 minutes</option>
-                                <option value="45">45 minutes</option>
-                                <option value="60">1 hour</option>
-                                <option value="90">1.5 hours</option>
-                                <option value="120" selected>2 hours</option>
-                                <option value="180">3 hours</option>
-                                <option value="240">4 hours</option>
-                                <option value="300">5 hours</option>
-                                <option value="360">6 hours</option>
-                                <option value="custom">Custom time…</option>
-                            </select>
-                            <div id="customLayoverWrap" class="hidden" style="margin-top:10px; display:flex; gap:8px; align-items:center;">
-                                <input type="number" id="customLayoverVal" placeholder="e.g. 90" min="1" style="flex:2; padding:12px; border-radius:12px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:white; outline:none;">
-                                <select id="customLayoverUnit" style="flex:1; padding:12px; border-radius:12px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:white; outline:none;">
-                                    <option value="minutes">min</option>
-                                    <option value="hours">hrs</option>
+                        <div style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+
+                            <!-- Fare Type -->
+                            <div class="input-group">
+                                <label>Fare Type</label>
+                                <select id="rtFareType" style="padding:12px; border-radius:12px; border:1px solid var(--border); background:rgba(0,0,0,0.1); color:var(--text); outline:none; width:100%; font-family:inherit;">
+                                    <option value="Round Trip">↩ Round Trip</option>
+                                    <option value="Open Return">🗓 Open Return</option>
+                                    <option value="Non-Refundable">🔒 Non-Refundable</option>
                                 </select>
                             </div>
-                            <style>[data-theme="light"] #customLayoverWrap input,[data-theme="light"] #customLayoverWrap select{background:#fff;color:#000;}</style>
+
+                            <!-- Return Airline -->
+                            <div class="input-group">
+                                <label>Return Airline</label>
+                                <select id="rtAirlineSelect" onchange="handleRtAirlineChange(this.value)" style="padding:12px; border-radius:12px; border:1px solid var(--border); background:rgba(0,0,0,0.1); color:var(--text); outline:none; width:100%; font-family:inherit;">
+                                    <optgroup label="🇺🇸 US Carriers">
+                                        <option value="American Airlines">American Airlines</option>
+                                        <option value="Delta Air Lines">Delta Air Lines</option>
+                                        <option value="United Airlines">United Airlines</option>
+                                        <option value="Southwest Airlines">Southwest Airlines</option>
+                                        <option value="Spirit Airlines">Spirit Airlines</option>
+                                        <option value="Frontier Airlines">Frontier Airlines</option>
+                                        <option value="JetBlue Airways">JetBlue Airways</option>
+                                        <option value="Alaska Airlines">Alaska Airlines</option>
+                                    </optgroup>
+                                    <optgroup label="🌍 International">
+                                        <option value="Emirates">Emirates</option>
+                                        <option value="Qatar Airways">Qatar Airways</option>
+                                        <option value="Lufthansa">Lufthansa</option>
+                                        <option value="British Airways">British Airways</option>
+                                        <option value="Air France">Air France</option>
+                                        <option value="KLM">KLM</option>
+                                        <option value="Turkish Airlines">Turkish Airlines</option>
+                                        <option value="Singapore Airlines">Singapore Airlines</option>
+                                        <option value="Etihad Airways">Etihad Airways</option>
+                                        <option value="Air Canada">Air Canada</option>
+                                        <option value="Ryanair">Ryanair</option>
+                                        <option value="EasyJet">EasyJet</option>
+                                        <option value="Cathay Pacific">Cathay Pacific</option>
+                                        <option value="Japan Airlines">Japan Airlines</option>
+                                        <option value="Korean Air">Korean Air</option>
+                                    </optgroup>
+                                    <optgroup label="🌍 African Carriers">
+                                        <option value="Ethiopian Airlines">Ethiopian Airlines</option>
+                                        <option value="Kenya Airways">Kenya Airways</option>
+                                        <option value="RwandAir">RwandAir</option>
+                                        <option value="Africa World Airlines">Africa World Airlines</option>
+                                    </optgroup>
+                                    <option value="same">↩ Same as outbound airline</option>
+                                    <option value="custom">✏ Other (Custom)</option>
+                                </select>
+                                <input type="text" id="rtCustomAirline" class="hidden" placeholder="Enter Return Airline Name" style="margin-top:10px; padding:12px; border-radius:12px; border:1px solid var(--border); background:rgba(0,0,0,0.1); color:var(--text); outline:none; width:100%; font-family:inherit;">
+                            </div>
+
+                            <!-- Return From (origin of return leg) -->
+                            <div class="grid-inputs">
+                                <div class="input-group">
+                                    <label>Return From — City</label>
+                                    <input type="text" id="rtFromCity" placeholder="e.g. New York" oninput="scheduleRtAirportFetch('rtFrom')">
+                                </div>
+                                <div class="input-group">
+                                    <label>Return From — Country</label>
+                                    <input type="text" id="rtFromCountry" placeholder="e.g. United States" oninput="scheduleRtAirportFetch('rtFrom')">
+                                </div>
+                            </div>
+                            <div class="input-group" id="rtFromAirportWrap" style="margin-bottom:4px; display:none;">
+                                <label style="margin-bottom:4px;">Return Departure Airport</label>
+                                <div class="airport-status" id="rtFromAirportStatus"></div>
+                                <select class="airport-select" id="rtFromAirportSelect" onchange="onRtAirportChange('rtFrom')">
+                                    <option value="">— select airport —</option>
+                                </select>
+                                <div id="rtFromAirportChip"></div>
+                            </div>
+
+                            <!-- Return To (destination of return leg) -->
+                            <div class="grid-inputs">
+                                <div class="input-group">
+                                    <label>Return To — City</label>
+                                    <input type="text" id="rtToCity" placeholder="e.g. London" oninput="scheduleRtAirportFetch('rtTo')">
+                                </div>
+                                <div class="input-group">
+                                    <label>Return To — Country</label>
+                                    <input type="text" id="rtToCountry" placeholder="e.g. United Kingdom" oninput="scheduleRtAirportFetch('rtTo')">
+                                </div>
+                            </div>
+                            <div class="input-group" id="rtToAirportWrap" style="margin-bottom:4px; display:none;">
+                                <label style="margin-bottom:4px;">Return Arrival Airport</label>
+                                <div class="airport-status" id="rtToAirportStatus"></div>
+                                <select class="airport-select" id="rtToAirportSelect" onchange="onRtAirportChange('rtTo')">
+                                    <option value="">— select airport —</option>
+                                </select>
+                                <div id="rtToAirportChip"></div>
+                            </div>
+
+                            <!-- Return Dates -->
+                            <div class="grid-inputs">
+                                <div class="input-group">
+                                    <label>Return Departure Date</label>
+                                    <input type="date" id="returnDate">
+                                </div>
+                                <div class="input-group">
+                                    <label>Return Departure Time</label>
+                                    <div class="time-wrapper">
+                                        <input type="text" id="rtDepTime" placeholder="HH:MM" maxlength="5" class="time-mask">
+                                        <select id="rtDepAMPM"><option>AM</option><option>PM</option></select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="grid-inputs">
+                                <div class="input-group">
+                                    <label>Return Arrival Date</label>
+                                    <input type="date" id="rtArrDate">
+                                </div>
+                                <div class="input-group">
+                                    <label>Return Arrival Time</label>
+                                    <div class="time-wrapper">
+                                        <input type="text" id="rtArrTime" placeholder="HH:MM" maxlength="5" class="time-mask">
+                                        <select id="rtArrAMPM"><option>AM</option><option>PM</option></select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Show on ticket toggle -->
+                            <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:rgba(34,197,94,0.07); border:1px dashed #22c55e; border-radius:12px;">
+                                <input type="checkbox" id="showRoundTripOnTicket" style="width:17px;height:17px;accent-color:#22c55e;cursor:pointer;" checked>
+                                <label for="showRoundTripOnTicket" style="font-size:0.8rem; font-weight:600; color:var(--text); cursor:pointer;">Show return flight details on generated ticket &amp; tracking</label>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Transit Section — Multi-Stop -->
+                <div class="transit-toggle-row" style="flex-wrap:wrap; gap:10px;">
+                    <i class="fas fa-route" style="color:var(--accent); font-size:1rem;"></i>
+                    <label style="flex:1; min-width:160px;"><strong>Transit Stops</strong> <span style="font-weight:400; color:var(--text-dim);">— how many stops on your journey?</span></label>
+                    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                        <button type="button" class="stop-count-btn active" data-stops="0" onclick="setStopCount(0)">0 — Direct</button>
+                        <button type="button" class="stop-count-btn" data-stops="1" onclick="setStopCount(1)">1 Stop</button>
+                        <button type="button" class="stop-count-btn" data-stops="2" onclick="setStopCount(2)">2 Stops</button>
+                        <button type="button" class="stop-count-btn" data-stops="3" onclick="setStopCount(3)">3 Stops</button>
+                    </div>
+                </div>
+                <style>
+                    .stop-count-btn {
+                        padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+                        background: transparent; color: var(--text-dim); font-size: 0.78rem;
+                        font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit;
+                    }
+                    .stop-count-btn.active {
+                        background: var(--accent); color: #fff; border-color: var(--accent);
+                        box-shadow: 0 3px 10px rgba(56,189,248,0.35);
+                    }
+                    .stop-section {
+                        border: 1.5px solid var(--border); border-radius: 16px; padding: 16px;
+                        margin-bottom: 16px; background: rgba(56,189,248,0.03);
+                        animation: slideUp 0.3s ease;
+                    }
+                    .stop-section-header {
+                        display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+                        padding-bottom: 10px; border-bottom: 1px dashed var(--border);
+                    }
+                    .stop-number-badge {
+                        background: var(--accent); color: #fff; width: 26px; height: 26px;
+                        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                        font-size: 0.75rem; font-weight: 900; flex-shrink: 0;
+                    }
+                </style>
+                <div id="transitStopsContainer"></div>
 
                 <!-- ═══ FLIGHT PRICE SECTION ═══ -->
                 <div class="price-section" id="priceSectionWrap" style="margin-top:20px;">
@@ -654,7 +754,7 @@
                 <div style="text-align:center; margin-top:18px; margin-bottom:6px;">
                     <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(56,189,248,0.08); border:1px dashed var(--accent); padding:5px 16px; border-radius:50px; font-size:0.78rem; color:var(--text-dim); font-style:italic;">
                         <i class="fas fa-ticket-alt" style="color:var(--accent);"></i>
-                        Flight ticket generation — <strong style="color:var(--accent);">GHS 75 / ~$7</strong> per ticket
+                        Flight ticket generation — <strong style="color:var(--accent);">GHS 75 / ~$7</strong> (one-way) &nbsp;·&nbsp; <strong style="color:var(--accent);">GHS 95 / ~$9</strong> (return)
                     </span>
                 </div>
 
@@ -704,9 +804,49 @@
                             <div><span class="pass-label">Gate / Terminal</span><div class="pass-val" id="displayGate">---</div></div>
                             <div style="text-align: right;"><span class="pass-label">Arrival Time</span><div class="pass-val" id="displayArrival">---</div></div>
                         </div>
-                        <div id="transitRow" class="pass-row hidden" style="background:#f8fafc; border-radius:10px; padding:10px; border:1px dashed #cbd5e1;">
-                            <div><span class="pass-label" style="color:#f59e0b;">✈ Via Transit</span><div id="displayTransit" class="pass-val" style="font-size:0.95rem; color:#0f172a;">---</div><div id="displayTransitAirport" style="font-size:0.65rem; color:#0284c7; font-weight:800; margin-top:2px;"></div></div>
-                            <div style="text-align:right;"><span class="pass-label">Layover</span><div id="displayLayover" class="pass-val" style="font-size:0.95rem;">---</div></div>
+                        <div id="transitStopsTicketArea"></div>
+                        <!-- ── Return Flight Section (round trip) ── -->
+                        <div id="roundTripBadgeWrap" style="display:none; flex-direction:column; gap:0; margin-top:14px;">
+                            <!-- Divider -->
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+                                <div style="flex:1; border-top:2px dashed #22c55e;"></div>
+                                <span style="font-size:0.7rem; font-weight:900; color:#16a34a; letter-spacing:2px; white-space:nowrap; background:#f0fdf4; padding:4px 12px; border-radius:20px; border:1.5px solid #22c55e;">
+                                    <i class="fas fa-sync-alt" style="margin-right:4px;"></i>RETURN FLIGHT
+                                </span>
+                                <div style="flex:1; border-top:2px dashed #22c55e;"></div>
+                            </div>
+                            <!-- RT Airline branding -->
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                                <img id="rtLogoImg" src="" style="height:32px; max-width:130px; object-fit:contain; display:none;">
+                                <span id="rtDisplayAirline" style="font-weight:800; font-size:1.1rem; letter-spacing:-0.5px; color:#1a1a1a;"></span>
+                                <span id="rtFareTypeBadge" style="margin-left:auto; font-size:0.62rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#dcfce7; color:#16a34a; border:1px solid #86efac; white-space:nowrap;"></span>
+                            </div>
+                            <!-- RT Route -->
+                            <div class="pass-row" style="margin-bottom:14px;">
+                                <div>
+                                    <span class="pass-label">Return From</span>
+                                    <div id="rtDisplayFrom" class="pass-val" style="font-size:1.5rem; line-height:1.1;">---</div>
+                                    <div id="rtDisplayFromCountry" style="font-size:0.7rem; color:#64748b; font-weight:600; margin-top:2px;"></div>
+                                    <div id="rtDisplayFromAirport" style="font-size:0.62rem; color:#0284c7; font-weight:800; margin-top:3px;"></div>
+                                </div>
+                                <div style="display:flex; align-items:center; color:#16a34a;"><i class="fas fa-plane fa-lg"></i></div>
+                                <div style="text-align:right;">
+                                    <span class="pass-label">Return To</span>
+                                    <div id="rtDisplayTo" class="pass-val" style="font-size:1.5rem; line-height:1.1;">---</div>
+                                    <div id="rtDisplayToCountry" style="font-size:0.7rem; color:#64748b; font-weight:600; margin-top:2px;"></div>
+                                    <div id="rtDisplayToAirport" style="font-size:0.62rem; color:#0284c7; font-weight:800; margin-top:3px;"></div>
+                                </div>
+                            </div>
+                            <!-- RT Date / Gate / Arrival -->
+                            <div class="pass-row">
+                                <div><span class="pass-label">Dep. Date</span><div id="rtDisplayDepDate" class="pass-val" style="font-size:0.95rem;">---</div></div>
+                                <div><span class="pass-label">Dep. Time</span><div id="rtDisplayDep" class="pass-val" style="font-size:0.95rem;">---</div></div>
+                                <div style="text-align:right;"><span class="pass-label">Gate / Terminal</span><div id="rtDisplayGate" class="pass-val" style="font-size:0.95rem;">---</div></div>
+                            </div>
+                            <div class="pass-row" style="margin-top:10px;">
+                                <div><span class="pass-label">Arr. Date</span><div id="rtDisplayArrDate" class="pass-val" style="font-size:0.95rem;">---</div></div>
+                                <div style="text-align:right;"><span class="pass-label">Arrival Time</span><div id="rtDisplayArr" class="pass-val" style="font-size:0.95rem;">---</div></div>
+                            </div>
                         </div>
                     </div>
 
@@ -1205,7 +1345,7 @@
 
                     showCryptoResumePrompt(session);
                     setTimeout(() => {
-                        showCryptoVerifyModal(session.invoiceId, session.orderId, session.invoiceUrl, true);
+                        showCryptoVerifyModal(session.invoiceId, session.orderId, session.invoiceUrl, true, session.cryptoAmt);
                     }, 800);
                 } else {
                     setTimeout(() => {
@@ -1239,16 +1379,268 @@
             document.getElementById('returnGroup').classList.toggle('hidden', !show);
         }
 
-        function toggleTransit(show) {
-            document.getElementById('transitFields').classList.toggle('hidden', !show);
+        // ── MULTI-STOP TRANSIT SYSTEM ──────────────────────────────
+        let _currentStopCount = 0;
+
+        function setStopCount(n) {
+            _currentStopCount = n;
+            // Update button active states
+            document.querySelectorAll('.stop-count-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.stops) === n);
+            });
+            renderTransitStopSections(n);
         }
 
-        function handleLayoverChange(val) {
-            const wrap = document.getElementById('customLayoverWrap');
-            wrap.classList.toggle('hidden', val !== 'custom');
-            // Make the inner inputs visible in light mode too
+        function renderTransitStopSections(n) {
+            const container = document.getElementById('transitStopsContainer');
+            container.innerHTML = '';
+            for (let i = 0; i < n; i++) {
+                const stopNum = i + 1;
+                const key = 'stop' + i;
+                container.innerHTML += `
+                <div class="stop-section" id="stopSection${i}">
+                    <div class="stop-section-header">
+                        <div class="stop-number-badge">${stopNum}</div>
+                        <div>
+                            <div style="font-weight:800; font-size:0.9rem;">Transit Stop ${stopNum}</div>
+                            <div style="font-size:0.72rem; color:var(--text-dim);">Intermediate stop on your journey</div>
+                        </div>
+                    </div>
+                    <div class="grid-inputs">
+                        <div class="input-group">
+                            <label>City <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="stopCity${i}" placeholder="e.g. Dubai" oninput="scheduleStopAirportFetch(${i})">
+                        </div>
+                        <div class="input-group">
+                            <label>Country <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="stopCountry${i}" placeholder="e.g. United Arab Emirates" oninput="scheduleStopAirportFetch(${i})">
+                        </div>
+                    </div>
+                    <div class="input-group" id="stopAirportWrap${i}" style="margin-bottom:16px; display:none;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                            <label style="margin-bottom:0;">Airport</label>
+                            <button type="button" class="custom-apt-toggle" onclick="toggleStopCustomAirport(${i})">
+                                <i class="fas fa-pen" style="font-size:0.65rem;"></i> Custom
+                            </button>
+                        </div>
+                        <div class="airport-status" id="stopAirportStatus${i}"></div>
+                        <select class="airport-select" id="stopAirportSelect${i}" onchange="onStopAirportChange(${i})">
+                            <option value="">— select airport —</option>
+                        </select>
+                        <div class="airport-warn hidden" id="stopAirportWarn${i}"></div>
+                        <div id="stopAirportChip${i}"></div>
+                        <div class="custom-apt-box hidden" id="stopCustomBox${i}">
+                            <div class="custom-apt-row">
+                                <div>
+                                    <label class="custom-apt-label">IATA Code</label>
+                                    <input type="text" id="stopCustomCode${i}" class="custom-apt-input" placeholder="e.g. DXB" maxlength="4" oninput="this.value=this.value.toUpperCase()">
+                                </div>
+                                <div style="flex:2;">
+                                    <label class="custom-apt-label">Airport Name</label>
+                                    <input type="text" id="stopCustomName${i}" class="custom-apt-input" placeholder="e.g. Dubai International">
+                                </div>
+                                <button type="button" class="custom-apt-confirm" onclick="confirmStopCustomAirport(${i})">✓ Set</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid-inputs">
+                        <div class="input-group">
+                            <label>Arrival Time at Stop</label>
+                            <div class="time-wrapper">
+                                <input type="text" id="stopArrTime${i}" placeholder="HH:MM" maxlength="5" class="time-mask">
+                                <select id="stopArrAMPM${i}"><option>AM</option><option>PM</option></select>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Layover Duration</label>
+                            <select id="stopDuration${i}" onchange="handleStopLayoverChange(${i}, this.value)">
+                                <option value="30">30 minutes</option>
+                                <option value="45">45 minutes</option>
+                                <option value="60">1 hour</option>
+                                <option value="90">1.5 hours</option>
+                                <option value="120" selected>2 hours</option>
+                                <option value="180">3 hours</option>
+                                <option value="240">4 hours</option>
+                                <option value="300">5 hours</option>
+                                <option value="360">6 hours</option>
+                                <option value="custom">Custom time…</option>
+                            </select>
+                            <div id="stopCustomLayoverWrap${i}" style="display:none; margin-top:10px; gap:8px; align-items:center;">
+                                <input type="number" id="stopCustomLayoverVal${i}" placeholder="e.g. 90" min="1" style="flex:2; padding:12px; border-radius:12px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:white; outline:none;">
+                                <select id="stopCustomLayoverUnit${i}" style="flex:1; padding:12px; border-radius:12px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:white; outline:none;">
+                                    <option value="minutes">min</option>
+                                    <option value="hours">hrs</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            // Bind time-mask to newly rendered inputs
+            container.querySelectorAll('.time-mask').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    let val = e.target.value.replace(/\D/g, '');
+                    if (val.length > 2) val = val.slice(0,2) + ':' + val.slice(2,4);
+                    e.target.value = val;
+                });
+            });
+            // Init airport state for each new stop
+            for (let i = 0; i < n; i++) {
+                if (!window._selectedStopAirports) window._selectedStopAirports = {};
+                window._selectedStopAirports[i] = null;
+            }
+        }
+
+        function handleStopLayoverChange(idx, val) {
+            const wrap = document.getElementById('stopCustomLayoverWrap' + idx);
+            if (!wrap) return;
             wrap.style.display = val === 'custom' ? 'flex' : 'none';
         }
+
+        // ── Stop airport fetch / selection helpers ──────────────────
+        const _stopAirportTimers = {};
+        function scheduleStopAirportFetch(idx) {
+            clearTimeout(_stopAirportTimers[idx]);
+            _stopAirportTimers[idx] = setTimeout(() => fetchStopAirports(idx), 900);
+        }
+
+        async function fetchStopAirports(idx) {
+            const city    = (document.getElementById('stopCity'+idx)?.value||'').trim();
+            const country = (document.getElementById('stopCountry'+idx)?.value||'').trim();
+            if (!city || !country) return;
+            const wrapEl  = document.getElementById('stopAirportWrap'+idx);
+            const statusEl= document.getElementById('stopAirportStatus'+idx);
+            const selectEl= document.getElementById('stopAirportSelect'+idx);
+            if (!wrapEl || !statusEl || !selectEl) return;
+
+            wrapEl.style.display = 'block';
+            statusEl.innerHTML = '<span class="dot-spin"></span> Searching airports…';
+            selectEl.innerHTML = '<option value="">— loading… —</option>';
+
+            try {
+                const q = encodeURIComponent(city + ' airport ' + country);
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=8&featureType=`, {
+                    headers:{ 'Accept-Language':'en', 'User-Agent':'SkyTrackPro/1.0' }
+                });
+                const data = await res.json();
+                const airports = data.filter(r => /airport|aeropuerto|aéroport/i.test(r.display_name));
+                if (!airports.length) { statusEl.innerHTML = '<span style="color:#f59e0b;">⚠ No airports found — enter city details.</span>'; return; }
+
+                statusEl.innerHTML = `✓ ${airports.length} airport(s) found`;
+                selectEl.innerHTML = '<option value="">— select airport —</option>';
+                airports.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = JSON.stringify({ name: a.display_name.split(',')[0], lat: a.lat, lng: a.lon, iata: '' });
+                    opt.textContent = a.display_name.split(',').slice(0,2).join(',');
+                    selectEl.appendChild(opt);
+                });
+            } catch(e) {
+                statusEl.innerHTML = '<span style="color:#ef4444;">Could not fetch airports.</span>';
+            }
+        }
+
+        function onStopAirportChange(idx) {
+            const sel = document.getElementById('stopAirportSelect'+idx);
+            if (!sel || !sel.value) return;
+            if (!window._selectedStopAirports) window._selectedStopAirports = {};
+            try {
+                window._selectedStopAirports[idx] = JSON.parse(sel.value);
+                const chip = document.getElementById('stopAirportChip'+idx);
+                if (chip) chip.innerHTML = `<div class="airport-chip">${window._selectedStopAirports[idx].iata || '✓'} ${window._selectedStopAirports[idx].name.substring(0,30)}</div>`;
+            } catch(e) {}
+        }
+
+        function toggleStopCustomAirport(idx) {
+            const box = document.getElementById('stopCustomBox'+idx);
+            if (!box) return;
+            const isHidden = box.classList.contains('hidden');
+            box.classList.toggle('hidden', !isHidden);
+            const btn = box.closest('.input-group').querySelector('.custom-apt-toggle');
+            if (btn) btn.classList.toggle('active', isHidden);
+        }
+
+        function confirmStopCustomAirport(idx) {
+            const code = document.getElementById('stopCustomCode'+idx)?.value.trim().toUpperCase() || '';
+            const name = document.getElementById('stopCustomName'+idx)?.value.trim() || '';
+            if (!code && !name) return;
+            if (!window._selectedStopAirports) window._selectedStopAirports = {};
+            window._selectedStopAirports[idx] = { iata: code, name: name };
+            const chip = document.getElementById('stopAirportChip'+idx);
+            if (chip) chip.innerHTML = `<div class="airport-chip">${code || '✓'} ${name.substring(0,30)}</div>`;
+            const box = document.getElementById('stopCustomBox'+idx);
+            if (box) box.classList.add('hidden');
+        }
+
+        // ── Round Trip airport fetch helpers ──────────────────────
+        window._selectedRtAirports = { rtFrom: null, rtTo: null };
+        const _rtAirportTimers = {};
+
+        function scheduleRtAirportFetch(slot) {
+            clearTimeout(_rtAirportTimers[slot]);
+            _rtAirportTimers[slot] = setTimeout(() => fetchRtAirportsForSlot(slot), 700);
+        }
+
+        function getRtSlotCityCountry(slot) {
+            if (slot === 'rtFrom') return { city: document.getElementById('rtFromCity').value.trim(), country: document.getElementById('rtFromCountry').value.trim() };
+            if (slot === 'rtTo')   return { city: document.getElementById('rtToCity').value.trim(),   country: document.getElementById('rtToCountry').value.trim() };
+        }
+
+        async function fetchRtAirportsForSlot(slot) {
+            const { city, country } = getRtSlotCityCountry(slot);
+            if (!city) return;
+            const wrapId   = slot === 'rtFrom' ? 'rtFromAirportWrap'   : 'rtToAirportWrap';
+            const statusId = slot === 'rtFrom' ? 'rtFromAirportStatus' : 'rtToAirportStatus';
+            const selectId = slot === 'rtFrom' ? 'rtFromAirportSelect' : 'rtToAirportSelect';
+            const chipId   = slot === 'rtFrom' ? 'rtFromAirportChip'   : 'rtToAirportChip';
+            const wrapEl   = document.getElementById(wrapId);
+            const statusEl = document.getElementById(statusId);
+            const selectEl = document.getElementById(selectId);
+            const chipEl   = document.getElementById(chipId);
+            if (!wrapEl) return;
+            wrapEl.style.display = 'block';
+            statusEl.innerHTML = '<span class="dot-spin"></span> Finding airports…';
+            selectEl.innerHTML = '<option value="">— loading… —</option>';
+            chipEl.innerHTML = '';
+            window._selectedRtAirports[slot] = null;
+            try {
+                const airports = await fetchAirportsViaAI(city, country || '');
+                selectEl.innerHTML = '<option value="">— select airport —</option>';
+                airports.forEach((ap, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = ap.iata;
+                    opt.dataset.name = ap.name;
+                    opt.textContent = ap.dist > 0 ? `${ap.iata}  —  ${ap.name}  (${ap.dist} km)` : `${ap.iata}  —  ${ap.name}`;
+                    if (i === 0) opt.selected = true;
+                    selectEl.appendChild(opt);
+                });
+                window._selectedRtAirports[slot] = { iata: airports[0].iata, name: airports[0].name };
+                chipEl.innerHTML = `<span class="airport-chip">✈ ${airports[0].iata} — ${airports[0].name}</span>`;
+                statusEl.innerHTML = `<i class="fas fa-check-circle" style="color:#22c55e;"></i> ${airports.length} airport(s) found`;
+            } catch(e) {
+                statusEl.innerHTML = '<span style="color:#f59e0b;">⚠ No airports found — check city name</span>';
+            }
+        }
+
+        function onRtAirportChange(slot) {
+            const selectId = slot === 'rtFrom' ? 'rtFromAirportSelect' : 'rtToAirportSelect';
+            const chipId   = slot === 'rtFrom' ? 'rtFromAirportChip'   : 'rtToAirportChip';
+            const sel = document.getElementById(selectId);
+            if (!sel || !sel.value) return;
+            const iata = sel.value;
+            const name = sel.options[sel.selectedIndex]?.dataset.name || '';
+            window._selectedRtAirports[slot] = { iata, name };
+            document.getElementById(chipId).innerHTML = `<span class="airport-chip">✈ ${iata} — ${name}</span>`;
+        }
+
+        function handleRtAirlineChange(val) {
+            const customInput = document.getElementById('rtCustomAirline');
+            if (val === 'custom') { customInput.classList.remove('hidden'); }
+            else { customInput.classList.add('hidden'); }
+        }
+
+        // Legacy stubs to not break any lingering calls
+        function toggleTransit(show) {}
+        function handleLayoverChange(val) {}
 
         function handleAirlineChange(val) {
             const customInput = document.getElementById('customAirline');
@@ -1340,35 +1732,98 @@
             let   arrTS = getTimestamp(departDate, arrTimeRaw, arrAMPM);
             if (arrTS <= depTS) arrTS += 24 * 60 * 60 * 1000;
 
-            // Transit validation
-            const hasTransit = document.getElementById('hasTransit').checked;
-            let transitCity = '', transitCountry = '', transitDurationMins = 0, transitArrTS = 0;
-            if (hasTransit) {
-                transitCity    = document.getElementById('transitCity').value.trim();
-                transitCountry = document.getElementById('transitCountry').value.trim();
-                const transitArrRaw  = document.getElementById('transitArrTime').value;
-                const transitArrAMPM = document.getElementById('transitArrAMPM').value;
-                transitDurationMins  = parseInt(document.getElementById('transitDuration').value);
-                if (isNaN(transitDurationMins) || document.getElementById('transitDuration').value === 'custom') {
-                    const customVal  = parseFloat(document.getElementById('customLayoverVal').value);
-                    const customUnit = document.getElementById('customLayoverUnit').value;
-                    if (!customVal || customVal <= 0) {
-                        showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Invalid Duration', body:'<p>Please enter a valid custom layover duration.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
-                        return;
-                    }
-                    transitDurationMins = customUnit === 'hours' ? Math.round(customVal * 60) : Math.round(customVal);
-                }
-                if (!transitCity || !transitCountry) {
-                    showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Transit Info Missing', body:'<p>Please enter the transit city and country.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
+            // ── Multi-stop transit collection ─────────────────────────
+            const stopCount = _currentStopCount || 0;
+            const transitStops = [];
+            for (let si = 0; si < stopCount; si++) {
+                const sCity    = (document.getElementById('stopCity'+si)?.value||'').trim();
+                const sCountry = (document.getElementById('stopCountry'+si)?.value||'').trim();
+                if (!sCity || !sCountry) {
+                    showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Transit Info Missing',
+                        body:`<p>Please fill in city and country for transit stop ${si+1}.</p>`,
+                        buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
                     return;
                 }
-                transitArrTS = getTimestamp(departDate, transitArrRaw || depTimeRaw, transitArrRaw ? transitArrAMPM : depAMPM);
-                if (transitArrTS <= depTS) transitArrTS += 24 * 60 * 60 * 1000;
+                const sArrRaw  = document.getElementById('stopArrTime'+si)?.value || '';
+                const sArrAMPM = document.getElementById('stopArrAMPM'+si)?.value || 'AM';
+                let sDurMins   = parseInt(document.getElementById('stopDuration'+si)?.value || '120');
+                if (isNaN(sDurMins) || document.getElementById('stopDuration'+si)?.value === 'custom') {
+                    const cv = parseFloat(document.getElementById('stopCustomLayoverVal'+si)?.value || '0');
+                    const cu = document.getElementById('stopCustomLayoverUnit'+si)?.value || 'minutes';
+                    if (!cv || cv <= 0) {
+                        showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Invalid Duration',
+                            body:`<p>Please enter a valid layover duration for stop ${si+1}.</p>`,
+                            buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
+                        return;
+                    }
+                    sDurMins = cu === 'hours' ? Math.round(cv * 60) : Math.round(cv);
+                }
+                let sArrTS = sArrRaw ? getTimestamp(departDate, sArrRaw, sArrAMPM) : depTS;
+                if (sArrTS <= depTS) sArrTS += 24 * 60 * 60 * 1000;
+                const sApt = (window._selectedStopAirports && window._selectedStopAirports[si]) || {};
+                transitStops.push({
+                    city:        sCity.toUpperCase(),
+                    country:     sCountry.toUpperCase(),
+                    arrTime:     sArrTS,
+                    durationMin: sDurMins,
+                    airportCode: sApt.iata || '',
+                    airportName: sApt.name || ''
+                });
             }
+            const hasTransit = transitStops.length > 0;
+            // Legacy single-stop shim (for backward-compat with tracker)
+            const transitCity      = hasTransit ? transitStops[0].city : '';
+            const transitCountry   = hasTransit ? transitStops[0].country : '';
+            const transitArrTS     = hasTransit ? transitStops[0].arrTime : 0;
+            const transitDurationMins = hasTransit ? transitStops[0].durationMin : 0;
 
             const idPrefixes = ["ST", "ER", "RY", "CH"];
             const idPrefix = idPrefixes[Math.floor(Math.random() * idPrefixes.length)];
             const id = idPrefix + "-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+
+            // Round trip
+            const tripType   = document.querySelector('input[name="trip"]:checked')?.value || 'one';
+            const showRtOnTicket = document.getElementById('showRoundTripOnTicket')?.checked !== false;
+            let rtData = null;
+            if (tripType === 'round') {
+                const rtFareType    = document.getElementById('rtFareType')?.value || 'Round Trip';
+                let   rtAirline     = document.getElementById('rtAirlineSelect')?.value || 'same';
+                if (rtAirline === 'same')   rtAirline = airline;
+                if (rtAirline === 'custom') rtAirline = document.getElementById('rtCustomAirline')?.value?.trim() || airline;
+                const rtFromCity    = document.getElementById('rtFromCity')?.value.trim() || '';
+                const rtFromCountry = document.getElementById('rtFromCountry')?.value.trim() || '';
+                const rtToCity      = document.getElementById('rtToCity')?.value.trim() || '';
+                const rtToCountry   = document.getElementById('rtToCountry')?.value.trim() || '';
+                const rtDepDate     = document.getElementById('returnDate')?.value || '';
+                const rtDepTimeRaw  = document.getElementById('rtDepTime')?.value || '';
+                const rtDepAMPM     = document.getElementById('rtDepAMPM')?.value || 'AM';
+                const rtArrDate     = document.getElementById('rtArrDate')?.value || '';
+                const rtArrTimeRaw  = document.getElementById('rtArrTime')?.value || '';
+                const rtArrAMPM     = document.getElementById('rtArrAMPM')?.value || 'AM';
+                const rtFromApt     = window._selectedRtAirports?.rtFrom || null;
+                const rtToApt       = window._selectedRtAirports?.rtTo   || null;
+                const rtTerminal    = ['T1','T2','T3'][Math.floor(Math.random()*3)];
+                const rtGate        = String.fromCharCode(65+Math.floor(Math.random()*6)) + Math.floor(Math.random()*30+1);
+                rtData = {
+                    fareType:    rtFareType,
+                    airline:     rtAirline.toUpperCase(),
+                    fromCity:    rtFromCity.toUpperCase(),
+                    fromCountry: rtFromCountry.toUpperCase(),
+                    toCity:      rtToCity.toUpperCase(),
+                    toCountry:   rtToCountry.toUpperCase(),
+                    depDate:     rtDepDate,
+                    dep:         rtDepTimeRaw + (rtDepTimeRaw ? ' ' + rtDepAMPM : ''),
+                    arrDate:     rtArrDate,
+                    arr:         rtArrTimeRaw + (rtArrTimeRaw ? ' ' + rtArrAMPM : ''),
+                    fromAirportCode: rtFromApt?.iata || '',
+                    fromAirportName: rtFromApt?.name || '',
+                    toAirportCode:   rtToApt?.iata   || '',
+                    toAirportName:   rtToApt?.name   || '',
+                    terminal:    rtTerminal,
+                    gate:        rtGate,
+                };
+            }
+            const returnDate = rtData?.depDate || '';
 
             const flightData = {
                 name:        name.toUpperCase(),
@@ -1379,6 +1834,10 @@
                 toCity:      toCity.toUpperCase(),
                 toCountry:   toCountry.toUpperCase(),
                 date:        departDate,
+                tripType:    tripType,
+                returnDate:  returnDate,
+                showRoundTrip: (tripType === 'round' && showRtOnTicket),
+                rtData:      rtData,
                 dep:         depTimeRaw + " " + depAMPM,
                 arr:         arrTimeRaw + " " + arrAMPM,
                 departTime:  depTS,
@@ -1389,9 +1848,11 @@
                 airline:     airline.toUpperCase(),
                 id:          id,
                 hasTransit:       hasTransit,
-                transitCity:      hasTransit ? transitCity.toUpperCase() : '',
-                transitCountry:   hasTransit ? transitCountry.toUpperCase() : '',
-                transit:          hasTransit ? (transitCity + (transitCountry ? ', ' + transitCountry : '')).toUpperCase() : '',
+                transitStops:     transitStops,   // full multi-stop array
+                // legacy single-stop shim (keeps old tracker logic working for 1-stop flights)
+                transitCity:      transitCity,
+                transitCountry:   transitCountry,
+                transit:          hasTransit ? (transitCity + (transitCountry ? ', ' + transitCountry : '')) : '',
                 transitArrTime:   transitArrTS,
                 transitDuration:  transitDurationMins,
                 cancelled:        false,
@@ -1399,8 +1860,8 @@
                 fromAirportName:  (window._selectedAirports['from']?.name || ''),
                 toAirportCode:    (window._selectedAirports['to']?.iata || ''),
                 toAirportName:    (window._selectedAirports['to']?.name || ''),
-                transitAirportCode: hasTransit ? (window._selectedAirports['transit']?.iata || '') : '',
-                transitAirportName: hasTransit ? (window._selectedAirports['transit']?.name || '') : ''
+                transitAirportCode: hasTransit ? (transitStops[0]?.airportCode || '') : '',
+                transitAirportName: hasTransit ? (transitStops[0]?.airportName || '') : ''
             };
 
             // Save to Firestore (cloud) so shared links work on any device
@@ -1429,6 +1890,34 @@
             document.getElementById('displayClass').innerText       = flightClass;
             document.getElementById('stubTerminal').innerText       = flightData.terminal;
 
+            // Round trip section on ticket
+            const rtBadgeWrap = document.getElementById('roundTripBadgeWrap');
+            if (rtBadgeWrap) {
+                if (tripType === 'round' && showRtOnTicket && rtData) {
+                    rtBadgeWrap.style.display = 'flex';
+                    // Airline
+                    document.getElementById('rtDisplayAirline').innerText = rtData.airline;
+                    document.getElementById('rtFareTypeBadge').innerText  = rtData.fareType;
+                    applyLogoToImg(document.getElementById('rtLogoImg'), rtData.airline);
+                    document.getElementById('rtLogoImg').style.display = 'block';
+                    // Route
+                    document.getElementById('rtDisplayFrom').innerText        = rtData.fromCity  || '---';
+                    document.getElementById('rtDisplayFromCountry').innerText = rtData.fromCountry || '';
+                    document.getElementById('rtDisplayFromAirport').innerText = rtData.fromAirportCode ? `✈ ${rtData.fromAirportCode} — ${rtData.fromAirportName}` : '';
+                    document.getElementById('rtDisplayTo').innerText          = rtData.toCity    || '---';
+                    document.getElementById('rtDisplayToCountry').innerText   = rtData.toCountry || '';
+                    document.getElementById('rtDisplayToAirport').innerText   = rtData.toAirportCode   ? `✈ ${rtData.toAirportCode} — ${rtData.toAirportName}`   : '';
+                    // Times
+                    document.getElementById('rtDisplayDepDate').innerText = rtData.depDate || '---';
+                    document.getElementById('rtDisplayDep').innerText     = rtData.dep     || '---';
+                    document.getElementById('rtDisplayGate').innerText    = rtData.gate + ' / ' + rtData.terminal;
+                    document.getElementById('rtDisplayArrDate').innerText = rtData.arrDate || '---';
+                    document.getElementById('rtDisplayArr').innerText     = rtData.arr     || '---';
+                } else {
+                    rtBadgeWrap.style.display = 'none';
+                }
+            }
+
             // Set airline logo
             setAirlineLogo(airline);
 
@@ -1445,16 +1934,27 @@
             document.getElementById('barcodeNumber').innerText = barcodeNum;
             document.getElementById('barcodeValue').innerText = barcodeNum;
 
-            // Transit display
-            if (hasTransit) {
-                document.getElementById('displayTransit').innerText = flightData.transit;
-                const dur = flightData.transitDuration;
-                document.getElementById('displayLayover').innerText = dur >= 60 ? Math.floor(dur/60) + 'h ' + (dur%60 ? (dur%60)+'m' : '') : dur + 'm';
-                document.getElementById('transitRow').classList.remove('hidden');
-                const trApt = flightData.transitAirportCode ? `✈ ${flightData.transitAirportCode} — ${flightData.transitAirportName}` : '';
-                document.getElementById('displayTransitAirport').innerText = trApt;
-            } else {
-                document.getElementById('transitRow').classList.add('hidden');
+            // ── Multi-stop ticket display ────────────────────────────
+            const stopsArea = document.getElementById('transitStopsTicketArea');
+            if (stopsArea) {
+                stopsArea.innerHTML = '';
+                (flightData.transitStops || []).forEach((stop, si) => {
+                    const dur = stop.durationMin;
+                    const durStr = dur >= 60 ? Math.floor(dur/60) + 'h ' + (dur%60 ? (dur%60)+'m':'') : dur+'m';
+                    const aptLine = stop.airportCode ? `<div style="font-size:0.65rem;color:#0284c7;font-weight:800;margin-top:2px;">✈ ${stop.airportCode} — ${stop.airportName}</div>` : '';
+                    stopsArea.innerHTML += `
+                    <div class="pass-row" style="background:#fffbeb; border-radius:10px; padding:10px; border:1px dashed #f59e0b; margin-top:8px;">
+                        <div>
+                            <span class="pass-label" style="color:#f59e0b;">✈ Stop ${si+1}</span>
+                            <div class="pass-val" style="font-size:0.95rem; color:#0f172a;">${stop.city}${stop.country ? ', '+stop.country : ''}</div>
+                            ${aptLine}
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="pass-label">Layover</span>
+                            <div class="pass-val" style="font-size:0.95rem;">${durStr}</div>
+                        </div>
+                    </div>`;
+                });
             }
             
             // Show price on ticket if user opted in and price is set
@@ -1978,6 +2478,46 @@
             const fromApt = data.fromAirportCode ? `✈ ${data.fromAirportCode} — ${data.fromAirportName}` : '';
             const toApt   = data.toAirportCode   ? `✈ ${data.toAirportCode} — ${data.toAirportName}`     : '';
             const priceHTML = data.ticketPrice ? `<div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Ticket Price</span><div style="font-size:1rem;font-weight:800;color:#22c55e;">${data.ticketPrice}</div></div>` : '';
+            const roundTripHTML = (data.showRoundTrip && data.rtData) ? (() => {
+                const rt = data.rtData;
+                const rtLogoEntry = _getLogoEntry(rt.airline || '');
+                const rtLogoSrc = rtLogoEntry ? rtLogoEntry.svg : _makeFallbackSVG(rt.airline || '');
+                const rtFromApt = rt.fromAirportCode ? `<div style="font-size:0.62rem;color:#0284c7;font-weight:800;margin-top:2px;">✈ ${rt.fromAirportCode} — ${rt.fromAirportName}</div>` : '';
+                const rtToApt   = rt.toAirportCode   ? `<div style="font-size:0.62rem;color:#0284c7;font-weight:800;margin-top:2px;">✈ ${rt.toAirportCode} — ${rt.toAirportName}</div>`   : '';
+                return `
+                <div style="display:flex;align-items:center;gap:10px;margin:16px 0 10px;">
+                    <div style="flex:1;border-top:2px dashed #22c55e;"></div>
+                    <span style="font-size:0.65rem;font-weight:900;color:#16a34a;letter-spacing:2px;white-space:nowrap;background:#f0fdf4;padding:3px 10px;border-radius:20px;border:1.5px solid #22c55e;">↩ RETURN FLIGHT</span>
+                    <div style="flex:1;border-top:2px dashed #22c55e;"></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                    <img src="${rtLogoSrc}" style="height:30px;max-width:120px;object-fit:contain;" crossorigin="anonymous" alt="${rt.airline||''}">
+                    <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.5px;">${rt.airline||''}</span>
+                    <span style="margin-left:auto;font-size:0.58rem;font-weight:800;padding:2px 9px;border-radius:20px;background:#dcfce7;color:#16a34a;border:1px solid #86efac;">${rt.fareType||'Round Trip'}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f0fdf4;border-radius:10px;margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;margin-bottom:1px;">Return From</div>
+                        <div style="font-size:1.3rem;font-weight:900;">${rt.fromCity||'---'}</div>
+                        <div style="font-size:0.62rem;color:#64748b;">${rt.fromCountry||''}</div>
+                        ${rtFromApt}
+                    </div>
+                    <div style="font-size:1.4rem;color:#16a34a;">✈</div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;margin-bottom:1px;">Return To</div>
+                        <div style="font-size:1.3rem;font-weight:900;">${rt.toCity||'---'}</div>
+                        <div style="font-size:0.62rem;color:#64748b;">${rt.toCountry||''}</div>
+                        ${rtToApt}
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:0.8rem;background:#f8fafc;padding:10px;border-radius:10px;">
+                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Dep. Date</div><div style="font-weight:800;">${rt.depDate||'---'}</div></div>
+                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Dep. Time</div><div style="font-weight:800;">${rt.dep||'---'}</div></div>
+                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Arr. Date</div><div style="font-weight:800;">${rt.arrDate||'---'}</div></div>
+                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Arr. Time</div><div style="font-weight:800;">${rt.arr||'---'}</div></div>
+                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Gate / Term.</div><div style="font-weight:800;">${rt.gate||'—'} / ${rt.terminal||'T1'}</div></div>
+                </div>`;
+            })() : '';
 
             tmp.innerHTML = `
                 <div style="flex:2; padding:30px; border-right:2px dashed #e2e8f0; position:relative;">
@@ -2016,6 +2556,7 @@
                         <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Departure Date</span><div style="font-size:1.1rem;font-weight:700;">${data.date || ''}</div></div>
                         <div style="text-align:right;"><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Arrival Time</span><div style="font-size:1.1rem;font-weight:700;">${data.arr || ''}</div></div>
                     </div>
+                    ${roundTripHTML}
                 </div>
                 <div style="flex:0.8; padding:30px; background:#f8fafc; display:flex; flex-direction:column; justify-content:space-between;">
                     <div>
@@ -2507,6 +3048,9 @@
         }
 
         function showPaymentMethodModal() {
+            const isRound = (document.querySelector('input[name="trip"]:checked')?.value || 'one') === 'round';
+            const ghsPrice = isRound ? '95.00' : '75.00';
+            const usdPrice = isRound ? '$9' : '$7';
             const overlay = document.createElement('div');
             overlay.className = 'sky-modal-overlay';
             overlay.id = 'payMethodOverlay';
@@ -2530,7 +3074,7 @@
                             <div style="font-size:2rem; flex-shrink:0;">💳</div>
                             <div>
                                 <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Paystack</div>
-                                <div style="font-size:0.78rem; opacity:0.85;">Pay with card, mobile money, or bank transfer (GHS 75.00)</div>
+                                <div style="font-size:0.78rem; opacity:0.85;">Pay with card, mobile money, or bank transfer (GHS ${ghsPrice})</div>
                             </div>
                             <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
                         </button>
@@ -2548,7 +3092,7 @@
                             <div style="font-size:2rem; flex-shrink:0;">₿</div>
                             <div>
                                 <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Crypto (NOWPayments)</div>
-                                <div style="font-size:0.78rem; opacity:0.85;">Pay with BTC, ETH, USDT, BNB, and 300+ coins (~$7 USD)</div>
+                                <div style="font-size:0.78rem; opacity:0.85;">Pay with BTC, ETH, USDT, BNB, and 300+ coins (~${usdPrice} USD)</div>
                             </div>
                             <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
                         </button>
@@ -2569,10 +3113,11 @@
         // ── Paystack flow ───────────────────────────────────────────
         function payWithPaystack() {
             const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
+            const isRound = (document.querySelector('input[name="trip"]:checked')?.value || 'one') === 'round';
             const handler = PaystackPop.setup({
                 key: 'pk_live_a4f0436853c9bb7a47d0c627f5a56fcb1bbc80b4',
                 email: email,
-                amount: 7500,
+                amount: isRound ? 9500 : 7500,
                 currency: 'GHS',
                 callback: function(response) {
                     // Mark payment as verified BEFORE calling generateTicket
@@ -2593,9 +3138,9 @@
 
         // ── Pending crypto session helpers ──────────────────────────
         // Saves invoice details so the user can resume if they close the tab
-        function savePendingCryptoSession(invoiceId, orderId, invoiceUrl) {
+        function savePendingCryptoSession(invoiceId, orderId, invoiceUrl, cryptoAmt) {
             localStorage.setItem('skytrack_pending_crypto', JSON.stringify({
-                invoiceId, orderId, invoiceUrl,
+                invoiceId, orderId, invoiceUrl, cryptoAmt,
                 createdAt: Date.now()
             }));
         }
@@ -2723,8 +3268,8 @@
                 showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Session Expired', body:'<p>Your previous payment session has expired. Please start a new payment.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
                 return;
             }
-            const { invoiceId, orderId, invoiceUrl } = session;
-            showCryptoVerifyModal(invoiceId, orderId, invoiceUrl, true);
+            const { invoiceId, orderId, invoiceUrl, cryptoAmt } = session;
+            showCryptoVerifyModal(invoiceId, orderId, invoiceUrl, true, cryptoAmt);
         }
 
         // ── Silent background prefetch of paymentId ─────────────────────────
@@ -2887,7 +3432,8 @@
             window.open('https://nowpayments.io/payment/?pid=' + pid, '_blank');
         }
 
-        function showCryptoVerifyModal(invoiceId, orderId, invoiceUrl, isResume) {
+        function showCryptoVerifyModal(invoiceId, orderId, invoiceUrl, isResume, usdAmt) {
+            const displayAmt = usdAmt ? '$' + usdAmt + '.00' : '$7.00';
             showSkyModal({
                 icon: '₿', iconColor: '#f7971e',
                 title: isResume ? 'Resume Your Payment' : 'Complete Crypto Payment',
@@ -2902,7 +3448,7 @@
                         <div style="margin-top:6px;"><span style="color:#f7971e; font-weight:800; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.8px;">Invoice Reference</span><br>
                         <span style="font-family:monospace; font-size:0.78rem; color:var(--text-dim);">${invoiceId}</span></div>
                         <div style="margin-top:6px; display:flex; gap:20px; flex-wrap:wrap;">
-                            <div><span style="color:#f7971e; font-weight:800; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.8px;">Amount</span><br><span style="font-weight:700; color:var(--text);">~$7.00 USD</span></div>
+                            <div><span style="color:#f7971e; font-weight:800; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.8px;">Amount</span><br><span style="font-weight:700; color:var(--text);">~${displayAmt} USD</span></div>
                             <div><span style="color:#f7971e; font-weight:800; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.8px;">Accepted</span><br><span style="color:var(--text-dim);">BTC, ETH, USDT &amp; 300+ coins</span></div>
                         </div>
                     </div>
@@ -2960,6 +3506,8 @@
         // ── NOWPayments crypto flow ─────────────────────────────────
         async function payWithCrypto() {
             const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
+            const isRound = (document.querySelector('input[name="trip"]:checked')?.value || 'one') === 'round';
+            const cryptoAmt = isRound ? 9 : 7;
 
             // If a valid pending session already exists, resume it — don't create a new order
             const existing = getPendingCryptoSession();
@@ -2975,11 +3523,11 @@
                             <span style="font-family:monospace; font-size:0.9rem; font-weight:800; color:var(--text); letter-spacing:0.5px; user-select:all;">${existing.orderId}</span></div>
                             <div style="margin-top:4px; display:flex; gap:20px; flex-wrap:wrap;">
                                 <div><span style="color:#f7971e; font-weight:800; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.8px;">Started</span><br><span style="color:var(--text-dim);">${ageStr}</span></div>
-                                <div><span style="color:#f7971e; font-weight:800; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.8px;">Amount</span><br><span style="font-weight:700; color:var(--text);">~$7.00 USD</span></div>
+                                <div><span style="color:#f7971e; font-weight:800; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.8px;">Amount</span><br><span style="font-weight:700; color:var(--text);">~$${cryptoAmt}.00 USD</span></div>
                             </div>
                         </div>`,
                     buttons: [
-                        { label: '↩ Resume This Payment', cls: 'modal-btn-primary', action: () => { closeSkyModal(); showCryptoVerifyModal(existing.invoiceId, existing.orderId, existing.invoiceUrl, true); } },
+                        { label: '↩ Resume This Payment', cls: 'modal-btn-primary', action: () => { closeSkyModal(); showCryptoVerifyModal(existing.invoiceId, existing.orderId, existing.invoiceUrl, true, cryptoAmt); } },
                         { label: '+ Start Fresh',         cls: 'modal-btn-ghost',   action: () => { clearPendingCryptoSession(); closeSkyModal(); payWithCrypto(); } },
                         { label: 'Cancel',                cls: 'modal-btn-ghost',   action: closeSkyModal }
                     ]
@@ -3004,7 +3552,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        price_amount: 7,
+                        price_amount: cryptoAmt,
                         price_currency: 'usd',
                         order_id: orderId,
                         order_description: 'SkyTrack Pro Elite Ticket',
@@ -3025,10 +3573,10 @@
                 const invoiceId  = data.id;
 
                 // ── Persist session so user can resume if they close/navigate away ──
-                savePendingCryptoSession(invoiceId, orderId, invoiceUrl);
+                savePendingCryptoSession(invoiceId, orderId, invoiceUrl, cryptoAmt);
 
                 window.open(invoiceUrl, 'nowpayments_tab');
-                showCryptoVerifyModal(invoiceId, orderId, invoiceUrl, false);
+                showCryptoVerifyModal(invoiceId, orderId, invoiceUrl, false, cryptoAmt);
 
             } catch (err) {
                 closeSkyModal();
