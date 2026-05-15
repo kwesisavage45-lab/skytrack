@@ -431,6 +431,7 @@
             <div><div class="label">Arrival (EST)</div><div class="value" id="resArr">---</div></div>
             <div id="resAirportCell" style="display:none;"><div class="label">Airports</div><div class="value" id="resAirports" style="font-size:0.85rem; line-height:1.6;">---</div></div>
             <div id="resPriceCell" style="display:none;"><div class="label">Ticket Price</div><div class="value" id="resPrice" style="color:#22c55e;">---</div></div>
+            <div id="resRoundTripCell" style="display:none; grid-column:1/-1;"><div class="label" style="color:#16a34a;">Return Flight</div><div id="resReturnInfo" style="font-size:0.85rem; line-height:1.8; color:var(--text); font-weight:700;">---</div></div>
         </div>
 
         <div style="text-align: center; margin-top: 40px;">
@@ -678,13 +679,20 @@
                         <div style="text-align:center; font-size:2rem; color:#0284c7; padding:0 8px;">✈</div>
                         <div style="text-align:right;">
                             <span class="label">To</span>
-                            <div style="font-size:1.6rem; font-weight:900; line-height:1.1;">${savedData.hasTransit ? '<span style="font-size:0.8rem;color:#f59e0b;font-weight:700;display:block;margin-bottom:2px;">via ' + savedData.transitCity + '</span>' : ''}${savedData.toCity || savedData.to}</div>
+                            <div style="font-size:1.6rem; font-weight:900; line-height:1.1;">${(() => { const stops = Array.isArray(savedData.transitStops) && savedData.transitStops.length > 0 ? savedData.transitStops : (savedData.hasTransit && savedData.transitCity ? [{city:savedData.transitCity}] : []); return stops.length > 0 ? '<span style="font-size:0.72rem;color:#f59e0b;font-weight:700;display:block;margin-bottom:2px;">via ' + stops.map(s=>s.city).join(' → ') + '</span>' : ''; })()}${savedData.toCity || savedData.to}</div>
                             <div style="font-size:0.72rem; color:#64748b; margin-top:1px;">${savedData.toCountry || ''}</div>
                             ${toAptLine}
                         </div>
                     </div>
 
-                    ${savedData.hasTransit ? `<div style="background:#fffbeb; border:1px solid #f59e0b; border-radius:12px; padding:10px 14px; margin-bottom:16px; font-size:0.82rem;"><i class="fas fa-route" style="color:#f59e0b; margin-right:6px;"></i><strong style="color:#92400e;">Transit: ${savedData.transitCity}${savedData.transitCountry ? ', '+savedData.transitCountry : ''}</strong>${savedData.transitAirportCode ? ' · ' + savedData.transitAirportCode + ' — ' + savedData.transitAirportName : ''} · Layover: ${savedData.transitDuration} min</div>` : ''}
+                    ${(() => {
+                        const stops = Array.isArray(savedData.transitStops) && savedData.transitStops.length > 0
+                            ? savedData.transitStops
+                            : (savedData.hasTransit && savedData.transitCity
+                                ? [{ city: savedData.transitCity, country: savedData.transitCountry||'', durationMin: savedData.transitDuration||0, airportCode: savedData.transitAirportCode||'', airportName: savedData.transitAirportName||'' }]
+                                : []);
+                        return stops.map((s, i) => `<div style="background:#fffbeb; border:1px solid #f59e0b; border-radius:12px; padding:10px 14px; margin-bottom:8px; font-size:0.82rem;"><i class="fas fa-route" style="color:#f59e0b; margin-right:6px;"></i><strong style="color:#92400e;">Stop ${i+1}: ${s.city}${s.country ? ', '+s.country : ''}</strong>${s.airportCode ? ' · ' + s.airportCode + ' — ' + s.airportName : ''} · Layover: ${s.durationMin} min</div>`).join('');
+                    })()}
 
                     <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; background:#f8fafc; padding:14px; border-radius:14px; border:1px solid #e2e8f0; margin-bottom:16px;">
                         <div><span class="label">Date</span><div style="font-weight:800; font-size:0.9rem;">${savedData.date}</div></div>
@@ -694,6 +702,46 @@
                         <div><span class="label">Gate</span><div style="font-weight:800; font-size:0.9rem;">${savedData.gate || '—'}</div></div>
                         ${priceRow}
                     </div>
+
+                    ${(savedData.showRoundTrip && savedData.rtData) ? (() => {
+                        const rt = savedData.rtData;
+                        const rtFromApt = rt.fromAirportCode ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${rt.fromAirportCode} — ${rt.fromAirportName}</div>` : '';
+                        const rtToApt   = rt.toAirportCode   ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${rt.toAirportCode} — ${rt.toAirportName}</div>`   : '';
+                        return `
+                        <div style="display:flex;align-items:center;gap:10px;margin:16px 0 14px;">
+                            <div style="flex:1;border-top:2px dashed #22c55e;"></div>
+                            <span style="font-size:0.68rem;font-weight:900;color:#16a34a;letter-spacing:1.5px;white-space:nowrap;background:#f0fdf4;padding:4px 12px;border-radius:20px;border:1.5px solid #22c55e;"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>RETURN FLIGHT</span>
+                            <div style="flex:1;border-top:2px dashed #22c55e;"></div>
+                        </div>
+                        <div id="rtTrackAirlineHeader" style="background:#f0fdf4;display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;margin-bottom:14px;border:1px solid #bbf7d0;">
+                            <img id="rtTrackLogoImg" alt="${rt.airline||''}" style="height:36px;max-width:140px;object-fit:contain;display:block;">
+                            <span style="font-weight:900;font-size:1.2rem;letter-spacing:-0.5px;color:#15803d;">${(rt.airline||'').toUpperCase()}</span>
+                            <span style="margin-left:auto;font-size:0.62rem;font-weight:800;padding:3px 10px;border-radius:20px;background:#dcfce7;color:#16a34a;border:1px solid #86efac;white-space:nowrap;">${rt.fareType||'Round Trip'}</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-bottom:14px;">
+                            <div>
+                                <span class="label" style="color:#16a34a;">Return From</span>
+                                <div style="font-size:1.4rem;font-weight:900;line-height:1.1;">${rt.fromCity||'---'}</div>
+                                <div style="font-size:0.72rem;color:#64748b;">${rt.fromCountry||''}</div>
+                                ${rtFromApt}
+                            </div>
+                            <div style="text-align:center;font-size:1.8rem;color:#16a34a;">✈</div>
+                            <div style="text-align:right;">
+                                <span class="label" style="color:#16a34a;">Return To</span>
+                                <div style="font-size:1.4rem;font-weight:900;line-height:1.1;">${rt.toCity||'---'}</div>
+                                <div style="font-size:0.72rem;color:#64748b;">${rt.toCountry||''}</div>
+                                ${rtToApt}
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#f0fdf4;padding:12px;border-radius:12px;border:1px solid #bbf7d0;margin-bottom:4px;">
+                            <div><span class="label" style="color:#16a34a;">Dep. Date</span><div style="font-weight:800;font-size:0.88rem;">${rt.depDate||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Dep. Time</span><div style="font-weight:800;font-size:0.88rem;">${rt.dep||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Arr. Date</span><div style="font-weight:800;font-size:0.88rem;">${rt.arrDate||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Arr. Time</span><div style="font-weight:800;font-size:0.88rem;">${rt.arr||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Terminal</span><div style="font-weight:800;font-size:0.88rem;">${rt.terminal||'T1'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Gate</span><div style="font-weight:800;font-size:0.88rem;">${rt.gate||'—'}</div></div>
+                        </div>`;
+                    })() : ''}
 
                     ${savedData.fromAirportCode || savedData.toAirportCode ? `<div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:10px 14px; font-size:0.78rem; color:#0369a1; font-weight:700; margin-bottom:4px;">
                         ${savedData.fromAirportCode ? `<div>✈ DEP: ${savedData.fromAirportCode} — ${savedData.fromAirportName}</div>` : ''}
@@ -706,6 +754,9 @@
                 if (!isCancelled && savedData?.airline) {
                     const trackLogoImg = document.getElementById('trackLogoImg');
                     if (trackLogoImg) applyLogoToImg(trackLogoImg, savedData.airline);
+                    // Apply return flight airline logo
+                    const rtTrackLogoImg = document.getElementById('rtTrackLogoImg');
+                    if (rtTrackLogoImg && savedData.rtData?.airline) applyLogoToImg(rtTrackLogoImg, savedData.rtData.airline);
                 }
             } else {
                 ticketCard.classList.add('hidden');
@@ -846,6 +897,21 @@
                 if (pc && pv) { pc.style.display='block'; pv.textContent=savedData.ticketPrice; }
             }
 
+            // Show round trip return info if stored
+            if (savedData.showRoundTrip && savedData.rtData) {
+                const rc = document.getElementById('resRoundTripCell');
+                const rv = document.getElementById('resReturnInfo');
+                if (rc && rv) {
+                    rc.style.display = 'block';
+                    const rt = savedData.rtData;
+                    rv.innerHTML = `<span style="color:#16a34a;">↩ ${rt.airline||''}</span> &nbsp;·&nbsp; <span style="background:#dcfce7;color:#16a34a;font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:12px;">${rt.fareType||'Round Trip'}</span><br>` +
+                        `${rt.fromCity||'?'} → ${rt.toCity||'?'}<br>` +
+                        `Dep: ${rt.depDate||'—'} ${rt.dep||''} &nbsp; Arr: ${rt.arrDate||'—'} ${rt.arr||''}<br>` +
+                        `Gate: ${rt.gate||'—'} / ${rt.terminal||'T1'}` +
+                        (rt.fromAirportCode ? `<br><span style="color:#0284c7;font-size:0.78rem;">✈ ${rt.fromAirportCode} → ${rt.toAirportCode||''}</span>` : '');
+                }
+            }
+
             // Show cancelled banner if flight is cancelled
             if (savedData.cancelled) {
                 document.getElementById('cancelledBanner').classList.remove('hidden');
@@ -853,10 +919,19 @@
                 document.getElementById('resStatus').style.color = "#ef4444";
             }
 
-            // Show transit badge
-            if (savedData.hasTransit && savedData.transit) {
-                document.getElementById('transitBadge').classList.remove('hidden');
-                document.getElementById('dispTransitCity').innerText = savedData.transit;
+            // Show transit badge (multi-stop aware)
+            {
+                const rawStops = savedData.transitStops;
+                const hasStops = (Array.isArray(rawStops) && rawStops.length > 0) || (savedData.hasTransit && savedData.transit);
+                if (hasStops) {
+                    document.getElementById('transitBadge').classList.remove('hidden');
+                    if (Array.isArray(rawStops) && rawStops.length > 0) {
+                        document.getElementById('dispTransitCity').innerText =
+                            rawStops.map((s, i) => `Stop ${i+1}: ${s.city}`).join(' → ');
+                    } else {
+                        document.getElementById('dispTransitCity').innerText = savedData.transit || '';
+                    }
+                }
             }
 
             // Show cancel zone ONLY for owner (logged-in), never for guests
@@ -864,16 +939,24 @@
                 document.getElementById('cancelFlightZone').classList.remove('hidden');
             }
 
-            // Show airport info if available
-            if (savedData.fromAirportCode || savedData.toAirportCode) {
+            // Show airport info if available (multi-stop aware)
+            {
                 const cell = document.getElementById('resAirportCell');
                 const val  = document.getElementById('resAirports');
-                if (cell && val) {
+                const aptLines = [];
+                if (savedData.fromAirportCode) aptLines.push(`✈ DEP: ${savedData.fromAirportCode} — ${savedData.fromAirportName}`);
+                // multi-stop stops
+                const rawStops = savedData.transitStops;
+                if (Array.isArray(rawStops) && rawStops.length > 0) {
+                    rawStops.forEach((s, i) => {
+                        if (s.airportCode) aptLines.push(`⏱ VIA (Stop ${i+1}): ${s.airportCode} — ${s.airportName}`);
+                    });
+                } else if (savedData.transitAirportCode) {
+                    aptLines.push(`⏱ VIA: ${savedData.transitAirportCode} — ${savedData.transitAirportName}`);
+                }
+                if (savedData.toAirportCode) aptLines.push(`✈ ARR: ${savedData.toAirportCode} — ${savedData.toAirportName}`);
+                if (cell && val && aptLines.length > 0) {
                     cell.style.display = 'block';
-                    let aptLines = [];
-                    if (savedData.fromAirportCode) aptLines.push(`✈ DEP: ${savedData.fromAirportCode} — ${savedData.fromAirportName}`);
-                    if (savedData.transitAirportCode) aptLines.push(`⏱ VIA: ${savedData.transitAirportCode} — ${savedData.transitAirportName}`);
-                    if (savedData.toAirportCode) aptLines.push(`✈ ARR: ${savedData.toAirportCode} — ${savedData.toAirportName}`);
                     val.innerHTML = aptLines.join('<br>');
                 }
             }
@@ -944,31 +1027,47 @@
             }
         }
 
-        // ─── TIMELINE SIMULATION ──────────────────────────────────
+        // ─── TIMELINE SIMULATION (multi-stop) ────────────────────
         function startSimulation() {
-            const takeoff       = savedData.departTime;
-            const landing       = savedData.arrivalTime;
-            const hasTransit    = savedData.hasTransit && savedData.transitArrTime;
-            const transitArr    = savedData.transitArrTime || 0;
-            const transitDurMs  = (savedData.transitDuration || 0) * 60 * 1000;
-            const transitDep    = transitArr + transitDurMs;
+            const takeoff = savedData.departTime;
+            const landing = savedData.arrivalTime;
             const totalDuration = landing - takeoff;
 
-            // If already cancelled on load, just show state and stop
+            // Build layover windows from multi-stop data (or legacy single-stop)
+            let layovers = [];
+            const rawStops = savedData.transitStops;
+            if (Array.isArray(rawStops) && rawStops.length > 0) {
+                layovers = rawStops.map(s => ({
+                    arrTS:  s.arrTime,
+                    depTS:  s.arrTime + s.durationMin * 60000,
+                    label:  s.city || 'STOP'
+                }));
+            } else if (savedData.hasTransit && savedData.transitArrTime) {
+                const tArr = savedData.transitArrTime;
+                const tDur = (savedData.transitDuration || 0) * 60000;
+                layovers = [{
+                    arrTS: tArr,
+                    depTS: tArr + tDur,
+                    label: savedData.transitCity || 'TRANSIT'
+                }];
+            }
+
+            // Total layover time to subtract from elapsed (so bar reaches 100% at landing)
+            const totalLayoverMs = layovers.reduce((sum, l) => sum + (l.depTS - l.arrTS), 0);
+            const flightTimeMs   = totalDuration - totalLayoverMs;
+
             if (savedData.cancelled) {
                 document.getElementById('resStatus').innerText   = "CANCELLED";
                 document.getElementById('resStatus').style.color = "#ef4444";
-                document.getElementById('activeTrack').style.width  = "0%";
-                document.getElementById('planeCarrier').style.left  = "0%";
+                document.getElementById('activeTrack').style.width = "0%";
+                document.getElementById('planeCarrier').style.left = "0%";
                 return;
             }
 
             function update() {
-                // Check live cancelled state (user may cancel mid-flight)
                 if (savedData && savedData.cancelled) {
                     document.getElementById('resStatus').innerText   = "CANCELLED";
                     document.getElementById('resStatus').style.color = "#ef4444";
-                    // transition handled by executeCancelFlight
                     return;
                 }
 
@@ -977,41 +1076,68 @@
                 let statusText = '', statusColor = '';
 
                 if (now < takeoff) {
-                    progress    = 0;
-                    statusText  = "BOARDING";
-                    statusColor = "#f59e0b";
-                } else if (hasTransit && now >= transitArr && now < transitDep) {
-                    const legProgress = (transitArr - takeoff) / totalDuration;
-                    progress    = legProgress;
-                    statusText  = "TRANSIT LAYOVER";
-                    statusColor = "#f59e0b";
-                } else if (now >= takeoff && now < landing) {
-                    if (hasTransit && now < transitArr) {
-                        progress = (now - takeoff) / totalDuration;
-                    } else if (hasTransit && now >= transitDep) {
-                        const adjustedNow = now - transitDurMs;
-                        progress = (adjustedNow - takeoff) / totalDuration;
-                    } else {
-                        progress = (now - takeoff) / totalDuration;
-                    }
-                    statusText  = "EN-ROUTE";
-                    statusColor = "#22c55e";
+                    progress = 0; statusText = "BOARDING"; statusColor = "#f59e0b";
+                } else if (now >= landing) {
+                    progress = 1; statusText = "ARRIVED"; statusColor = "#64748b";
                 } else {
-                    progress    = 1;
-                    statusText  = "ARRIVED";
-                    statusColor = "#64748b";
+                    // Check if currently in a layover
+                    const activeLayover = layovers.find(l => now >= l.arrTS && now < l.depTS);
+                    if (activeLayover) {
+                        // Freeze progress at the point this stop was reached
+                        let elapsed = activeLayover.arrTS - takeoff;
+                        // Subtract all prior layovers
+                        for (const l of layovers) {
+                            if (l.depTS <= activeLayover.arrTS) elapsed -= (l.depTS - l.arrTS);
+                        }
+                        progress = flightTimeMs > 0 ? elapsed / flightTimeMs : 0;
+                        statusText = "LAYOVER — " + activeLayover.label;
+                        statusColor = "#f59e0b";
+                    } else {
+                        // Flying — subtract all completed layovers from elapsed
+                        let elapsed = now - takeoff;
+                        for (const l of layovers) {
+                            if (now >= l.depTS) elapsed -= (l.depTS - l.arrTS);
+                        }
+                        progress = flightTimeMs > 0 ? elapsed / flightTimeMs : (now - takeoff) / totalDuration;
+                        statusText = "EN-ROUTE"; statusColor = "#22c55e";
+                    }
                 }
 
                 document.getElementById('resStatus').innerText   = statusText;
                 document.getElementById('resStatus').style.color = statusColor;
 
                 const percent = (Math.max(0, Math.min(1, progress)) * 100).toFixed(4);
-                document.getElementById('activeTrack').style.width  = percent + "%";
-                document.getElementById('planeCarrier').style.left  = percent + "%";
+                document.getElementById('activeTrack').style.width = percent + "%";
+                document.getElementById('planeCarrier').style.left = percent + "%";
+
+                // Update timeline transit markers
+                renderTimelineStopMarkers(layovers, takeoff, flightTimeMs);
             }
 
             update();
             setInterval(update, 1000);
+        }
+
+        // Renders small amber dots on the timeline bar for each stop
+        function renderTimelineStopMarkers(layovers, takeoff, flightTimeMs) {
+            const trackLine = document.querySelector('.track-line');
+            if (!trackLine) return;
+            // Only render once
+            if (trackLine.dataset.stopsRendered) return;
+            trackLine.dataset.stopsRendered = '1';
+            layovers.forEach((l, si) => {
+                let elapsed = l.arrTS - takeoff;
+                for (const prev of layovers) {
+                    if (prev.depTS <= l.arrTS) elapsed -= (prev.depTS - prev.arrTS);
+                }
+                const pct = flightTimeMs > 0 ? Math.max(0, Math.min(100, (elapsed / flightTimeMs) * 100)) : 0;
+                const dot = document.createElement('div');
+                dot.title = 'Stop ' + (si+1);
+                dot.style.cssText = `position:absolute; left:${pct}%; top:50%; transform:translate(-50%,-50%);
+                    width:14px; height:14px; border-radius:50%; background:#f59e0b;
+                    border:2px solid #fff; box-shadow:0 0 0 2px #f59e0b; z-index:5; cursor:default;`;
+                trackLine.appendChild(dot);
+            });
         }
 
         // ─── LIVE MAP ─────────────────────────────────────────────
@@ -1019,37 +1145,50 @@
             const loadingEl = document.getElementById('mapLoading');
             const errorEl   = document.getElementById('mapError');
 
-            // Use the properly-cased city+country fields for accurate geocoding
-            const fromQuery    = [savedData.fromCity, savedData.fromCountry].filter(Boolean).join(', ') || savedData.from;
-            const toQuery      = [savedData.toCity, savedData.toCountry].filter(Boolean).join(', ') || savedData.to;
-            const transitQuery = savedData.hasTransit
-                ? ([savedData.transitCity, savedData.transitCountry].filter(Boolean).join(', ') || savedData.transit)
-                : null;
+            const fromQuery = [savedData.fromCity, savedData.fromCountry].filter(Boolean).join(', ') || savedData.from;
+            const toQuery   = [savedData.toCity, savedData.toCountry].filter(Boolean).join(', ') || savedData.to;
 
-            let origin, dest, transitPt = null;
+            let origin, dest;
             try {
-                const [o, d] = await Promise.all([
-                    geocode(fromQuery),
-                    geocode(toQuery)
-                ]);
-                origin = o;
-                dest   = d;
+                [origin, dest] = await Promise.all([geocode(fromQuery), geocode(toQuery)]);
             } catch(e) {
                 loadingEl.classList.add('hidden');
                 errorEl.style.display = 'block';
                 return;
             }
 
-            // Transit geocode is best-effort — map still works without it
-            if (transitQuery) {
-                try { transitPt = await geocode(transitQuery); } catch(e) { transitPt = null; }
+            // ── Resolve all transit stop coords ─────────────────────
+            // Support both new multi-stop format (transitStops[]) and
+            // legacy single-stop format (transitCity / transitCountry)
+            let stopData = [];
+            const rawStops = savedData.transitStops;
+            if (Array.isArray(rawStops) && rawStops.length > 0) {
+                stopData = rawStops;
+            } else if (savedData.hasTransit && savedData.transitCity) {
+                // legacy shim
+                stopData = [{
+                    city: savedData.transitCity,
+                    country: savedData.transitCountry || '',
+                    arrTime: savedData.transitArrTime || 0,
+                    durationMin: savedData.transitDuration || 0,
+                    airportCode: savedData.transitAirportCode || '',
+                    airportName: savedData.transitAirportName || ''
+                }];
             }
+
+            // Geocode each stop (best-effort)
+            const stopPts = [];
+            for (const s of stopData) {
+                const q = [s.city, s.country].filter(Boolean).join(', ');
+                try { stopPts.push(await geocode(q)); } catch(e) { stopPts.push(null); }
+            }
+            // Filter out failed geocodes (keep pairing with stopData)
+            const validStops = stopData.map((s, i) => ({ ...s, pt: stopPts[i] })).filter(s => s.pt);
 
             loadingEl.classList.add('hidden');
 
             // Build Leaflet map
             leafletMap = L.map('liveMap', { zoomControl: true });
-            // Force correct size in case the container was hidden during init
             setTimeout(() => leafletMap.invalidateSize(), 100);
 
             const primaryTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -1063,10 +1202,14 @@
             primaryTile.on('tileerror', () => { if (!leafletMap.hasLayer(fallbackTile)) fallbackTile.addTo(leafletMap); });
             primaryTile.addTo(leafletMap);
 
-            // Fit map bounds
+            // Fit bounds around all waypoints
             const boundsPoints = [[origin.lat, origin.lng], [dest.lat, dest.lng]];
-            if (transitPt) boundsPoints.push([transitPt.lat, transitPt.lng]);
+            validStops.forEach(s => boundsPoints.push([s.pt.lat, s.pt.lng]));
             leafletMap.fitBounds(L.latLngBounds(boundsPoints), { padding: [50, 50] });
+
+            // ── Draw waypoints + arcs ────────────────────────────────
+            const waypoints = [origin, ...validStops.map(s => s.pt), dest];
+            const arcColors = ['#f59e0b','#e879f9','#fb923c','#a3e635']; // per-leg stop colors
 
             // Origin dot (green)
             L.circleMarker([origin.lat, origin.lng], {
@@ -1074,26 +1217,27 @@
             }).addTo(leafletMap)
               .bindPopup(`<b>ORIGIN</b><br>${savedData.fromCity || fromQuery}${savedData.fromAirportCode ? '<br><span style="color:#0284c7;font-weight:700;">✈ ' + savedData.fromAirportCode + '</span>' : ''}`);
 
-            // Transit dot (amber) + dashed arc origin→transit
-            if (transitPt) {
-                L.circleMarker([transitPt.lat, transitPt.lng], {
-                    radius: 9, fillColor: '#f59e0b', color: '#fff', weight: 3, fillOpacity: 1
+            // Stop dots + connecting arcs
+            validStops.forEach((stop, si) => {
+                const color = arcColors[si % arcColors.length];
+                // Arc from previous waypoint to this stop
+                const prevPt = si === 0 ? origin : validStops[si-1].pt;
+                const arc = [];
+                for (let i = 0; i <= 80; i++) arc.push(greatCirclePoint(prevPt, stop.pt, i/80));
+                L.polyline(arc, { color, weight: 2.5, opacity: 0.55, dashArray: '8 6' }).addTo(leafletMap);
+
+                // Stop marker
+                L.circleMarker([stop.pt.lat, stop.pt.lng], {
+                    radius: 9, fillColor: color, color: '#fff', weight: 3, fillOpacity: 1
                 }).addTo(leafletMap)
-                  .bindPopup(`<b>TRANSIT STOP</b><br>${savedData.transitCity || transitQuery}<br>Layover: ${savedData.transitDuration} min${savedData.transitAirportCode ? '<br><span style="color:#f59e0b;font-weight:700;">✈ ' + savedData.transitAirportCode + '</span>' : ''}`);
+                  .bindPopup(`<b>STOP ${si+1}</b><br>${stop.city}${stop.country ? ', '+stop.country : ''}${stop.durationMin ? '<br>Layover: '+stop.durationMin+' min' : ''}${stop.airportCode ? '<br><span style="color:'+color+';font-weight:700;">✈ '+stop.airportCode+'</span>' : ''}`);
+            });
 
-                const arc1 = [];
-                for (let i = 0; i <= 80; i++) arc1.push(greatCirclePoint(origin, transitPt, i / 80));
-                L.polyline(arc1, { color: '#f59e0b', weight: 2.5, opacity: 0.5, dashArray: '8 6' }).addTo(leafletMap);
-
-                const arc2 = [];
-                for (let i = 0; i <= 80; i++) arc2.push(greatCirclePoint(transitPt, dest, i / 80));
-                L.polyline(arc2, { color: '#0284c7', weight: 2.5, opacity: 0.45, dashArray: '8 6' }).addTo(leafletMap);
-            } else {
-                // Dashed great-circle arc
-                const arcPoints = [];
-                for (let i = 0; i <= 80; i++) arcPoints.push(greatCirclePoint(origin, dest, i / 80));
-                L.polyline(arcPoints, { color: '#0284c7', weight: 2.5, opacity: 0.45, dashArray: '8 6' }).addTo(leafletMap);
-            }
+            // Arc from last stop (or origin if no stops) to destination
+            const lastBeforeDest = validStops.length > 0 ? validStops[validStops.length-1].pt : origin;
+            const finalArc = [];
+            for (let i = 0; i <= 80; i++) finalArc.push(greatCirclePoint(lastBeforeDest, dest, i/80));
+            L.polyline(finalArc, { color: '#0284c7', weight: 2.5, opacity: 0.45, dashArray: '8 6' }).addTo(leafletMap);
 
             // Destination dot (blue)
             L.circleMarker([dest.lat, dest.lng], {
@@ -1110,8 +1254,8 @@
             });
             planeMapMarker = L.marker([origin.lat, origin.lng], { icon: planeIcon, zIndexOffset: 1000 }).addTo(leafletMap);
 
-            // Sync map plane with simulation timestamps
-            startMapAnimation(origin, dest, transitPt);
+            // Sync map plane with simulation timestamps — pass all valid stops
+            startMapAnimation(origin, dest, validStops);
         }
 
         // ─── GEOCODING — multi-source with retries ───────────────
@@ -1262,21 +1406,35 @@
             return (Math.atan2(y, x) * R2D + 360) % 360;
         }
 
-        // ─── MAP ANIMATION ────────────────────────────────────────
-        function startMapAnimation(origin, dest, transitPt) {
-            const takeoff       = savedData.departTime;
-            const landing       = savedData.arrivalTime;
-            const totalDuration = landing - takeoff;
-            const hasTransit    = savedData.hasTransit && transitPt;
-            const transitArr    = savedData.transitArrTime || 0;
-            const transitDurMs  = (savedData.transitDuration || 0) * 60 * 1000;
-            const transitDep    = transitArr + transitDurMs;
-
-            // Store origin globally for cancel-return snap
+        // ─── MAP ANIMATION (multi-stop) ───────────────────────────
+        // validStops = array of {city, country, arrTime, durationMin, pt:{lat,lng}, ...}
+        function startMapAnimation(origin, dest, validStops) {
+            const takeoff = savedData.departTime;
+            const landing = savedData.arrivalTime;
             window._mapOrigin = origin;
 
+            // Build waypoint legs: [{from, to, depTS, arrTS}]
+            // Each leg: plane departs fromWP at legDepTS, arrives toWP at legArrTS
+            const legs = [];
+            let prevPt  = origin;
+            let prevDepTS = takeoff;
+
+            for (const stop of validStops) {
+                legs.push({ from: prevPt, to: stop.pt, depTS: prevDepTS, arrTS: stop.arrTime });
+                prevPt    = stop.pt;
+                prevDepTS = stop.arrTime + stop.durationMin * 60000; // departs after layover
+            }
+            // Final leg to destination
+            legs.push({ from: prevPt, to: dest, depTS: prevDepTS, arrTS: landing });
+
+            // Layover windows: [{startTS, endTS, pt}]
+            const layovers = validStops.map(s => ({
+                startTS: s.arrTime,
+                endTS:   s.arrTime + s.durationMin * 60000,
+                pt:      s.pt
+            }));
+
             function updateMap() {
-                // If cancelled (can happen live), snap to origin and stop updating
                 if (savedData && savedData.cancelled) {
                     planeMapMarker.setLatLng([origin.lat, origin.lng]);
                     const el = document.getElementById('planeMapEl');
@@ -1285,41 +1443,34 @@
                 }
 
                 const now = Date.now();
-                let pos;
+                let pos, nextPos;
 
-                if (hasTransit && now >= transitArr && now < transitDep) {
-                    pos = transitPt;
-                } else if (hasTransit && now >= transitDep && now < landing) {
-                    const leg2Duration = landing - transitDep;
-                    const leg2Progress = Math.max(0, Math.min(1, (now - transitDep) / leg2Duration));
-                    pos = greatCirclePoint(transitPt, dest, leg2Progress);
-                } else if (hasTransit && now >= takeoff && now < transitArr) {
-                    const leg1Duration = transitArr - takeoff;
-                    const leg1Progress = Math.max(0, Math.min(1, (now - takeoff) / leg1Duration));
-                    pos = greatCirclePoint(origin, transitPt, leg1Progress);
+                // Check if in a layover
+                const inLayover = layovers.find(l => now >= l.startTS && now < l.endTS);
+                if (inLayover) {
+                    pos = inLayover.pt;
+                    nextPos = inLayover.pt;
                 } else {
-                    let progress = 0;
-                    if (now >= takeoff && now < landing) {
-                        progress = (now - takeoff) / totalDuration;
+                    // Find active leg
+                    const activeLeg = legs.find(lg => now >= lg.depTS && now < lg.arrTS);
+                    if (activeLeg) {
+                        const t = Math.max(0, Math.min(1, (now - activeLeg.depTS) / (activeLeg.arrTS - activeLeg.depTS)));
+                        pos     = greatCirclePoint(activeLeg.from, activeLeg.to, t);
+                        const tNext = Math.min(1, t + 30000 / (activeLeg.arrTS - activeLeg.depTS));
+                        nextPos = greatCirclePoint(activeLeg.from, activeLeg.to, tNext);
                     } else if (now >= landing) {
-                        progress = 1;
+                        pos = dest; nextPos = dest;
+                    } else {
+                        pos = origin; nextPos = origin;
                     }
-                    progress = Math.max(0, Math.min(1, progress));
-                    pos = greatCirclePoint(origin, dest, progress);
                 }
 
                 planeMapMarker.setLatLng([pos.lat, pos.lng]);
-
-                // Rotate plane emoji
-                const nextPosRef = hasTransit && now >= transitDep && now < landing
-                    ? greatCirclePoint(transitPt, dest, Math.min((now - transitDep + 30000) / (landing - transitDep), 1))
-                    : hasTransit && now >= takeoff && now < transitArr
-                        ? greatCirclePoint(origin, transitPt, Math.min((now - takeoff + 30000) / (transitArr - takeoff), 1))
-                        : greatCirclePoint(origin, dest, Math.min(((now - takeoff) / totalDuration) + 0.005, 1));
-
-                const bearing = getBearing(pos, nextPosRef);
-                const el = document.getElementById('planeMapEl');
-                if (el) el.style.transform = `rotate(${bearing - 45}deg)`;
+                if (pos !== nextPos) {
+                    const bearing = getBearing(pos, nextPos);
+                    const el = document.getElementById('planeMapEl');
+                    if (el) el.style.transform = `rotate(${bearing - 45}deg)`;
+                }
             }
 
             updateMap();
@@ -1544,4 +1695,3 @@
     </script>
 </body>
 </html>
-
