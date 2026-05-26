@@ -1145,12 +1145,33 @@
             const loadingEl = document.getElementById('mapLoading');
             const errorEl   = document.getElementById('mapError');
 
+            // ── Prefer saved airport coordinates (exact); fall back to airport-aware geocoding ──
+            // Priority: 1) saved lat/lon  2) airport name geocode  3) city geocode
+            async function resolvePoint(aptLat, aptLon, aptName, aptIata, cityQuery) {
+                // 1. Use exact saved coordinates when available
+                if (aptLat != null && aptLon != null && !isNaN(aptLat) && !isNaN(aptLon)) {
+                    return { lat: parseFloat(aptLat), lng: parseFloat(aptLon) };
+                }
+                // 2. Geocode using airport name (much more accurate than city name)
+                if (aptName && aptName.length > 2) {
+                    try {
+                        const result = await geocodeAirport(aptName, aptIata, cityQuery);
+                        if (result) return result;
+                    } catch(e) { /* fall through to city geocode */ }
+                }
+                // 3. Fall back to city geocoding
+                return geocode(cityQuery);
+            }
+
             const fromQuery = [savedData.fromCity, savedData.fromCountry].filter(Boolean).join(', ') || savedData.from;
             const toQuery   = [savedData.toCity, savedData.toCountry].filter(Boolean).join(', ') || savedData.to;
 
             let origin, dest;
             try {
-                [origin, dest] = await Promise.all([geocode(fromQuery), geocode(toQuery)]);
+                [origin, dest] = await Promise.all([
+                    resolvePoint(savedData.fromAirportLat, savedData.fromAirportLon, savedData.fromAirportName, savedData.fromAirportCode, fromQuery),
+                    resolvePoint(savedData.toAirportLat,   savedData.toAirportLon,   savedData.toAirportName,   savedData.toAirportCode,   toQuery)
+                ]);
             } catch(e) {
                 loadingEl.classList.add('hidden');
                 errorEl.style.display = 'block';
@@ -1176,11 +1197,20 @@
                 }];
             }
 
-            // Geocode each stop (best-effort)
+            // Geocode each stop (best-effort), prefer airport coords if saved
             const stopPts = [];
             for (const s of stopData) {
-                const q = [s.city, s.country].filter(Boolean).join(', ');
-                try { stopPts.push(await geocode(q)); } catch(e) { stopPts.push(null); }
+                if (s.airportLat != null && s.airportLon != null && !isNaN(s.airportLat) && !isNaN(s.airportLon)) {
+                    stopPts.push({ lat: parseFloat(s.airportLat), lng: parseFloat(s.airportLon) });
+                } else if (s.airportName && s.airportName.length > 2) {
+                    // Use airport name for accurate placement instead of city
+                    const q = [s.city, s.country].filter(Boolean).join(', ');
+                    try { stopPts.push(await geocodeAirport(s.airportName, s.airportCode, q) || await geocode(q)); }
+                    catch(e) { stopPts.push(null); }
+                } else {
+                    const q = [s.city, s.country].filter(Boolean).join(', ');
+                    try { stopPts.push(await geocode(q)); } catch(e) { stopPts.push(null); }
+                }
             }
             // Filter out failed geocodes (keep pairing with stopData)
             const validStops = stopData.map((s, i) => ({ ...s, pt: stopPts[i] })).filter(s => s.pt);
@@ -1326,6 +1356,33 @@
                 if (key.includes(k) || k.includes(key)) return v;
             }
             return null;
+        }
+
+        // ─── AIRPORT-AWARE GEOCODING ──────────────────────────────
+        // Searches for the airport by name first (much more accurate than city),
+        // then falls back to IATA code lookup, then city query.
+        async function geocodeAirport(airportName, iataCode, cityFallback) {
+            // Try 1: Search airport name directly via Nominatim
+            if (airportName) {
+                const cleanName = airportName.split(',')[0].trim(); // drop trailing city
+                const u1 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanName)}&format=json&limit=1&featureType=`;
+                const r1 = await geocodeWithRetry(u1, 2);
+                if (r1) return r1;
+            }
+            // Try 2: Airport name + city
+            if (airportName && cityFallback) {
+                const combined = airportName.split(',')[0].trim() + ', ' + cityFallback.split(',')[0].trim();
+                const u2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(combined)}&format=json&limit=1`;
+                const r2 = await geocodeWithRetry(u2, 2);
+                if (r2) return r2;
+            }
+            // Try 3: IATA code search (e.g. 'KIA airport Ghana')
+            if (iataCode && iataCode.length === 3) {
+                const u3 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(iataCode + ' airport')}&format=json&limit=1`;
+                const r3 = await geocodeWithRetry(u3, 1);
+                if (r3) return r3;
+            }
+            return null; // caller will fall back to city geocode
         }
 
         async function geocodeWithRetry(url, attempts) {
