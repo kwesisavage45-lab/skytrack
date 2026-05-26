@@ -989,6 +989,8 @@
             window._fbSignOut = signOut;
             window._fbReady   = true;
             updateNavUI(!!user);
+            // Show admin badge if applicable
+            if (user && typeof maybeShowAdminBadge === 'function') setTimeout(maybeShowAdminBadge, 500);
         });
     </script>
 
@@ -3037,6 +3039,39 @@
             if (tw && !show) { tw.style.display='none'; window._selectedAirports['transit']=null; }
         };
 
+        // ── Admin Configuration ─────────────────────────────────────
+        // Add any admin email addresses here. These accounts bypass payment.
+        const ADMIN_EMAILS = [
+            'ogryder777@gmail.com',
+            // Add more admin emails below, one per line:
+            // 'another@example.com',
+        ];
+
+        function isAdminUser() {
+            const email = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+            return email && ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+        }
+
+        // Inject a subtle admin badge next to the Generate button when admin is logged in
+        function maybeShowAdminBadge() {
+            if (!isAdminUser()) return;
+            if (document.getElementById('adminBypassBadge')) return;
+            const badge = document.createElement('div');
+            badge.id = 'adminBypassBadge';
+            badge.style.cssText = `
+                display:inline-flex; align-items:center; gap:6px;
+                background:rgba(168,85,247,0.12); border:1px dashed #a855f7;
+                color:#a855f7; font-size:0.72rem; font-weight:800;
+                padding:5px 14px; border-radius:50px; margin-bottom:10px;
+                letter-spacing:0.5px;
+            `;
+            badge.innerHTML = '<i class="fas fa-shield-alt"></i> Admin Mode — Payment Bypassed';
+            const genBtn = document.querySelector('button[onclick="payAndGenerate()"]');
+            if (genBtn && genBtn.parentNode) {
+                genBtn.parentNode.insertBefore(badge, genBtn);
+            }
+        }
+
         // ── Payment Method Selection ────────────────────────────────
         function payAndGenerate() {
             const name = document.getElementById('fullName').value;
@@ -3044,6 +3079,19 @@
                 showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Name Required', body:'<p>Please enter a passenger name before generating your ticket.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
                 return;
             }
+
+            // ── Admin bypass: skip payment entirely ──
+            if (isAdminUser()) {
+                window._paymentVerified = true;
+                showSkyModal({
+                    icon: '🛡️', iconColor: '#a855f7', title: 'Admin Access',
+                    body: '<p style="color:var(--text-dim);">Payment bypassed for admin account.<br>Generating ticket now…</p>',
+                    buttons: []
+                });
+                setTimeout(() => { closeSkyModal(); generateTicket(); }, 1500);
+                return;
+            }
+
             showPaymentMethodModal();
         }
 
