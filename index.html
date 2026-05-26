@@ -1769,7 +1769,9 @@
                     arrTime:     sArrTS,
                     durationMin: sDurMins,
                     airportCode: sApt.iata || '',
-                    airportName: sApt.name || ''
+                    airportName: sApt.name || '',
+                    airportLat:  sApt.lat  ?? null,
+                    airportLon:  sApt.lon  ?? null
                 });
             }
             const hasTransit = transitStops.length > 0;
@@ -1860,8 +1862,12 @@
                 cancelled:        false,
                 fromAirportCode:  (window._selectedAirports['from']?.iata || ''),
                 fromAirportName:  (window._selectedAirports['from']?.name || ''),
+                fromAirportLat:   (window._selectedAirports['from']?.lat  ?? null),
+                fromAirportLon:   (window._selectedAirports['from']?.lon  ?? null),
                 toAirportCode:    (window._selectedAirports['to']?.iata || ''),
                 toAirportName:    (window._selectedAirports['to']?.name || ''),
+                toAirportLat:     (window._selectedAirports['to']?.lat  ?? null),
+                toAirportLon:     (window._selectedAirports['to']?.lon  ?? null),
                 transitAirportCode: hasTransit ? (transitStops[0]?.airportCode || '') : '',
                 transitAirportName: hasTransit ? (transitStops[0]?.airportName || '') : ''
             };
@@ -2653,6 +2659,7 @@
 
         window._selectedAirports = { from: null, to: null, transit: null };
         const _airportTimers = {};
+        const _airportReqId  = {}; // per-slot monotonic counter to discard stale async results
         const _airportCache = {}; // cache city → airports to avoid repeat API calls
 
         function renderAirportOptions(slot, airports, label) {
@@ -2664,6 +2671,8 @@
                 const opt = document.createElement('option');
                 opt.value = ap.iata;
                 opt.dataset.name = ap.name;
+                if (ap.lat != null) opt.dataset.lat = ap.lat;
+                if (ap.lon != null) opt.dataset.lon = ap.lon;
                 opt.textContent = ap.dist > 0
                     ? `${ap.iata}  —  ${ap.name}  (${ap.dist} km away)`
                     : `${ap.iata}  —  ${ap.name}`;
@@ -2671,13 +2680,16 @@
                 sel.appendChild(opt);
             });
             sel.style.display = 'block';
-            window._selectedAirports[slot] = { iata: airports[0].iata, name: airports[0].name };
+            window._selectedAirports[slot] = { iata: airports[0].iata, name: airports[0].name, lat: airports[0].lat, lon: airports[0].lon };
             chip.innerHTML = `<span class="airport-chip">✈ ${airports[0].iata} — ${airports[0].name}</span>`;
             setAirportStatus(slot, `<i class="fas fa-check-circle" style="color:#22c55e;"></i> ${airports.length} airport${airports.length>1?'s':''} found ${label}`);
         }
 
         function scheduleAirportFetch(slot) {
             clearTimeout(_airportTimers[slot]);
+            // Increment request ID on every keystroke so any in-flight
+            // async fetch for a previous value is automatically discarded.
+            _airportReqId[slot] = (_airportReqId[slot] || 0) + 1;
             _airportTimers[slot] = setTimeout(() => fetchAirportsForSlot(slot), 700);
         }
 
@@ -2843,17 +2855,28 @@
         // Fuzzy match city name against IATA_DB keys
         function lookupIataDB(cityInput) {
             const q = cityInput.trim().toLowerCase();
-            // Direct match
+
+            // 1. Exact match
             if (IATA_DB[q]) return Object.values(IATA_DB[q]);
-            // Partial match (city is contained in key or vice versa)
+
+            // 2. Prefix match only — the query must be a full-token prefix of the key
+            //    (e.g. 'new jersey' starts with all tokens of 'new jersey')
+            //    This prevents 'new' from matching 'new york' when 'new jersey' is typed.
+            const qTokens = q.split(/[\s,]+/).filter(Boolean);
             for (const [key, val] of Object.entries(IATA_DB)) {
-                if (q.includes(key) || key.includes(q)) return Object.values(val);
+                const kTokens = key.split(/[\s,]+/).filter(Boolean);
+                // Key must start with all tokens the user typed (prefix match)
+                if (
+                    qTokens.length > 0 &&
+                    qTokens.every((t, i) => kTokens[i] === t)
+                ) return Object.values(val);
             }
-            // Word-based partial match
-            const words = q.split(/[\s,]+/).filter(w => w.length > 2);
+
+            // 3. Query fully contains the key (e.g. 'new york, usa' contains 'new york')
             for (const [key, val] of Object.entries(IATA_DB)) {
-                if (words.some(w => key.includes(w))) return Object.values(val);
+                if (q.includes(key)) return Object.values(val);
             }
+
             return null;
         }
 
@@ -2943,6 +2966,10 @@
             const { city, country } = getSlotCityCountry(slot);
             if (!city) return;
 
+            // Snapshot reqId so stale results from in-flight fetches are dropped
+            const myReqId = _airportReqId[slot] || 0;
+            const isStale = () => (_airportReqId[slot] || 0) !== myReqId;
+
             const wrap = document.getElementById(slot+'AirportWrap');
             const sel  = document.getElementById(slot+'AirportSelect');
             const warn = document.getElementById(slot+'AirportWarn');
@@ -2963,9 +2990,11 @@
             // ── Multi-source airport lookup ───────────────────────
             try {
                 const airports = await fetchAirportsViaAI(city, country || '');
+                if (isStale()) return; // user typed more — discard this result
                 renderAirportOptions(slot, airports, '<span style="color:#0284c7;font-size:0.68rem;margin-left:4px;"><i class="fas fa-database"></i> OSM</span>');
                 return;
             } catch(lookupErr) {
+                if (isStale()) return;
                 console.warn('Airport lookup failed:', lookupErr.message);
             }
 
@@ -2979,9 +3008,12 @@
             const sel  = document.getElementById(slot+'AirportSelect');
             const chip = document.getElementById(slot+'AirportChip');
             const iata = sel.value;
-            const name = sel.options[sel.selectedIndex]?.dataset.name || '';
+            const selOpt = sel.options[sel.selectedIndex];
+            const name = selOpt?.dataset.name || '';
+            const lat  = selOpt?.dataset.lat  ? parseFloat(selOpt.dataset.lat)  : undefined;
+            const lon  = selOpt?.dataset.lon  ? parseFloat(selOpt.dataset.lon)  : undefined;
             if (iata) {
-                window._selectedAirports[slot] = { iata, name };
+                window._selectedAirports[slot] = { iata, name, lat, lon };
                 chip.innerHTML = `<span class="airport-chip">✈ ${iata} — ${name}</span>`;
             } else {
                 window._selectedAirports[slot] = null;
