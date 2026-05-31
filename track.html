@@ -428,7 +428,7 @@
             <div><div class="label">Flight Status</div><div class="value" id="resStatus">---</div></div>
             <div><div class="label">Terminal / Gate</div><div class="value" id="resGate">---</div></div>
             <div><div class="label">Departure</div><div class="value" id="resDep">---</div></div>
-            <div><div class="label">Arrival (EST)</div><div class="value" id="resArr">---</div></div>
+            <div><div class="label">Arrival (EST)</div><div class="value" id="resArr">---</div><div class="label" id="resArrDateLabel" style="display:none; margin-top:3px; font-size:0.72rem; color:var(--text-dim);"></div></div>
             <div id="resAirportCell" style="display:none;"><div class="label">Airports</div><div class="value" id="resAirports" style="font-size:0.85rem; line-height:1.6;">---</div></div>
             <div id="resPriceCell" style="display:none;"><div class="label">Ticket Price</div><div class="value" id="resPrice" style="color:#22c55e;">---</div></div>
             <div id="resRoundTripCell" style="display:none; grid-column:1/-1;"><div class="label" style="color:#16a34a;">Return Flight</div><div id="resReturnInfo" style="font-size:0.85rem; line-height:1.8; color:var(--text); font-weight:700;">---</div></div>
@@ -886,6 +886,34 @@
             document.getElementById('resGate').innerText     = (savedData.terminal || 'T1') + " / " + (savedData.gate || 'G1');
             document.getElementById('resDep').innerText      = savedData.dep;
             document.getElementById('resArr').innerText      = savedData.arr;
+            // Show arrival date if stored or derived from arrivalTime
+            (function() {
+                const lbl = document.getElementById('resArrDateLabel');
+                if (!lbl) return;
+                let arrDateStr = savedData.arrDate || '';
+                if (!arrDateStr && savedData.arrivalTime) {
+                    // Derive from timestamp
+                    const d = new Date(savedData.arrivalTime);
+                    const depD = new Date(savedData.departTime || 0);
+                    // Only show if it differs from the departure date
+                    const arrDay = d.toISOString().slice(0,10);
+                    const depDay = (savedData.date || '');
+                    if (arrDay !== depDay) arrDateStr = arrDay;
+                }
+                if (arrDateStr) {
+                    lbl.style.display = 'block';
+                    // Format nicely: e.g. "12 Jun 2025"
+                    const parts = arrDateStr.split('-');
+                    if (parts.length === 3) {
+                        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                        lbl.textContent = parseInt(parts[2]) + ' ' + (months[parseInt(parts[1])-1]||'') + ' ' + parts[0];
+                    } else {
+                        lbl.textContent = arrDateStr;
+                    }
+                } else {
+                    lbl.style.display = 'none';
+                }
+            })();
 
             // Show airline logo
             setTrackAirlineLogo(savedData.airline);
