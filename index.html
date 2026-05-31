@@ -1540,6 +1540,8 @@
             }
             // Bind time-mask to newly rendered inputs
             container.querySelectorAll('.time-mask').forEach(applyTimeMask);
+            // Sync newly rendered inputs to the currently active time format
+            syncNewTimeInputs(container);
             // Init airport state for each new stop
             for (let i = 0; i < n; i++) {
                 if (!window._selectedStopAirports) window._selectedStopAirports = {};
@@ -1736,22 +1738,18 @@
         // ══════════════════════════════════════════════════════════════
         window._timeFormat = localStorage.getItem('skytrack_timefmt') || '12h';
 
-        function setTimeFormat(fmt) {
-            window._timeFormat = fmt;
-            localStorage.setItem('skytrack_timefmt', fmt);
-            // Toggle pill styles
-            document.getElementById('pill12h')?.classList.toggle('active', fmt === '12h');
-            document.getElementById('pill24h')?.classList.toggle('active', fmt === '24h');
-            // Show/hide all AM/PM selects
-            document.querySelectorAll('.ampm-select').forEach(sel => {
+        // Apply the current time format to a specific container's inputs (used for
+        // dynamically rendered transit stops so they always inherit the active format)
+        function syncNewTimeInputs(container) {
+            const fmt = window._timeFormat || '12h';
+            const ph  = fmt === '24h' ? '00:00' : 'HH:MM';
+            container.querySelectorAll('.ampm-select').forEach(sel => {
                 sel.classList.toggle('hidden-ampm', fmt === '24h');
             });
-            // Update placeholders
-            const ph = fmt === '24h' ? '00:00' : 'HH:MM';
-            document.querySelectorAll('.time-mask').forEach(inp => {
+            container.querySelectorAll('.time-mask').forEach(inp => {
                 inp.placeholder = ph;
-                if (fmt === '24h') inp.maxLength = 5;
-                // Re-clamp any value already typed
+                inp.maxLength   = 5;
+                // Re-clamp any pre-filled value
                 const parts = inp.value.split(':');
                 if (parts.length === 2) {
                     let hh = parseInt(parts[0], 10);
@@ -1766,6 +1764,16 @@
             });
         }
 
+        function setTimeFormat(fmt) {
+            window._timeFormat = fmt;
+            localStorage.setItem('skytrack_timefmt', fmt);
+            // Toggle pill styles
+            document.getElementById('pill12h')?.classList.toggle('active', fmt === '12h');
+            document.getElementById('pill24h')?.classList.toggle('active', fmt === '24h');
+            // Apply to ALL inputs in the entire document (static + dynamically rendered)
+            syncNewTimeInputs(document);
+        }
+
         // Parse a time string to minutes-since-midnight (handles both 12h and 24h)
         function parseTimeToMins(timeStr, ampm, fmt) {
             if (!timeStr || !timeStr.includes(':')) return null;
@@ -1776,6 +1784,18 @@
                 if (ampm === 'AM' && h === 12) h = 0;
             }
             return h * 60 + m;
+        }
+
+        // Build a timestamp from a date string + raw HH:MM + ampm, respecting fmt
+        function parseRawToTs(dateStr, timeStr, ampm, fmt) {
+            if (!dateStr || !timeStr || !timeStr.includes(':')) return 0;
+            let [h, m] = timeStr.split(':').map(Number);
+            if (fmt === '12h') {
+                if (ampm === 'PM' && h < 12) h += 12;
+                if (ampm === 'AM' && h === 12) h = 0;
+            }
+            const [y, mo, d] = dateStr.split('-').map(Number);
+            return new Date(y, mo - 1, d, h, m, 0, 0).getTime();
         }
 
         // Format a Date object (or timestamp ms) to display string per format
@@ -1970,9 +1990,9 @@
                     toCity:      rtToCity.toUpperCase(),
                     toCountry:   rtToCountry.toUpperCase(),
                     depDate:     rtDepDate,
-                    dep:         rtDepTimeRaw + (rtDepTimeRaw ? ' ' + rtDepAMPM : ''),
+                    dep:         rtDepTimeRaw ? formatTimeDisplay(parseRawToTs(rtDepDate || departDate, rtDepTimeRaw, rtDepAMPM, _timeFmt), _timeFmt) : '',
                     arrDate:     rtArrDate,
-                    arr:         rtArrTimeRaw + (rtArrTimeRaw ? ' ' + rtArrAMPM : ''),
+                    arr:         rtArrTimeRaw ? formatTimeDisplay(parseRawToTs(rtArrDate || rtDepDate || departDate, rtArrTimeRaw, rtArrAMPM, _timeFmt), _timeFmt) : '',
                     fromAirportCode: rtFromApt?.iata || '',
                     fromAirportName: rtFromApt?.name || '',
                     toAirportCode:   rtToApt?.iata   || '',
