@@ -120,6 +120,16 @@
         .time-wrapper { display: flex; gap: 8px; }
         .time-wrapper input { flex: 2; }
         .time-wrapper select { flex: 1; }
+        /* Time format toggle */
+        .time-fmt-toggle { display:flex; align-items:center; gap:10px; margin-bottom:18px; padding:12px 16px; background:rgba(56,189,248,0.06); border:1px dashed var(--border); border-radius:12px; }
+        .time-fmt-toggle label { font-size:0.82rem; font-weight:700; color:var(--text-dim); letter-spacing:0.5px; }
+        .time-fmt-pills { display:flex; gap:6px; margin-left:auto; }
+        .time-fmt-pill { padding:5px 14px; border-radius:20px; font-size:0.78rem; font-weight:800; border:1.5px solid var(--border); background:transparent; color:var(--text-dim); cursor:pointer; transition:all 0.2s; letter-spacing:0.5px; }
+        .time-fmt-pill.active { background:var(--accent); color:#fff; border-color:var(--accent); box-shadow:0 3px 10px rgba(56,189,248,0.35); }
+        .time-fmt-pill:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
+
+        .ampm-select { transition: opacity 0.2s; }
+        .ampm-select.hidden-ampm { display:none !important; }
 
         .info-notice-box {
             margin-top: 20px; padding: 15px; border: 1px dashed var(--accent); background: rgba(56, 189, 248, 0.05);
@@ -452,6 +462,16 @@
                     </div>
                 </div>
 
+                <!-- 12h / 24h Toggle -->
+                <div class="time-fmt-toggle">
+                    <i class="fas fa-clock" style="color:var(--accent); font-size:1rem;"></i>
+                    <label>TIME FORMAT</label>
+                    <div class="time-fmt-pills">
+                        <button type="button" class="time-fmt-pill active" id="pill12h" onclick="setTimeFormat('12h')">12H</button>
+                        <button type="button" class="time-fmt-pill" id="pill24h" onclick="setTimeFormat('24h')">24H</button>
+                    </div>
+                </div>
+
                 <div class="grid-inputs">
                     <div class="input-group">
                         <label>Departure Date</label>
@@ -461,7 +481,7 @@
                         <label>Departure Time</label>
                         <div class="time-wrapper">
                             <input type="text" id="depTime" placeholder="HH:MM" maxlength="5" class="time-mask">
-                            <select id="depAMPM"><option>AM</option><option>PM</option></select>
+                            <select id="depAMPM" class="ampm-select"><option>AM</option><option>PM</option></select>
                         </div>
                     </div>
                 </div>
@@ -471,7 +491,11 @@
                         <label>Estimated Arrival Time</label>
                         <div class="time-wrapper">
                             <input type="text" id="arrTime" placeholder="HH:MM" maxlength="5" class="time-mask">
-                            <select id="arrAMPM"><option>AM</option><option>PM</option></select>
+                            <select id="arrAMPM" class="ampm-select"><option>AM</option><option>PM</option></select>
+                        </div>
+                        <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+                            <input type="date" id="arrDate" style="flex:1; padding:8px 10px; border-radius:10px; border:1px solid var(--border); background:rgba(0,0,0,0.05); color:var(--text); font-family:inherit; font-size:0.82rem; outline:none;">
+                            <span style="font-size:0.72rem; color:var(--text-dim); white-space:nowrap; font-weight:600;">Arrival date <em style=\"font-weight:400;\">(optional)</em></span>
                         </div>
                     </div>
                     <div class="input-group">
@@ -650,7 +674,7 @@
                                     <label>Return Departure Time</label>
                                     <div class="time-wrapper">
                                         <input type="text" id="rtDepTime" placeholder="HH:MM" maxlength="5" class="time-mask">
-                                        <select id="rtDepAMPM"><option>AM</option><option>PM</option></select>
+                                        <select id="rtDepAMPM" class="ampm-select"><option>AM</option><option>PM</option></select>
                                     </div>
                                 </div>
                             </div>
@@ -663,7 +687,7 @@
                                     <label>Return Arrival Time</label>
                                     <div class="time-wrapper">
                                         <input type="text" id="rtArrTime" placeholder="HH:MM" maxlength="5" class="time-mask">
-                                        <select id="rtArrAMPM"><option>AM</option><option>PM</option></select>
+                                        <select id="rtArrAMPM" class="ampm-select"><option>AM</option><option>PM</option></select>
                                     </div>
                                 </div>
                             </div>
@@ -1369,13 +1393,49 @@
             }
         });
 
-        document.querySelectorAll('.time-mask').forEach(input => {
+        // Shared time-mask handler — enforces HH:MM format and clamps to valid range
+        function applyTimeMask(input) {
             input.addEventListener('input', (e) => {
-                let val = e.target.value.replace(/\D/g, ''); 
-                if (val.length > 2) { val = val.slice(0, 2) + ':' + val.slice(2, 4); }
+                const fmt = window._timeFormat || '12h';
+                let val = e.target.value.replace(/\D/g, '');
+                if (val.length > 4) val = val.slice(0, 4);
+
+                // Clamp hours as the user types
+                if (val.length >= 2) {
+                    let hh = parseInt(val.slice(0, 2), 10);
+                    const maxHour = fmt === '24h' ? 23 : 12;
+                    if (hh > maxHour) hh = maxHour;
+                    val = String(hh).padStart(2, '0') + val.slice(2);
+                }
+
+                // Clamp minutes
+                if (val.length === 4) {
+                    let mm = parseInt(val.slice(2, 4), 10);
+                    if (mm > 59) mm = 59;
+                    val = val.slice(0, 2) + String(mm).padStart(2, '0');
+                }
+
+                // Insert colon separator
+                if (val.length > 2) val = val.slice(0, 2) + ':' + val.slice(2);
                 e.target.value = val;
             });
-        });
+
+            // Also clamp on blur in case user pastes or edits freely
+            input.addEventListener('blur', (e) => {
+                const fmt = window._timeFormat || '12h';
+                const parts = e.target.value.split(':');
+                if (parts.length !== 2) return;
+                let hh = parseInt(parts[0], 10);
+                let mm = parseInt(parts[1], 10);
+                if (isNaN(hh) || isNaN(mm)) return;
+                const maxHour = fmt === '24h' ? 23 : 12;
+                hh = Math.min(Math.max(hh, 0), maxHour);
+                mm = Math.min(Math.max(mm, 0), 59);
+                e.target.value = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+            });
+        }
+
+        document.querySelectorAll('.time-mask').forEach(applyTimeMask);
 
         function toggleReturnDate(show) {
             document.getElementById('returnGroup').classList.toggle('hidden', !show);
@@ -1450,7 +1510,7 @@
                             <label>Arrival Time at Stop</label>
                             <div class="time-wrapper">
                                 <input type="text" id="stopArrTime${i}" placeholder="HH:MM" maxlength="5" class="time-mask">
-                                <select id="stopArrAMPM${i}"><option>AM</option><option>PM</option></select>
+                                <select id="stopArrAMPM${i}" class="ampm-select"><option>AM</option><option>PM</option></select>
                             </div>
                         </div>
                         <div class="input-group">
@@ -1479,13 +1539,7 @@
                 </div>`;
             }
             // Bind time-mask to newly rendered inputs
-            container.querySelectorAll('.time-mask').forEach(input => {
-                input.addEventListener('input', (e) => {
-                    let val = e.target.value.replace(/\D/g, '');
-                    if (val.length > 2) val = val.slice(0,2) + ':' + val.slice(2,4);
-                    e.target.value = val;
-                });
-            });
+            container.querySelectorAll('.time-mask').forEach(applyTimeMask);
             // Init airport state for each new stop
             for (let i = 0; i < n; i++) {
                 if (!window._selectedStopAirports) window._selectedStopAirports = {};
@@ -1677,6 +1731,80 @@
         // before generateTicket() will execute. It is consumed (reset to
         // false) immediately after one ticket is generated, so it cannot
         // be reused for a second free ticket.
+        // ══════════════════════════════════════════════════════════════
+        // TIME FORMAT SYSTEM  (12h / 24h)
+        // ══════════════════════════════════════════════════════════════
+        window._timeFormat = localStorage.getItem('skytrack_timefmt') || '12h';
+
+        function setTimeFormat(fmt) {
+            window._timeFormat = fmt;
+            localStorage.setItem('skytrack_timefmt', fmt);
+            // Toggle pill styles
+            document.getElementById('pill12h')?.classList.toggle('active', fmt === '12h');
+            document.getElementById('pill24h')?.classList.toggle('active', fmt === '24h');
+            // Show/hide all AM/PM selects
+            document.querySelectorAll('.ampm-select').forEach(sel => {
+                sel.classList.toggle('hidden-ampm', fmt === '24h');
+            });
+            // Update placeholders
+            const ph = fmt === '24h' ? '00:00' : 'HH:MM';
+            document.querySelectorAll('.time-mask').forEach(inp => {
+                inp.placeholder = ph;
+                if (fmt === '24h') inp.maxLength = 5;
+                // Re-clamp any value already typed
+                const parts = inp.value.split(':');
+                if (parts.length === 2) {
+                    let hh = parseInt(parts[0], 10);
+                    let mm = parseInt(parts[1], 10);
+                    if (!isNaN(hh) && !isNaN(mm)) {
+                        const maxHour = fmt === '24h' ? 23 : 12;
+                        hh = Math.min(hh, maxHour);
+                        mm = Math.min(mm, 59);
+                        inp.value = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+                    }
+                }
+            });
+        }
+
+        // Parse a time string to minutes-since-midnight (handles both 12h and 24h)
+        function parseTimeToMins(timeStr, ampm, fmt) {
+            if (!timeStr || !timeStr.includes(':')) return null;
+            let [h, m] = timeStr.split(':').map(Number);
+            if (isNaN(h) || isNaN(m)) return null;
+            if (fmt === '12h') {
+                if (ampm === 'PM' && h < 12) h += 12;
+                if (ampm === 'AM' && h === 12) h = 0;
+            }
+            return h * 60 + m;
+        }
+
+        // Format a Date object (or timestamp ms) to display string per format
+        function formatTimeDisplay(tsMs, fmt) {
+            const d = new Date(tsMs);
+            const h = d.getHours(), m = d.getMinutes();
+            const mm = String(m).padStart(2, '0');
+            if (fmt === '24h') {
+                return String(h).padStart(2, '0') + ':' + mm;
+            } else {
+                const period = h >= 12 ? 'PM' : 'AM';
+                const h12 = h % 12 || 12;
+                return h12 + ':' + mm + ' ' + period;
+            }
+        }
+
+        // Initialize format on page load
+        (function initTimeFormat() {
+            const fmt = window._timeFormat;
+            if (fmt === '24h') {
+                setTimeout(() => setTimeFormat('24h'), 100);
+            } else {
+                setTimeout(() => {
+                    document.getElementById('pill12h')?.classList.add('active');
+                    document.getElementById('pill24h')?.classList.remove('active');
+                }, 100);
+            }
+        })();
+
         window._paymentVerified = false;
 
         function generateTicket() {
@@ -1721,18 +1849,41 @@
                 return;
             }
 
-            // FIX 1 — Timezone-safe timestamps
+            // FIX 1 — Timezone-safe timestamps (supports 12h and 24h modes)
+            const _timeFmt = window._timeFormat || '12h';
             function getTimestamp(dateStr, timeStr, ampm) {
                 let [hours, minutes] = timeStr.split(':').map(Number);
-                if (ampm === 'PM' && hours < 12) hours += 12;
-                if (ampm === 'AM' && hours === 12) hours = 0;
+                if (_timeFmt === '12h') {
+                    if (ampm === 'PM' && hours < 12) hours += 12;
+                    if (ampm === 'AM' && hours === 12) hours = 0;
+                }
+                // In 24h mode, ampm is ignored — hours is already 0-23
                 const [year, month, day] = dateStr.split('-').map(Number);
                 return new Date(year, month - 1, day, hours, minutes, 0, 0).getTime();
             }
+            // Advance a timestamp by N days
+            function addDays(ts, n) { return ts + n * 86400000; }
+            // Returns how many 24h periods to add so that 'ts' is strictly after 'refTs'
+            function normalizeAfter(ts, refTs) {
+                let n = 0;
+                while (ts <= refTs) { ts += 86400000; n++; }
+                return { ts, days: n };
+            }
 
             const depTS = getTimestamp(departDate, depTimeRaw, depAMPM);
-            let   arrTS = getTimestamp(departDate, arrTimeRaw, arrAMPM);
-            if (arrTS <= depTS) arrTS += 24 * 60 * 60 * 1000;
+            const arrDateExplicit = (document.getElementById('arrDate')?.value || '').trim();
+            let   arrTS;
+            if (arrDateExplicit) {
+                // User explicitly set an arrival date — use it directly
+                arrTS = getTimestamp(arrDateExplicit, arrTimeRaw, arrAMPM);
+                // Safety: still ensure it's after departure
+                if (arrTS <= depTS) arrTS += 86400000;
+            } else {
+                // No arrival date — auto-detect day crossing from time alone
+                arrTS = getTimestamp(departDate, arrTimeRaw, arrAMPM);
+                const arrNorm = normalizeAfter(arrTS, depTS);
+                arrTS = arrNorm.ts;
+            }
 
             // ── Multi-stop transit collection ─────────────────────────
             const stopCount = _currentStopCount || 0;
@@ -1761,7 +1912,10 @@
                     sDurMins = cu === 'hours' ? Math.round(cv * 60) : Math.round(cv);
                 }
                 let sArrTS = sArrRaw ? getTimestamp(departDate, sArrRaw, sArrAMPM) : depTS;
-                if (sArrTS <= depTS) sArrTS += 24 * 60 * 60 * 1000;
+                // Each transit stop must be strictly after the previous reference (dep or prior stop)
+                const prevRef = si === 0 ? depTS : transitStops[si - 1].arrTime + transitStops[si - 1].durationMin * 60000;
+                const sNorm = normalizeAfter(sArrTS, prevRef);
+                sArrTS = sNorm.ts;
                 const sApt = (window._selectedStopAirports && window._selectedStopAirports[si]) || {};
                 transitStops.push({
                     city:        sCity.toUpperCase(),
@@ -1842,8 +1996,10 @@
                 returnDate:  returnDate,
                 showRoundTrip: (tripType === 'round' && showRtOnTicket),
                 rtData:      rtData,
-                dep:         depTimeRaw + " " + depAMPM,
-                arr:         arrTimeRaw + " " + arrAMPM,
+                dep:         formatTimeDisplay(depTS, _timeFmt),
+                arr:         formatTimeDisplay(arrTS, _timeFmt),
+                arrDate:     arrDateExplicit || '',
+                timeFormat:  _timeFmt,
                 departTime:  depTS,
                 arrivalTime: arrTS,
                 terminal:    ["T1", "T2", "T3"][Math.floor(Math.random() * 3)],
@@ -2659,7 +2815,6 @@
 
         window._selectedAirports = { from: null, to: null, transit: null };
         const _airportTimers = {};
-        const _airportReqId  = {}; // per-slot monotonic counter to discard stale async results
         const _airportCache = {}; // cache city → airports to avoid repeat API calls
 
         function renderAirportOptions(slot, airports, label) {
@@ -2687,9 +2842,6 @@
 
         function scheduleAirportFetch(slot) {
             clearTimeout(_airportTimers[slot]);
-            // Increment request ID on every keystroke so any in-flight
-            // async fetch for a previous value is automatically discarded.
-            _airportReqId[slot] = (_airportReqId[slot] || 0) + 1;
             _airportTimers[slot] = setTimeout(() => fetchAirportsForSlot(slot), 700);
         }
 
@@ -2855,28 +3007,17 @@
         // Fuzzy match city name against IATA_DB keys
         function lookupIataDB(cityInput) {
             const q = cityInput.trim().toLowerCase();
-
-            // 1. Exact match
+            // Direct match
             if (IATA_DB[q]) return Object.values(IATA_DB[q]);
-
-            // 2. Prefix match only — the query must be a full-token prefix of the key
-            //    (e.g. 'new jersey' starts with all tokens of 'new jersey')
-            //    This prevents 'new' from matching 'new york' when 'new jersey' is typed.
-            const qTokens = q.split(/[\s,]+/).filter(Boolean);
+            // Partial match (city is contained in key or vice versa)
             for (const [key, val] of Object.entries(IATA_DB)) {
-                const kTokens = key.split(/[\s,]+/).filter(Boolean);
-                // Key must start with all tokens the user typed (prefix match)
-                if (
-                    qTokens.length > 0 &&
-                    qTokens.every((t, i) => kTokens[i] === t)
-                ) return Object.values(val);
+                if (q.includes(key) || key.includes(q)) return Object.values(val);
             }
-
-            // 3. Query fully contains the key (e.g. 'new york, usa' contains 'new york')
+            // Word-based partial match
+            const words = q.split(/[\s,]+/).filter(w => w.length > 2);
             for (const [key, val] of Object.entries(IATA_DB)) {
-                if (q.includes(key)) return Object.values(val);
+                if (words.some(w => key.includes(w))) return Object.values(val);
             }
-
             return null;
         }
 
@@ -2966,10 +3107,6 @@
             const { city, country } = getSlotCityCountry(slot);
             if (!city) return;
 
-            // Snapshot reqId so stale results from in-flight fetches are dropped
-            const myReqId = _airportReqId[slot] || 0;
-            const isStale = () => (_airportReqId[slot] || 0) !== myReqId;
-
             const wrap = document.getElementById(slot+'AirportWrap');
             const sel  = document.getElementById(slot+'AirportSelect');
             const warn = document.getElementById(slot+'AirportWarn');
@@ -2990,11 +3127,9 @@
             // ── Multi-source airport lookup ───────────────────────
             try {
                 const airports = await fetchAirportsViaAI(city, country || '');
-                if (isStale()) return; // user typed more — discard this result
                 renderAirportOptions(slot, airports, '<span style="color:#0284c7;font-size:0.68rem;margin-left:4px;"><i class="fas fa-database"></i> OSM</span>');
                 return;
             } catch(lookupErr) {
-                if (isStale()) return;
                 console.warn('Airport lookup failed:', lookupErr.message);
             }
 
@@ -3177,6 +3312,24 @@
                             <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
                         </button>
 
+                        <button onclick="closePayMethodModal(); payWithSelar();" style="
+                            display:flex; align-items:center; gap:14px;
+                            background: linear-gradient(135deg,#6d28d9,#4c1d95);
+                            border:none; border-radius:16px; padding:16px 20px;
+                            cursor:pointer; color:#fff; font-family:inherit;
+                            box-shadow:0 4px 20px rgba(109,40,217,0.3);
+                            transition: transform 0.2s, box-shadow 0.2s;
+                            text-align:left;"
+                            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 28px rgba(109,40,217,0.45)'"
+                            onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(109,40,217,0.3)'">
+                            <div style="font-size:2rem; flex-shrink:0;">🛒</div>
+                            <div>
+                                <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Selar</div>
+                                <div style="font-size:0.78rem; opacity:0.85;">Pay with card, mobile money &amp; more via Selar (~${usdPrice} USD)</div>
+                            </div>
+                            <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
+                        </button>
+
                     </div>
                     <button onclick="closePayMethodModal();" class="modal-btn modal-btn-ghost" style="margin-top:18px; width:100%;">
                         Cancel
@@ -3188,6 +3341,63 @@
         function closePayMethodModal() {
             const el = document.getElementById('payMethodOverlay');
             if (el) el.remove();
+        }
+
+        // ── Selar payment flow ──────────────────────────────────────────
+        // Selar hosted checkout: open the product page in a popup.
+        // When the user completes payment on Selar and returns/closes,
+        // we show a confirmation prompt so they can verify before ticket gen.
+        const SELAR_ONE_WAY_URL   = 'https://selar.com/skytrack-oneway';   // ← replace with your real Selar product URLs
+        const SELAR_ROUND_TRIP_URL = 'https://selar.com/skytrack-roundtrip'; // ← replace with your real Selar product URLs
+
+        function payWithSelar() {
+            const isRound  = (document.querySelector('input[name="trip"]:checked')?.value || 'one') === 'round';
+            const price    = isRound ? '$9' : '$7';
+            const selarUrl = isRound ? SELAR_ROUND_TRIP_URL : SELAR_ONE_WAY_URL;
+
+            // Open Selar checkout in a centred popup window
+            const w = 520, h = 700;
+            const left = Math.max(0, (window.screen.width  - w) / 2);
+            const top  = Math.max(0, (window.screen.height - h) / 2);
+            const popup = window.open(
+                selarUrl,
+                'SelarCheckout',
+                `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+            );
+
+            // Poll for popup close (user finished or closed the Selar page)
+            const pollTimer = setInterval(() => {
+                if (!popup || popup.closed) {
+                    clearInterval(pollTimer);
+                    _onSelarPopupClosed();
+                }
+            }, 600);
+        }
+
+        function _onSelarPopupClosed() {
+            // Ask the user whether they completed payment — Selar doesn't
+            // post back to the opener, so self-report is the lightest approach.
+            showSkyModal({
+                icon: '🛒', iconColor: '#6d28d9',
+                title: 'Did you complete payment?',
+                body: '<p>If you successfully paid on Selar, click <strong>Yes – Generate Ticket</strong>.<br><small style="color:var(--text-dim);">Only continue if your payment was confirmed by Selar.</small></p>',
+                buttons: [
+                    {
+                        label: '✅ Yes – Generate Ticket',
+                        cls: 'modal-btn-primary',
+                        action: () => {
+                            closeSkyModal();
+                            window._paymentVerified = true;
+                            generateTicket();
+                        }
+                    },
+                    {
+                        label: '❌ No – Try Again',
+                        cls: 'modal-btn-ghost',
+                        action: () => { closeSkyModal(); payAndGenerate(); }
+                    }
+                ]
+            });
         }
 
         // ── Paystack flow ───────────────────────────────────────────
