@@ -10,7 +10,7 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://js.paystack.co/v1/inline.js"></script>
+
     <script src="https://unpkg.com/@nowpaymentsio/nowpayments-api-js/dist/nowpayments-api-js.min.js"></script>
     <style>
         :root {
@@ -3296,24 +3296,6 @@
                     <p style="margin-bottom:1.8rem;">Select how you'd like to pay for your SkyTrack Elite ID</p>
                     <div style="display:flex; flex-direction:column; gap:14px;">
 
-                        <button onclick="closePayMethodModal(); payWithPaystack();" style="
-                            display:flex; align-items:center; gap:14px;
-                            background: linear-gradient(135deg,#00c3ff,#0074d9);
-                            border:none; border-radius:16px; padding:16px 20px;
-                            cursor:pointer; color:#fff; font-family:inherit;
-                            box-shadow:0 4px 20px rgba(0,196,255,0.3);
-                            transition: transform 0.2s, box-shadow 0.2s;
-                            text-align:left;" 
-                            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 28px rgba(0,196,255,0.45)'"
-                            onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(0,196,255,0.3)'">
-                            <div style="font-size:2rem; flex-shrink:0;">💳</div>
-                            <div>
-                                <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Paystack</div>
-                                <div style="font-size:0.78rem; opacity:0.85;">Pay with card, mobile money, or bank transfer (GHS ${ghsPrice})</div>
-                            </div>
-                            <i class="fas fa-chevron-right" style="margin-left:auto; opacity:0.7;"></i>
-                        </button>
-
                         <button onclick="closePayMethodModal(); payWithCrypto();" style="
                             display:flex; align-items:center; gap:14px;
                             background: linear-gradient(135deg,#f7971e,#f4a700);
@@ -3342,7 +3324,7 @@
                             text-align:left;"
                             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 28px rgba(109,40,217,0.45)'"
                             onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(109,40,217,0.3)'">
-                            <div style="font-size:2rem; flex-shrink:0;">🛒</div>
+                            <div style="font-size:2rem; flex-shrink:0;">💳</div>
                             <div>
                                 <div style="font-weight:800; font-size:1rem; margin-bottom:2px;">Selar</div>
                                 <div style="font-size:0.78rem; opacity:0.85;">Pay with card, mobile money &amp; more via Selar (~${usdPrice} USD)</div>
@@ -3367,43 +3349,51 @@
         // Selar hosted checkout: open the product page in a popup.
         // When the user completes payment on Selar and returns/closes,
         // we show a confirmation prompt so they can verify before ticket gen.
-        const SELAR_ONE_WAY_URL   = 'https://selar.com/skytrack-oneway';   // ← replace with your real Selar product URLs
-        const SELAR_ROUND_TRIP_URL = 'https://selar.com/skytrack-roundtrip'; // ← replace with your real Selar product URLs
+        // ─────────────────────────────────────────────────────────────
+        // SELAR PRODUCT URLS
+        // 1. Go to selar.com and create two products (One-Way & Round-Trip)
+        // 2. Paste each product's checkout URL below to replace the
+        //    store-page fallback that is used until real products exist.
+        // ─────────────────────────────────────────────────────────────
+        // ══════════════════════════════════════════════════════════════
+        // SELAR PAYMENT  —  Redirect auto-detect  +  Order code fallback
+        // ══════════════════════════════════════════════════════════════
+        //
+        // Flow A (automatic):
+        //   Buyer pays → Selar redirects back with ?selar_paid=1 in URL
+        //   → page detects it → shows confirm modal → ticket generates.
+        //
+        // Flow B (manual fallback):
+        //   Buyer pays → Selar sends confirmation email with an order code
+        //   → buyer pastes the code here → Worker verifies it → ticket.
+        //
+        // REQUIRED: In your Selar product settings, set the Redirect URL to
+        //   your hosted site URL + ?selar_paid=1
+        //   e.g.  https://yoursite.netlify.app/?selar_paid=1
+        // ──────────────────────────────────────────────────────────────
 
-        function payWithSelar() {
-            const isRound  = (document.querySelector('input[name="trip"]:checked')?.value || 'one') === 'round';
-            const price    = isRound ? '$9' : '$7';
-            const selarUrl = isRound ? SELAR_ROUND_TRIP_URL : SELAR_ONE_WAY_URL;
+        const SELAR_PRODUCT_URL       = 'https://selar.com/tob578f187';
 
-            // Open Selar checkout in a centred popup window
-            const w = 520, h = 700;
-            const left = Math.max(0, (window.screen.width  - w) / 2);
-            const top  = Math.max(0, (window.screen.height - h) / 2);
-            const popup = window.open(
-                selarUrl,
-                'SelarCheckout',
-                `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
-            );
+        // ── FLOW A: Detect redirect back from Selar on page load ──────
+        (function _checkSelarReturn() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('selar_paid') !== '1') return;
 
-            // Poll for popup close (user finished or closed the Selar page)
-            const pollTimer = setInterval(() => {
-                if (!popup || popup.closed) {
-                    clearInterval(pollTimer);
-                    _onSelarPopupClosed();
-                }
-            }, 600);
-        }
+            // Clean URL immediately so it's not bookmarked/shared with the flag
+            window.history.replaceState({}, '', window.location.pathname);
 
-        function _onSelarPopupClosed() {
-            // Ask the user whether they completed payment — Selar doesn't
-            // post back to the opener, so self-report is the lightest approach.
-            showSkyModal({
-                icon: '🛒', iconColor: '#6d28d9',
-                title: 'Did you complete payment?',
-                body: '<p>If you successfully paid on Selar, click <strong>Yes – Generate Ticket</strong>.<br><small style="color:var(--text-dim);">Only continue if your payment was confirmed by Selar.</small></p>',
-                buttons: [
-                    {
-                        label: '✅ Yes – Generate Ticket',
+            // Wait for DOM to be ready then show the confirmation modal
+            const _show = () => {
+                showSkyModal({
+                    icon: '✅', iconColor: '#22c55e',
+                    title: 'Payment Received!',
+                    body: `
+                        <div style="text-align:left; line-height:1.8;">
+                            <p style="margin-bottom:10px;">Selar has confirmed your payment. Click below to generate your ticket.</p>
+                            <p style="font-size:0.8rem; color:var(--text-dim);">If this was a mistake or you didn't pay, please close this dialog.</p>
+                        </div>`,
+                    buttons: [{
+                        label: '🎫 Generate My Ticket',
                         cls: 'modal-btn-primary',
                         action: () => {
                             closeSkyModal();
@@ -3412,34 +3402,62 @@
                         }
                     },
                     {
-                        label: '❌ No – Try Again',
+                        label: 'Not me — cancel',
                         cls: 'modal-btn-ghost',
-                        action: () => { closeSkyModal(); payAndGenerate(); }
-                    }
+                        action: closeSkyModal
+                    }]
+                });
+            };
+            // Give page ~900ms to fully render before showing modal
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => setTimeout(_show, 900));
+            } else {
+                setTimeout(_show, 900);
+            }
+        })();
+
+
+        // ── Main Selar modal — shown when buyer clicks Selar button ────
+        function payWithSelar() {
+            const isRound = (document.querySelector('input[name="trip"]:checked')?.value || 'one') === 'round';
+            const price   = isRound ? '$9' : '$7';
+            const selarUrl = SELAR_PRODUCT_URL + '?add_to_cart=1';
+
+            showSkyModal({
+                icon: '💳', iconColor: '#6d28d9',
+                title: 'Pay via Selar',
+                body: `
+                    <div style="text-align:left; line-height:1.7;">
+
+                        <div style="background:rgba(109,40,217,0.08); border:1.5px solid #6d28d9;
+                             border-radius:10px; padding:11px 14px; margin-bottom:14px; font-size:0.88rem;">
+                            <strong style="font-size:0.95rem;">Amount: GHS 85.00</strong><br>
+                            <span style="color:var(--text-dim);">After paying, Selar will redirect you back here automatically.</span>
+                        </div>
+
+                        <div style="background:rgba(251,191,36,0.1); border:1.5px solid #f59e0b;
+                             border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.81rem; color:var(--text-dim);">
+                            ⚠️ <strong style="color:#d97706;">Selar requires a free account</strong> to complete payment.
+                        </div>
+
+                    </div>`,
+                buttons: [
+                    {
+                        label: '🔗 Go to Selar & Pay',
+                        cls: 'modal-btn-primary',
+                        action: () => {
+                            showSkyModal({
+                                icon: '⏳', iconColor: '#6d28d9',
+                                title: 'Going to Selar…',
+                                body: '<p style="text-align:center; line-height:1.9;">Taking you to Selar to complete payment.<br><strong>After paying, Selar will bring you straight back</strong><br>and your ticket will be ready.</p>',
+                                buttons: []
+                            });
+                            setTimeout(() => { window.location.href = selarUrl; }, 1600);
+                        }
+                    },
+                    { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
                 ]
             });
-        }
-
-        // ── Paystack flow ───────────────────────────────────────────
-        function payWithPaystack() {
-            const email = localStorage.getItem('userEmail') || 'customer@skytrack.pro';
-            const isRound = (document.querySelector('input[name="trip"]:checked')?.value || 'one') === 'round';
-            const handler = PaystackPop.setup({
-                key: 'pk_live_a4f0436853c9bb7a47d0c627f5a56fcb1bbc80b4',
-                email: email,
-                amount: isRound ? 9500 : 7500,
-                currency: 'GHS',
-                callback: function(response) {
-                    // Mark payment as verified BEFORE calling generateTicket
-                    window._paymentVerified = true;
-                    showSkyModal({ icon: '💳', iconColor:'#22c55e', title:'Payment Successful!', body:`<p>Transaction confirmed.<br><small style="color:var(--text-dim);">Ref: ${response.reference}</small></p>`, buttons:[] });
-                    setTimeout(() => { closeSkyModal(); generateTicket(); }, 2500);
-                },
-                onClose: function() {
-                    showSkyModal({ icon: '❌', iconColor:'#ef4444', title:'Payment Cancelled', body:'<p>You must complete payment to generate an elite SkyTrack ID.</p>', buttons:[{label:'Try Again', cls:'modal-btn-primary', action:()=>{ closeSkyModal(); payAndGenerate(); }},{label:'Not Now', cls:'modal-btn-ghost', action:closeSkyModal}] });
-                }
-            });
-            handler.openIframe();
         }
 
         // ── NOWPayments credentials ─────────────────────────────────
@@ -3892,10 +3910,10 @@
                 closeSkyModal();
                 showSkyModal({
                     icon: '❌', iconColor: '#ef4444', title: 'Crypto Payment Error',
-                    body: `<p>Could not create crypto invoice. Please try again or use Paystack instead.</p>
+                    body: `<p>Could not create crypto invoice. Please try again or use Selar instead.</p>
                            <p style="font-size:0.75rem; color:var(--text-dim); margin-top:8px; font-family:monospace;">${err.message}</p>`,
                     buttons: [
-                        { label: 'Try Paystack Instead', cls: 'modal-btn-primary', action: () => { closeSkyModal(); payWithPaystack(); } },
+                        { label: 'Try Selar Instead', cls: 'modal-btn-primary', action: () => { closeSkyModal(); payWithSelar(); } },
                         { label: 'Try Again',            cls: 'modal-btn-ghost',   action: () => { closeSkyModal(); payWithCrypto(); } },
                         { label: 'Cancel',               cls: 'modal-btn-ghost',   action: closeSkyModal }
                     ]
