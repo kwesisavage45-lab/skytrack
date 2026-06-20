@@ -636,12 +636,31 @@
                                 </div>
                             </div>
                             <div class="input-group" id="rtFromAirportWrap" style="margin-bottom:4px; display:none;">
-                                <label style="margin-bottom:4px;">Return Departure Airport</label>
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                                    <label style="margin-bottom:0;">Return Departure Airport</label>
+                                    <button type="button" class="custom-apt-toggle" onclick="toggleRtCustomAirport('rtFrom')">
+                                        <i class="fas fa-pen" style="font-size:0.65rem;"></i> Custom
+                                    </button>
+                                </div>
                                 <div class="airport-status" id="rtFromAirportStatus"></div>
                                 <select class="airport-select" id="rtFromAirportSelect" onchange="onRtAirportChange('rtFrom')">
                                     <option value="">— select airport —</option>
                                 </select>
                                 <div id="rtFromAirportChip"></div>
+                                <!-- Custom Airport Entry -->
+                                <div class="custom-apt-box hidden" id="rtFromCustomBox">
+                                    <div class="custom-apt-row">
+                                        <div>
+                                            <label class="custom-apt-label">IATA Code</label>
+                                            <input type="text" id="rtFromCustomCode" class="custom-apt-input" placeholder="e.g. LHR" maxlength="4" oninput="this.value=this.value.toUpperCase()">
+                                        </div>
+                                        <div style="flex:2;">
+                                            <label class="custom-apt-label">Airport Name</label>
+                                            <input type="text" id="rtFromCustomName" class="custom-apt-input" placeholder="e.g. Heathrow Airport">
+                                        </div>
+                                        <button type="button" class="custom-apt-confirm" onclick="confirmRtCustomAirport('rtFrom')">✓ Set</button>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Return To (destination of return leg) -->
@@ -656,12 +675,31 @@
                                 </div>
                             </div>
                             <div class="input-group" id="rtToAirportWrap" style="margin-bottom:4px; display:none;">
-                                <label style="margin-bottom:4px;">Return Arrival Airport</label>
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                                    <label style="margin-bottom:0;">Return Arrival Airport</label>
+                                    <button type="button" class="custom-apt-toggle" onclick="toggleRtCustomAirport('rtTo')">
+                                        <i class="fas fa-pen" style="font-size:0.65rem;"></i> Custom
+                                    </button>
+                                </div>
                                 <div class="airport-status" id="rtToAirportStatus"></div>
                                 <select class="airport-select" id="rtToAirportSelect" onchange="onRtAirportChange('rtTo')">
                                     <option value="">— select airport —</option>
                                 </select>
                                 <div id="rtToAirportChip"></div>
+                                <!-- Custom Airport Entry -->
+                                <div class="custom-apt-box hidden" id="rtToCustomBox">
+                                    <div class="custom-apt-row">
+                                        <div>
+                                            <label class="custom-apt-label">IATA Code</label>
+                                            <input type="text" id="rtToCustomCode" class="custom-apt-input" placeholder="e.g. JFK" maxlength="4" oninput="this.value=this.value.toUpperCase()">
+                                        </div>
+                                        <div style="flex:2;">
+                                            <label class="custom-apt-label">Airport Name</label>
+                                            <input type="text" id="rtToCustomName" class="custom-apt-input" placeholder="e.g. JFK International">
+                                        </div>
+                                        <button type="button" class="custom-apt-confirm" onclick="confirmRtCustomAirport('rtTo')">✓ Set</button>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Return Dates -->
@@ -778,7 +816,7 @@
                 <div style="text-align:center; margin-top:18px; margin-bottom:6px;">
                     <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(56,189,248,0.08); border:1px dashed var(--accent); padding:5px 16px; border-radius:50px; font-size:0.78rem; color:var(--text-dim); font-style:italic;">
                         <i class="fas fa-ticket-alt" style="color:var(--accent);"></i>
-                        Flight ticket generation — <strong style="color:var(--accent);">GHS 75 / ~$7</strong> (one-way) &nbsp;·&nbsp; <strong style="color:var(--accent);">GHS 95 / ~$9</strong> (return)
+                        Flight ticket generation — <strong style="color:var(--accent);">GHS 85 / ~$7</strong> (one-way) &nbsp;·&nbsp; <strong style="color:var(--accent);">GHS 95 / ~$9</strong> (return)
                     </span>
                 </div>
 
@@ -1660,6 +1698,10 @@
             selectEl.innerHTML = '<option value="">— loading… —</option>';
             chipEl.innerHTML = '';
             window._selectedRtAirports[slot] = null;
+            const cbox = document.getElementById(slot + 'CustomBox');
+            const ctog = wrapEl.querySelector('.custom-apt-toggle');
+            if (cbox) cbox.classList.add('hidden');
+            if (ctog) ctog.classList.remove('active');
             try {
                 const airports = await fetchAirportsViaAI(city, country || '');
                 selectEl.innerHTML = '<option value="">— select airport —</option>';
@@ -1688,6 +1730,54 @@
             const name = sel.options[sel.selectedIndex]?.dataset.name || '';
             window._selectedRtAirports[slot] = { iata, name };
             document.getElementById(chipId).innerHTML = `<span class="airport-chip">✈ ${iata} — ${name}</span>`;
+        }
+
+        // ── Custom airport toggle & confirm (Round Trip) ───────────────
+        function toggleRtCustomAirport(slot) {
+            const boxId = slot + 'CustomBox';
+            const wrapId = slot + 'AirportWrap';
+            const box  = document.getElementById(boxId);
+            const wrap = document.getElementById(wrapId);
+            const tog  = wrap ? wrap.querySelector('.custom-apt-toggle') : null;
+            if (!box) return;
+            const isOpen = !box.classList.contains('hidden');
+            box.classList.toggle('hidden', isOpen);
+            if (tog) tog.classList.toggle('active', !isOpen);
+            if (!isOpen) {
+                // Pre-fill from current selection
+                const selectId = slot === 'rtFrom' ? 'rtFromAirportSelect' : 'rtToAirportSelect';
+                const sel   = document.getElementById(selectId);
+                const codeI = document.getElementById(slot + 'CustomCode');
+                const nameI = document.getElementById(slot + 'CustomName');
+                if (sel && sel.value && codeI) codeI.value = sel.value;
+                if (sel && sel.options[sel.selectedIndex]?.dataset.name && nameI) nameI.value = sel.options[sel.selectedIndex].dataset.name;
+                if (codeI) codeI.focus();
+            }
+        }
+
+        function confirmRtCustomAirport(slot) {
+            const codeI = document.getElementById(slot + 'CustomCode');
+            const nameI = document.getElementById(slot + 'CustomName');
+            const chipId = slot === 'rtFrom' ? 'rtFromAirportChip' : 'rtToAirportChip';
+            const chip  = document.getElementById(chipId);
+            const box   = document.getElementById(slot + 'CustomBox');
+            const wrap  = document.getElementById(slot + 'AirportWrap');
+            const tog   = wrap ? wrap.querySelector('.custom-apt-toggle') : null;
+
+            const iata = (codeI?.value || '').trim().toUpperCase();
+            const name = (nameI?.value || '').trim();
+            if (iata.length < 2) {
+                if (codeI) { codeI.style.borderColor = '#ef4444'; setTimeout(() => codeI.style.borderColor = '', 1800); }
+                return;
+            }
+            const displayName = name || iata + ' Airport';
+            window._selectedRtAirports[slot] = { iata, name: displayName, custom: true };
+            if (chip) chip.innerHTML = `<span class="airport-chip airport-chip-custom">✏ ${iata} — ${displayName} <span style="opacity:0.78;font-size:0.6rem;">(custom)</span></span>`;
+            const statusId = slot === 'rtFrom' ? 'rtFromAirportStatus' : 'rtToAirportStatus';
+            const statusEl = document.getElementById(statusId);
+            if (statusEl) statusEl.innerHTML = `<i class="fas fa-check-circle" style="color:#f59e0b;"></i> Custom airport set`;
+            if (box) box.classList.add('hidden');
+            if (tog) tog.classList.remove('active');
         }
 
         function handleRtAirlineChange(val) {
@@ -3419,6 +3509,66 @@
 
         // ── Main Selar modal — shown when buyer clicks Selar button ────
         function payWithSelar() {
+            showSelarAccountWarning();
+        }
+
+        // Step 1: Warn the buyer to create/login to a Selar customer account
+        // in another tab BEFORE attempting payment, since Selar's checkout
+        // requires an active customer session to complete a purchase.
+        function showSelarAccountWarning() {
+            showSkyModal({
+                icon: '⚠️', iconColor: '#f59e0b',
+                title: 'Before You Pay with Selar',
+                body: `
+                    <div style="text-align:left; line-height:1.7;">
+
+                        <div style="background:rgba(251,191,36,0.1); border:1.5px solid #f59e0b;
+                             border-radius:10px; padding:11px 14px; margin-bottom:14px; font-size:0.85rem; color:var(--text-dim);">
+                            <strong style="color:#d97706; display:block; margin-bottom:4px;">⚠️ Selar requires a customer account</strong>
+                            You must create a free Selar account (or log in if you already have one) before you can complete payment.
+                        </div>
+
+                        <ol style="margin:0 0 14px 20px; padding:0; font-size:0.85rem; line-height:1.85; color:var(--text);">
+                            <li>Tap the button below to open Selar in a <strong>new tab</strong>.</li>
+                            <li><strong>Sign up</strong> as a customer, or <strong>log in</strong> if you already have an account.</li>
+                            <li>Once logged in, come back to <strong>this tab</strong>.</li>
+                            <li>Tap <strong>"I'm Done — Proceed to Payment"</strong> below to continue.</li>
+                        </ol>
+
+                        <button type="button" onclick="window.open('https://selar.com/login','_blank')" style="
+                            display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+                            background:rgba(109,40,217,0.08); border:1.5px solid #6d28d9; color:#6d28d9;
+                            font-weight:700; font-size:0.83rem; padding:11px 14px; border-radius:10px;
+                            cursor:pointer; font-family:inherit; transition:background 0.2s;"
+                            onmouseover="this.style.background='rgba(109,40,217,0.16)'"
+                            onmouseout="this.style.background='rgba(109,40,217,0.08)'">
+                            <i class="fas fa-external-link-alt"></i> Open Selar Sign Up / Login (new tab)
+                        </button>
+
+                        <div style="display:flex; align-items:flex-start; gap:8px; background:rgba(56,189,248,0.08);
+                             border:1px dashed var(--accent); border-radius:10px; padding:9px 12px; margin-top:12px;
+                             font-size:0.76rem; color:var(--text-dim); line-height:1.6;">
+                            <i class="fas fa-circle-info" style="color:var(--accent); margin-top:2px; flex-shrink:0;"></i>
+                            <span>Running into a problem? Reach out to admin via the
+                                <a href="contact.html" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline;">Contact / Help Center</a>
+                                page for assistance.</span>
+                        </div>
+
+                    </div>`,
+                buttons: [
+                    {
+                        label: "✅ I'm Done — Proceed to Payment",
+                        cls: 'modal-btn-primary',
+                        action: proceedToSelarPayment
+                    },
+                    { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
+                ]
+            });
+        }
+
+        // Step 2: Buyer has confirmed they have a Selar account — show the
+        // payment summary and send them to the actual Selar checkout/gateway.
+        function proceedToSelarPayment() {
             const isRound = (document.querySelector('input[name="trip"]:checked')?.value || 'one') === 'round';
             const price   = isRound ? '$9' : '$7';
             const selarUrl = SELAR_PRODUCT_URL + '?add_to_cart=1';
@@ -3435,9 +3585,9 @@
                             <span style="color:var(--text-dim);">After paying, Selar will redirect you back here automatically.</span>
                         </div>
 
-                        <div style="background:rgba(251,191,36,0.1); border:1.5px solid #f59e0b;
+                        <div style="background:rgba(34,197,94,0.08); border:1.5px solid #22c55e;
                              border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.81rem; color:var(--text-dim);">
-                            ⚠️ <strong style="color:#d97706;">Selar requires a free account</strong> to complete payment.
+                            <i class="fas fa-check-circle" style="color:#22c55e;"></i> Selar account confirmed. The payment gateway will open next.
                         </div>
 
                     </div>`,
@@ -3455,10 +3605,11 @@
                             setTimeout(() => { window.location.href = selarUrl; }, 1600);
                         }
                     },
-                    { label: 'Cancel', cls: 'modal-btn-ghost', action: closeSkyModal }
+                    { label: '← Back', cls: 'modal-btn-ghost', action: showSelarAccountWarning }
                 ]
             });
         }
+
 
         // ── NOWPayments credentials ─────────────────────────────────
         const NOWPAYMENTS_API_KEY    = 'V07FAJN-KBBMDJA-K8CR6YY-T9KTCNJ';
