@@ -426,6 +426,8 @@
             <div><div class="label">Passenger</div><div class="value" id="resName">---</div></div>
             <div><div class="label">Date</div><div class="value" id="resDate">---</div></div>
             <div><div class="label">Flight Status</div><div class="value" id="resStatus">---</div></div>
+            <div><div class="label">Flight Number</div><div class="value" id="resFlightNum">---</div></div>
+            <div><div class="label">Seat</div><div class="value" id="resSeat">---</div></div>
             <div><div class="label">Terminal / Gate</div><div class="value" id="resGate">---</div></div>
             <div><div class="label">Departure</div><div class="value" id="resDep">---</div></div>
             <div><div class="label">Arrival (EST)</div><div class="value" id="resArr">---</div><div class="label" id="resArrDateLabel" style="display:none; margin-top:3px; font-size:0.72rem; color:var(--text-dim);"></div></div>
@@ -883,6 +885,8 @@
             document.getElementById('dispTo').innerText      = toLabel.substring(0, 3).toUpperCase();
             document.getElementById('resName').innerText     = savedData.name;
             document.getElementById('resDate').innerText     = savedData.date;
+            document.getElementById('resFlightNum').innerText = savedData.flightNum || '---';
+            document.getElementById('resSeat').innerText      = savedData.seat || '---';
             document.getElementById('resGate').innerText     = (savedData.terminal || 'T1') + " / " + (savedData.gate || 'G1');
             document.getElementById('resDep').innerText      = savedData.dep;
             document.getElementById('resArr').innerText      = savedData.arr;
