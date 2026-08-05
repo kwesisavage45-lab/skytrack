@@ -863,8 +863,14 @@
 
                         <div class="pass-row">
                             <div><span class="pass-label">Departure Date</span><div id="displayDate" class="pass-val">---</div></div>
+                            <div><span class="pass-label">Departure Time</span><div id="displayDepTime" class="pass-val">---</div></div>
+                            <div style="text-align: right;"><span class="pass-label">Arrival Time</span><div id="displayArrival" class="pass-val">---</div></div>
+                        </div>
+
+                        <div class="pass-row">
+                            <div><span class="pass-label">Flight Number</span><div id="displayFlightNum" class="pass-val">---</div></div>
                             <div><span class="pass-label">Gate / Terminal</span><div class="pass-val" id="displayGate">---</div></div>
-                            <div style="text-align: right;"><span class="pass-label">Arrival Time</span><div class="pass-val" id="displayArrival">---</div></div>
+                            <div style="text-align: right;"><span class="pass-label">Seat</span><div id="displaySeat" class="pass-val">---</div></div>
                         </div>
                         <div id="transitStopsTicketArea"></div>
                         <!-- ── Return Flight Section (round trip) ── -->
@@ -920,9 +926,15 @@
                                 <i class="fas fa-copy" onclick="copyOnlyID()" style="cursor: pointer; font-size: 0.8rem; color: var(--accent);"></i>
                             </div>
                         </div>
-                        <div>
-                            <span class="pass-label">Terminal</span>
-                            <div id="stubTerminal" style="font-size: 0.8rem; font-weight: 700;">---</div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <div>
+                                <span class="pass-label">Terminal</span>
+                                <div id="stubTerminal" style="font-size: 0.8rem; font-weight: 700;">---</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <span class="pass-label">Seat</span>
+                                <div id="stubSeat" style="font-size: 0.8rem; font-weight: 700;">---</div>
+                            </div>
                         </div>
                         <div>
                             <span class="pass-label">Airport Code</span>
@@ -1367,6 +1379,8 @@
                         <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Arrival</div><div style="font-weight:800; font-size:0.85rem;">${data.arr}</div></div>
                         <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Terminal</div><div style="font-weight:800; font-size:0.85rem;">${data.terminal || 'T1'}</div></div>
                         <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Gate</div><div style="font-weight:800; font-size:0.85rem;">${data.gate || '—'}</div></div>
+                        <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Flight No.</div><div style="font-weight:800; font-size:0.85rem;">${data.flightNum || '—'}</div></div>
+                        <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Seat</div><div style="font-weight:800; font-size:0.85rem;">${data.seat || '—'}</div></div>
                         ${priceRow}
                     </div>
                     <button onclick="window.location.href='track.html?id=${input}'" class="btn-auth" style="width:100%; padding:0.9rem; font-size:0.95rem;">
@@ -2114,6 +2128,8 @@
                 arrivalTime: arrTS,
                 terminal:    ["T1", "T2", "T3"][Math.floor(Math.random() * 3)],
                 gate:        String.fromCharCode(65 + Math.floor(Math.random() * 6)) + Math.floor(Math.random() * 30 + 1),
+                seat:        Math.floor(Math.random() * 30 + 1) + String.fromCharCode(65 + Math.floor(Math.random() * 6)),
+                flightNum:   airline.substring(0, 2).toUpperCase() + Math.floor(Math.random() * 900 + 100),
                 class:       flightClass,
                 airline:     airline.toUpperCase(),
                 id:          id,
@@ -2159,10 +2175,14 @@
             document.getElementById('displayAirline').innerText     = flightData.airline;
             document.getElementById('displayID').innerText          = id;
             document.getElementById('displayDate').innerText        = departDate;
+            document.getElementById('displayDepTime').innerText     = flightData.dep;
             document.getElementById('displayArrival').innerText     = flightData.arr;
+            document.getElementById('displayFlightNum').innerText   = flightData.flightNum;
+            document.getElementById('displaySeat').innerText        = flightData.seat;
             document.getElementById('displayGate').innerText        = flightData.gate + " / " + flightData.terminal;
             document.getElementById('displayClass').innerText       = flightClass;
             document.getElementById('stubTerminal').innerText       = flightData.terminal;
+            document.getElementById('stubSeat').innerText           = flightData.seat;
 
             // Round trip section on ticket
             const rtBadgeWrap = document.getElementById('roundTripBadgeWrap');
@@ -2828,7 +2848,12 @@
                     <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                         <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Departure</span><div style="font-size:1.1rem;font-weight:700;">${data.dep || ''}</div></div>
                         <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Departure Date</span><div style="font-size:1.1rem;font-weight:700;">${data.date || ''}</div></div>
-                        <div style="text-align:right;"><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Arrival Time</span><div style="font-size:1.1rem;font-weight:700;">${data.arr || ''}</div></div>
+                        <div style="text-align:right;"><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Arrival</span><div style="font-size:1.1rem;font-weight:700;">${data.arr || ''}</div></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Flight No.</span><div style="font-size:1.1rem;font-weight:700;">${data.flightNum || '—'}</div></div>
+                        <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Gate / Term.</span><div style="font-size:1.1rem;font-weight:700;">${data.gate || '—'} / ${data.terminal || 'T1'}</div></div>
+                        <div style="text-align:right;"><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Seat</span><div style="font-size:1.1rem;font-weight:700;">${data.seat || '—'}</div></div>
                     </div>
                     ${roundTripHTML}
                 </div>
@@ -2837,9 +2862,15 @@
                         <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Flight ID</span>
                         <div style="color:#0284c7;font-weight:800;font-size:1rem;">${flightId}</div>
                     </div>
-                    <div>
-                        <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Terminal</span>
-                        <div style="font-size:0.8rem;font-weight:700;">${data.terminal || 'T1'}</div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <div>
+                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Terminal</span>
+                            <div style="font-size:0.8rem;font-weight:700;">${data.terminal || 'T1'}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Seat</span>
+                            <div style="font-size:0.8rem;font-weight:700;">${data.seat || '—'}</div>
+                        </div>
                     </div>
                     <div>
                         <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Airport Code</span>
