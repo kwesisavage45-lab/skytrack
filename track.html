@@ -1253,13 +1253,16 @@
             leafletMap = L.map('liveMap', { zoomControl: true });
             setTimeout(() => leafletMap.invalidateSize(), 100);
 
-            const primaryTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>',
-                subdomains: 'abcd', maxZoom: 19
+            // Keyless open-source basemap. OSM is primary; CARTO is a visual fallback.
+            const primaryTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19,
+                crossOrigin: true
             });
-            const fallbackTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
-                maxZoom: 19
+            const fallbackTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd', maxZoom: 19,
+                crossOrigin: true
             });
             primaryTile.on('tileerror', () => { if (!leafletMap.hasLayer(fallbackTile)) fallbackTile.addTo(leafletMap); });
             primaryTile.addTo(leafletMap);
@@ -1414,18 +1417,39 @@
                 const r3 = await geocodeWithRetry(u3, 1);
                 if (r3) return r3;
             }
+            // Photon is a second keyless OpenStreetMap search service.
+            const photonQuery = [airportName, cityFallback].filter(Boolean).join(', ');
+            if (photonQuery) {
+                try {
+                    const pController = new AbortController();
+                    const pTimeout = setTimeout(() => pController.abort(), 9000);
+                    const pRes = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(photonQuery)}&limit=1`, { signal: pController.signal });
+                    clearTimeout(pTimeout);
+                    const pData = await pRes.json();
+                    const coords = pData.features?.[0]?.geometry?.coordinates;
+                    if (coords?.length === 2) return { lat: coords[1], lng: coords[0] };
+                } catch(e) { /* caller will fall back to city geocode */ }
+            }
             return null; // caller will fall back to city geocode
         }
 
         async function geocodeWithRetry(url, attempts) {
             for (let i = 0; i < attempts; i++) {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 9000);
                 try {
-                    const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'SkyTrackPro/1.0' } });
+                    // Do not set User-Agent here: browsers forbid that request header.
+                    const res = await fetch(url, {
+                        headers: { 'Accept-Language': 'en' },
+                        signal: controller.signal
+                    });
                     if (!res.ok) throw new Error('HTTP ' + res.status);
                     const data = await res.json();
                     if (data && data.length) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
                 } catch(e) {
                     if (i < attempts - 1) await new Promise(r => setTimeout(r, 800 * (i + 1)));
+                } finally {
+                    clearTimeout(timeout);
                 }
             }
             return null;
