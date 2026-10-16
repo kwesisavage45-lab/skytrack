@@ -1629,9 +1629,14 @@
 
             try {
                 const q = encodeURIComponent(city + ' airport ' + country);
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 10000);
                 const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=8&featureType=`, {
-                    headers:{ 'Accept-Language':'en', 'User-Agent':'SkyTrackPro/1.0' }
+                    headers: { 'Accept-Language': 'en' },
+                    signal: controller.signal
                 });
+                clearTimeout(timeout);
+                if (!res.ok) throw new Error('Nominatim HTTP ' + res.status);
                 const data = await res.json();
                 const airports = data.filter(r => /airport|aeropuerto|aéroport/i.test(r.display_name));
                 if (!airports.length) { statusEl.innerHTML = '<span style="color:#f59e0b;">⚠ No airports found — enter city details.</span>'; return; }
@@ -3167,7 +3172,13 @@
             // First geocode the city to get lat/lng
             const geoQuery = country ? `${city}, ${country}` : city;
             const geoUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(geoQuery)}&format=json&limit=1`;
-            const geoRes = await fetch(geoUrl, { headers: { 'Accept-Language': 'en', 'User-Agent': 'SkyTrackPro/1.0' } });
+            const geoController = new AbortController();
+            const geoTimeout = setTimeout(() => geoController.abort(), 10000);
+            const geoRes = await fetch(geoUrl, {
+                headers: { 'Accept-Language': 'en' },
+                signal: geoController.signal
+            });
+            clearTimeout(geoTimeout);
             if (!geoRes.ok) throw new Error('Geocode failed');
             const geoData = await geoRes.json();
             if (!geoData.length) throw new Error('City not found');
@@ -3177,10 +3188,14 @@
             const r = 120000; // 120 km radius
 
             const overpassQuery = `[out:json][timeout:12];(node["aeroway"="aerodrome"]["iata"](around:${r},${lat},${lon});way["aeroway"="aerodrome"]["iata"](around:${r},${lat},${lon}););out center;`;
+            const ovController = new AbortController();
+            const ovTimeout = setTimeout(() => ovController.abort(), 15000);
             const ovRes = await fetch('https://overpass-api.de/api/interpreter', {
                 method: 'POST',
-                body: 'data=' + encodeURIComponent(overpassQuery)
+                body: 'data=' + encodeURIComponent(overpassQuery),
+                signal: ovController.signal
             });
+            clearTimeout(ovTimeout);
             if (!ovRes.ok) throw new Error('Overpass failed');
             const ovData = await ovRes.json();
 
