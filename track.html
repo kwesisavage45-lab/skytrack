@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Flight Progress | SkyTrack Pro</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-dim: #64748b;
+            --accent: #0284c7;
+            --border: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- Navigation --- */
+        .nav-header {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 100;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Tighter on mobile */
+        @media (max-width: 480px) {
+            .nav-header { top: 10px; left: 10px; }
+        }
+
+        /* --- Gatekeeper --- */
+        .gatekeeper-container {
+            max-width: 700px;
+            width: 95%;
+            margin: 20px auto;
+            text-align: center;
+        }
+
+        .id-prompt-box {
+            background: var(--card);
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        .tracking-input {
+            width: 80%;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: #f1f5f9;
+            color: var(--text);
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .ticket-detail-card {
+            background: #fff;
+            color: #1e293b;
+            padding: 30px;
+            border-radius: 24px;
+            text-align: left;
+            margin-bottom: 25px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+        }
+
+        .view-map-btn {
+            background: var(--accent);
+            color: white;
+            padding: 16px 40px;
+            border-radius: 50px;
+            border: none;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .view-map-btn:hover { background: #0369a1; transform: translateY(-2px); }
+
+        /* --- Progress View --- */
+        #progressView {
+            display: none;
+            width: 90%;
+            max-width: 900px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        /* --- Timeline Bar --- */
+        .timeline-container {
+            position: relative;
+            height: 120px;
+            margin: 40px 0 80px;
+            display: flex;
+            align-items: center;
+        }
+
+        .track-line {
+            position: absolute;
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .active-track {
+            position: absolute;
+            height: 6px;
+            background: var(--accent);
+            width: 0%;
+            border-radius: 10px;
+            transition: width 1s linear;
+        }
+
+        .plane-carrier {
+            position: absolute;
+            left: 0%;
+            transform: translateX(-50%);
+            top: 50%; margin-top: -20px; line-height: 40px;
+            transition: left 1s linear;
+            z-index: 10;
+        }
+
+        .plane-icon {
+            font-size: 32px;
+            color: var(--accent);
+            transform: rotate(90deg);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .location-marker {
+            position: absolute;
+            top: 0;
+            line-height: 1.3;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        /* --- Info Grid --- */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            background: var(--card);
+            padding: 25px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+
+        .label { font-size: 0.65rem; color: var(--accent); font-weight: 800; text-transform: uppercase; margin-bottom: 5px; }
+        .value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+
+        /* --- Live Map Section --- */
+        .map-section {
+            margin: 30px 0;
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+            position: relative;
+        }
+
+        #liveMap {
+            width: 100%;
+            height: 420px;
+        }
+
+        /* Loading overlay for map geocoding */
+        .map-loading {
+            position: absolute;
+            inset: 0;
+            background: rgba(248,250,252,0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            z-index: 500;
+            border-radius: 24px;
+        }
+        .map-loading.hidden { display: none; }
+        .spinner {
+            width: 36px; height: 36px;
+            border: 4px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .map-error {
+            background: #fff0f0;
+            border: 1px solid #fca5a5;
+            border-radius: 12px;
+            padding: 14px 20px;
+            font-size: 0.85rem;
+            color: #b91c1c;
+            text-align: center;
+            display: none;
+        }
+
+        /* Plane emoji marker */
+        .plane-map-icon { font-size: 24px; line-height: 1; display: block; transform-origin: center; }
+
+        .cancelled-banner {
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .cancelled-banner h2 { color: #ef4444; font-size: 1.8rem; font-weight: 900; letter-spacing: 4px; margin: 0; }
+        .cancelled-banner p { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
+
+        .cancel-flight-zone {
+            margin-top: 30px;
+            text-align: center;
+            padding: 20px;
+            border: 1px dashed #fca5a5;
+            border-radius: 16px;
+            background: #fff5f5;
+        }
+        .cancel-flight-zone p {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 14px;
+            font-weight: 600;
+        }
+        .cancel-confirm-box {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+        .cancel-confirm-box p {
+            color: #ef4444;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        .cancel-confirm-btns {
+            display: flex;
+            gap: 12px;
+        }
+        .btn-cancel-yes {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-cancel-yes:hover { background: #dc2626; transform: scale(1.03); }
+        .btn-cancel-no {
+            background: transparent;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-cancel-no:hover { border-color: #94a3b8; color: #334155; }
+
+        .transit-badge {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 10px 0 20px;
+        }
+
+        /* --- History --- */
+        .history-section { margin-top: 30px; text-align: left; }
+        .history-card { 
+            background: var(--card); padding: 12px; border-radius: 12px; border: 1px solid var(--border); 
+            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .history-info { display: flex; flex-direction: column; }
+        .history-id { color: var(--accent); font-weight: 800; font-size: 0.9rem; }
+        .history-route { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none !important; }
+
+        /* --- Mobile --- */
+        @media (max-width: 650px) {
+            .gatekeeper-container { margin-top: 60px; }
+            .id-prompt-box { padding: 30px 15px; }
+            .tracking-input { width: 100%; font-size: 1.1rem; }
+            .ticket-detail-card { padding: 20px; }
+            .ticket-detail-card > div[style*="display:grid"] { grid-template-columns: 1fr !important; gap: 10px !important; }
+            .info-grid { grid-template-columns: 1fr; gap: 15px; }
+            .timeline-container { margin: 60px 0; }
+            .location-marker span { font-size: 1.1rem !important; }
+            .view-map-btn { width: 100%; }
+            #liveMap { height: 280px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Nav header — hidden by default; revealed only for the logged-in owner, never for shared-link guests -->
+    <nav class="nav-header" id="navHeader">
+        <a href="index.html" class="back-home-btn" id="backHomeBtn" style="background:var(--card);color:var(--text);padding:8px 14px;border-radius:10px;text-decoration:none;font-weight:600;font-size:0.8rem;border:1px solid var(--border);transition:0.3s;display:flex;align-items:center;gap:7px;box-shadow:0 2px 4px rgba(0,0,0,0.06);">
+            <i class="fas fa-arrow-left"></i>
+            <span>BACK TO HOME</span>
+        </a>
+        <button id="trackLogoutBtn" onclick="trackLogout()" style="display:none; background:#ef4444; color:#fff; border:none; padding:7px 16px; border-radius:10px; font-weight:700; font-size:0.78rem; cursor:pointer; margin-left:6px;">
+            <i class="fas fa-sign-out-alt"></i> Log Out
+        </button>
+    </nav>
+
+    <!-- ── GATEKEEPER ── -->
+    <div id="gatekeeper" class="gatekeeper-container">
+        <h1 style="color:var(--accent); font-weight:800; margin-bottom:20px; font-size:1.6rem; letter-spacing:2px;"><i class="fas fa-satellite-dish" style="margin-right:10px;"></i>FLIGHT TRACKER</h1>
+        
+        <div id="idPrompt" class="id-prompt-box hidden">
+            <div style="font-size:3rem; margin-bottom:16px;">✈️</div>
+            <h3 style="font-weight:900; margin-bottom:8px; font-size:1.3rem;">Enter Your Flight ID</h3>
+            <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 24px;">Enter a flight ID to view full ticket details and live progress</p>
+            <input type="text" id="manualID" class="tracking-input" placeholder="e.g. ST-ABC12" 
+                oninput="this.value=this.value.toUpperCase()"
+                onkeydown="if(event.key==='Enter') validateManualID()">
+            <br>
+            <button class="view-map-btn" onclick="validateManualID()"><i class="fas fa-search" style="margin-right:8px;"></i>SEARCH FLIGHT</button>
+
+            <div class="history-section" id="historyArea">
+                <h4 style="margin: 24px 0 12px; color: var(--text-dim); font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;"><i class="fas fa-history" style="margin-right:6px;"></i>Your Recent Flights</h4>
+                <div id="historyList"></div>
+            </div>
+        </div>
+
+        <!-- Full ticket display before launch -->
+        <div id="ticketInfo" class="ticket-detail-card hidden"></div>
+        <button class="view-map-btn" id="launchBtn" onclick="activateTracker()" style="display:none; width:100%; max-width:400px; margin:0 auto; display:none !important;">ACTIVATE LIVE PROGRESS</button>
+    </div>
+
+    <!-- ── PROGRESS VIEW ── -->
+    <div id="progressView">
+        <!-- Minimal SkyTrack branding shown only to shared-link guests -->
+        <div id="guestBrandBar" style="display:none; text-align:center; padding:22px 0 4px;">
+            <span style="font-size:1.05rem; font-weight:800; color:#0284c7; letter-spacing:1px;">
+                <i class="fas fa-paper-plane" style="margin-right:6px;"></i>SkyTrack Pro
+            </span>
+            <span style="font-size:0.72rem; color:#64748b; margin-left:10px; font-weight:500; vertical-align:middle;">Live Flight Tracker</span>
+        </div>
+
+        <!-- Airline + ID header -->
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div id="trackAirlineLogoWrap" style="display:none; justify-content:center; margin-bottom:10px;">
+                <img id="trackAirlineLogo" src="" alt="" style="height:48px; max-width:160px; object-fit:contain;" onerror="this.parentElement.style.display='none'">
+            </div>
+            <h2 id="dispAirline" style="margin:0; letter-spacing: 3px; color:var(--accent); font-weight: 900;">---</h2>
+            <p id="dispID" style="color: var(--text-dim); font-weight:700; margin-top:5px;"></p>
+            <div id="cancelledBanner" class="cancelled-banner hidden">
+                <h2>✗ FLIGHT CANCELLED</h2>
+                <p>This flight has been cancelled. Please contact the airline for rebooking.</p>
+            </div>
+            <div id="transitBadge" class="transit-badge hidden">
+                <i class="fas fa-route"></i> <span>Via: <strong id="dispTransitCity">---</strong></span>
+            </div>
+        </div>
+
+        <!-- Progress timeline bar -->
+        <div class="timeline-container">
+            <div class="location-marker" style="left:0;">ORIGIN<br><span id="dispFrom" style="font-size:1.5rem; color:var(--text); font-weight: 900;">---</span></div>
+            <div class="location-marker" style="right:0; text-align:right;">DESTINATION<br><span id="dispTo" style="font-size:1.5rem; color:var(--text); font-weight: 900;">---</span></div>
+            <div class="track-line"></div>
+            <div class="active-track" id="activeTrack"></div>
+            <div class="plane-carrier" id="planeCarrier"><i class="fas fa-plane plane-icon"></i></div>
+        </div>
+
+        <!-- Live map -->
+        <div class="map-section">
+            <div id="mapLoading" class="map-loading">
+                <div class="spinner"></div>
+                <p style="font-size:0.85rem; font-weight:700; color:var(--text-dim);">Loading live map…</p>
+            </div>
+            <div id="liveMap"></div>
+        </div>
+        <div id="mapError" class="map-error">
+            Could not place cities on the map. Check that city names were entered correctly when creating the ticket.
+        </div>
+        
+        <!-- Info grid -->
+        <div class="info-grid">
+            <div><div class="label">Passenger</div><div class="value" id="resName">---</div></div>
+            <div><div class="label">Date</div><div class="value" id="resDate">---</div></div>
+            <div><div class="label">Flight Status</div><div class="value" id="resStatus">---</div></div>
+            <div><div class="label">Flight Number</div><div class="value" id="resFlightNum">---</div></div>
+            <div><div class="label">Seat</div><div class="value" id="resSeat">---</div></div>
+            <div><div class="label">Terminal / Gate</div><div class="value" id="resGate">---</div></div>
+            <div><div class="label">Departure</div><div class="value" id="resDep">---</div></div>
+            <div><div class="label">Arrival (EST)</div><div class="value" id="resArr">---</div><div class="label" id="resArrDateLabel" style="display:none; margin-top:3px; font-size:0.72rem; color:var(--text-dim);"></div></div>
+            <div id="resAirportCell" style="display:none;"><div class="label">Airports</div><div class="value" id="resAirports" style="font-size:0.85rem; line-height:1.6;">---</div></div>
+            <div id="resPriceCell" style="display:none;"><div class="label">Ticket Price</div><div class="value" id="resPrice" style="color:#22c55e;">---</div></div>
+            <div id="resRoundTripCell" style="display:none; grid-column:1/-1;"><div class="label" style="color:#16a34a;">Return Flight</div><div id="resReturnInfo" style="font-size:0.85rem; line-height:1.8; color:var(--text); font-weight:700;">---</div></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <button class="view-map-btn" style="background:transparent; border: 2px solid var(--accent); color: var(--accent);" onclick="location.reload()">REFRESH TRACKER</button>
+        </div>
+
+        <!-- Cancel Flight Zone — only shown to logged-in user -->
+        <div class="cancel-flight-zone hidden" id="cancelFlightZone">
+            <p>Wanna cancel your flight?</p>
+            <button class="view-map-btn" style="background:#ef4444; font-size:0.85rem; padding:12px 28px;" onclick="showCancelConfirm()" id="cancelAskBtn">
+                <i class="fas fa-times-circle"></i> Cancel Flight
+            </button>
+            <div class="cancel-confirm-box" id="cancelConfirmBox">
+                <p>⚠️ Are you sure you want to cancel your flight? The plane will return to origin.</p>
+                <div class="cancel-confirm-btns">
+                    <button class="btn-cancel-yes" onclick="executeCancelFlight()">Yes, Cancel Flight</button>
+                    <button class="btn-cancel-no" onclick="hideCancelConfirm()">No, Keep Flying</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Firebase Auth + Firestore for track.html -->
+    <script type="module">
+        import { initializeApp }    from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc, collection, query, where, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+        const app = initializeApp({
+            apiKey:            "AIzaSyAcnU7sDm8pWkWssgxMPA4q2rdpS8a6qDw",
+            authDomain:        "skytrack-28c83.firebaseapp.com",
+            projectId:         "skytrack-28c83",
+            storageBucket:     "skytrack-28c83.firebasestorage.app",
+            messagingSenderId: "876231264024",
+            appId:             "1:876231264024:web:eb42a685ee2bad2020c06d",
+            measurementId:     "G-FE2WV6KZ20"
+        });
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        // Expose Firestore helpers globally
+        window._fsGetFlight = async (id) => {
+            const snap = await getDoc(doc(db, 'flights', id));
+            return snap.exists() ? snap.data() : null;
+        };
+        window._fsUpdateFlight = async (id, fields) => {
+            await updateDoc(doc(db, 'flights', id), fields);
+        };
+        window._fsGetUserFlights = async (uid) => {
+            const q = query(
+                collection(db, 'flights'),
+                where('uid', '==', uid),
+                orderBy('createdAt', 'desc'),
+                limit(5)
+            );
+            const snap = await getDocs(q);
+            return snap.docs.map(d => d.data());
+        };
+        window._fsReady = true;
+
+        onAuthStateChanged(auth, user => {
+            if(user){
+                localStorage.setItem('isLoggedIn','true');
+                localStorage.setItem('userEmail', user.email||'');
+                localStorage.setItem('userName',  user.displayName||'');
+                localStorage.setItem('uid', user.uid);
+            } else {
+                localStorage.removeItem('isLoggedIn');
+            }
+            window._fbAuth    = auth;
+            window._fbSignOut = signOut;
+            window._fbReady   = true;
+
+            // Re-trigger loadFlightData once Firebase is ready (auth state resolved)
+            if (window._pendingFlightLoad) {
+                window._pendingFlightLoad();
+                window._pendingFlightLoad = null;
+            }
+        });
+    </script>
+
+    <script>
+        // ─── STATE ────────────────────────────────────────────────
+        function extractFlightId() {
+            const pathMatch = window.location.pathname.match(/\/track\/([A-Za-z0-9\-]+)/);
+            if (pathMatch) return pathMatch[1].toUpperCase();
+            const qs = new URLSearchParams(window.location.search).get('id');
+            if (qs) return qs.toUpperCase();
+            const hash = window.location.hash.replace('#', '').trim();
+            if (hash) return hash.toUpperCase();
+            return null;
+        }
+
+        function isSharedView() {
+            const qs = new URLSearchParams(window.location.search);
+            return qs.has('share') || !!window.location.pathname.match(/\/track\/([A-Za-z0-9\-]+)/);
+        }
+
+        let flightId       = extractFlightId();
+        const isSharedLink = isSharedView();
+        let savedData      = null;
+        let leafletMap     = null;
+        let planeMapMarker = null;
+
+        function trackLogout(){
+            const doLogout = ()=>{
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('userEmail');
+                localStorage.removeItem('userName');
+                window.location.href = 'login.html';
+            };
+            if(window._fbAuth && window._fbSignOut){
+                window._fbSignOut(window._fbAuth).then(doLogout).catch(doLogout);
+            } else { doLogout(); }
+        }
+
+        // ─── BOOT ─────────────────────────────────────────────────
+        async function loadFlightData() {
+            if (flightId) {
+                // 1. Try localStorage for a fast initial load (owner same device)
+                const local = localStorage.getItem('flight_' + flightId);
+                if (local) { try { savedData = JSON.parse(local); } catch(e) {} }
+
+                // 2. If Firestore not ready yet, defer and retry after Firebase init
+                if (!window._fsGetFlight) {
+                    window._pendingFlightLoad = loadFlightData;
+                    return;
+                }
+
+                // 3. ALWAYS await fresh Firestore data before rendering.
+                //    This is what makes cancellations (and any updates) reflect
+                //    immediately for anyone viewing the tracking link.
+                try {
+                    const fresh = await window._fsGetFlight(flightId);
+                    if (fresh) {
+                        savedData = fresh; // cloud data is authoritative
+                        localStorage.setItem('flight_' + flightId, JSON.stringify(fresh));
+                    }
+                } catch(e) { console.error('Firestore fetch error:', e); }
+            }
+
+            if (isSharedLink) {
+                // ── SHARED / GUEST VIEW — nav stays hidden always ──
+                renderGuestView();
+            } else {
+                // ── OWNER / NORMAL MODE — show nav with back-home + logout if logged in ──
+                if (localStorage.getItem('isLoggedIn') === 'true') {
+                    const nav = document.getElementById('navHeader');
+                    if (nav) nav.style.display = 'flex';
+                    const lb = document.getElementById('trackLogoutBtn');
+                    if (lb) lb.style.display = 'inline-flex';
+                }
+                renderGatekeeper();
+                loadHistory();
+            }
+        }
+
+        // ─── GUEST / SHARED VIEW ─────────────────────────────────
+        function renderGuestView() {
+            if (!savedData) {
+                document.getElementById('gatekeeper').classList.remove('hidden');
+                document.getElementById('progressView').style.display = 'none';
+                // Show a "not found" in the gatekeeper
+                const idPrompt = document.getElementById('idPrompt');
+                idPrompt.classList.remove('hidden');
+                idPrompt.innerHTML = `
+                    <div style="text-align:center;padding:40px 20px;">
+                        <div style="font-size:4rem;margin-bottom:20px;">✈️</div>
+                        <div style="font-size:1.1rem;font-weight:800;color:var(--accent);letter-spacing:2px;margin-bottom:8px;">SKYTRACK PRO</div>
+                        <h2 style="font-weight:900;margin-bottom:12px;">Flight Not Found</h2>
+                        <p style="color:var(--text-dim);font-size:0.9rem;line-height:1.7;">
+                            Flight <strong style="color:var(--accent);">${flightId}</strong> could not be located.<br>
+                            The flight ID may be incorrect or the ticket may have been deleted.
+                        </p>
+                    </div>`;
+                return;
+            }
+            // Show gatekeeper with ticket info first — guest must tap "Activate Live Progress"
+            document.getElementById('gatekeeper').classList.remove('hidden');
+            document.getElementById('progressView').style.display = 'none';
+            document.getElementById('guestBrandBar').style.display = 'block';
+            
+            // Show SkyTrack branding above gatekeeper for guests
+            const h1 = document.querySelector('#gatekeeper h1');
+            if (h1) {
+                h1.innerHTML = '<i class="fas fa-paper-plane" style="margin-right:8px;"></i>SKYTRACK PRO';
+                h1.style.cssText = 'color:var(--accent); font-weight:800; margin-bottom:4px; font-size:1.4rem; letter-spacing:2px;';
+                const sub = document.createElement('p');
+                sub.style.cssText = 'color:var(--text-dim); font-size:0.8rem; margin-bottom:20px; font-weight:500;';
+                sub.textContent = 'Live Flight Tracker — shared with you';
+                h1.insertAdjacentElement('afterend', sub);
+            }
+            
+            renderGatekeeper();
+            
+            // Override launch button label for guest
+            const launchBtn = document.getElementById('launchBtn');
+            if (launchBtn) {
+                launchBtn.innerHTML = '<i class="fas fa-satellite-dish" style="margin-right:8px;"></i>VIEW LIVE FLIGHT PROGRESS';
+                launchBtn.style.display = 'block';
+                launchBtn.onclick = () => activateTracker(true);
+            }
+        }
+
+        // ─── GATEKEEPER ───────────────────────────────────────────
+        function renderGatekeeper() {
+            const ticketCard = document.getElementById('ticketInfo');
+            const launchBtn  = document.getElementById('launchBtn');
+            const idPrompt   = document.getElementById('idPrompt');
+
+            if (savedData) {
+                idPrompt.classList.add('hidden');
+                ticketCard.classList.remove('hidden');
+                launchBtn.style.display = 'block';
+
+                const isCancelled = savedData.cancelled || false;
+                const fromAptLine = savedData.fromAirportCode ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${savedData.fromAirportCode} — ${savedData.fromAirportName}</div>` : '';
+                const toAptLine   = savedData.toAirportCode   ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${savedData.toAirportCode} — ${savedData.toAirportName}</div>` : '';
+                const priceRow    = savedData.ticketPrice ? `<div><span class="label">Ticket Price</span><div style="font-weight:800;color:#16a34a;font-size:1rem;">${savedData.ticketPrice}</div></div>` : '';
+
+                ticketCard.innerHTML = `
+                    ${isCancelled ? '<div style="background:#ef4444;color:#fff;text-align:center;padding:10px;font-weight:900;letter-spacing:3px;font-size:0.9rem;border-radius:10px;margin-bottom:16px;">✗ FLIGHT CANCELLED</div>' : `<div id="trackAirlineHeader" style="background:#fff;display:flex;align-items:center;gap:14px;padding:14px 20px;border-radius:10px;margin-bottom:16px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.06);"><img id="trackLogoImg" alt="${savedData.airline||''}" style="height:44px;max-width:160px;object-fit:contain;display:block;"><span style="font-weight:900;font-size:1.5rem;letter-spacing:-0.5px;color:#0f172a;">${(savedData.airline||'').toUpperCase()}</span></div>`}
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px dashed #e2e8f0; padding-bottom:18px; margin-bottom:18px;">
+                        <div>
+                            <span class="label">Passenger Name</span>
+                            <div style="font-size:1.5rem; font-weight:900; margin-top:2px;">${savedData.name}</div>
+                            <div style="font-size:0.78rem; color:#64748b; margin-top:2px;">${savedData.class || ''} · ${savedData.airline || ''}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="label">Flight ID</span>
+                            <div style="font-size:1.3rem; font-weight:900; color:#0284c7; letter-spacing:1px;">${flightId}</div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; margin-bottom:18px;">
+                        <div>
+                            <span class="label">From</span>
+                            <div style="font-size:1.6rem; font-weight:900; line-height:1.1;">${savedData.fromCity || savedData.from}</div>
+                            <div style="font-size:0.72rem; color:#64748b; margin-top:1px;">${savedData.fromCountry || ''}</div>
+                            ${fromAptLine}
+                        </div>
+                        <div style="text-align:center; font-size:2rem; color:#0284c7; padding:0 8px;">✈</div>
+                        <div style="text-align:right;">
+                            <span class="label">To</span>
+                            <div style="font-size:1.6rem; font-weight:900; line-height:1.1;">${(() => { const stops = Array.isArray(savedData.transitStops) && savedData.transitStops.length > 0 ? savedData.transitStops : (savedData.hasTransit && savedData.transitCity ? [{city:savedData.transitCity}] : []); return stops.length > 0 ? '<span style="font-size:0.72rem;color:#f59e0b;font-weight:700;display:block;margin-bottom:2px;">via ' + stops.map(s=>s.city).join(' → ') + '</span>' : ''; })()}${savedData.toCity || savedData.to}</div>
+                            <div style="font-size:0.72rem; color:#64748b; margin-top:1px;">${savedData.toCountry || ''}</div>
+                            ${toAptLine}
+                        </div>
+                    </div>
+
+                    ${(() => {
+                        const stops = Array.isArray(savedData.transitStops) && savedData.transitStops.length > 0
+                            ? savedData.transitStops
+                            : (savedData.hasTransit && savedData.transitCity
+                                ? [{ city: savedData.transitCity, country: savedData.transitCountry||'', durationMin: savedData.transitDuration||0, airportCode: savedData.transitAirportCode||'', airportName: savedData.transitAirportName||'' }]
+                                : []);
+                        return stops.map((s, i) => `<div style="background:#fffbeb; border:1px solid #f59e0b; border-radius:12px; padding:10px 14px; margin-bottom:8px; font-size:0.82rem;"><i class="fas fa-route" style="color:#f59e0b; margin-right:6px;"></i><strong style="color:#92400e;">Stop ${i+1}: ${s.city}${s.country ? ', '+s.country : ''}</strong>${s.airportCode ? ' · ' + s.airportCode + ' — ' + s.airportName : ''} · Layover: ${s.durationMin} min</div>`).join('');
+                    })()}
+
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; background:#f8fafc; padding:14px; border-radius:14px; border:1px solid #e2e8f0; margin-bottom:16px;">
+                        <div><span class="label">Date</span><div style="font-weight:800; font-size:0.9rem;">${savedData.date}</div></div>
+                        <div><span class="label">Departure</span><div style="font-weight:800; font-size:0.9rem;">${savedData.dep}</div></div>
+                        <div><span class="label">Arrival</span><div style="font-weight:800; font-size:0.9rem;">${savedData.arr}</div></div>
+                        <div><span class="label">Terminal</span><div style="font-weight:800; font-size:0.9rem;">${savedData.terminal || 'T1'}</div></div>
+                        <div><span class="label">Gate</span><div style="font-weight:800; font-size:0.9rem;">${savedData.gate || '—'}</div></div>
+                        ${priceRow}
+                    </div>
+
+                    ${(savedData.showRoundTrip && savedData.rtData) ? (() => {
+                        const rt = savedData.rtData;
+                        const rtStopsHTML = (rt.transitStops || []).map((s, i) => {
+                            const dur = Number(s.durationMin) || 0;
+                            const durLabel = dur >= 60 ? Math.floor(dur / 60) + 'h ' + (dur % 60 ? (dur % 60) + 'm' : '') : dur + 'm';
+                            const aptLine = s.airportCode ? `<div style="font-size:0.68rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${s.airportCode}${s.airportName ? ' — ' + s.airportName : ''}</div>` : '';
+                            const timeLabel = s.arrTime ? new Date(s.arrTime).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : '';
+                            return `<div style="display:flex;justify-content:space-between;align-items:center;background:#f0fdf4;border:1px dashed #22c55e;border-radius:12px;padding:10px 14px;margin:0 0 8px;font-size:0.8rem;"><div><strong style="color:#16a34a;">Return Stop ${i+1}${timeLabel ? ' · Arrives ' + timeLabel : ''}</strong><div style="font-weight:800;color:#1e293b;">${s.city}${s.country ? ', ' + s.country : ''}</div>${aptLine}</div><div style="text-align:right;color:#64748b;font-weight:800;">Layover<br>${durLabel}</div></div>`;
+                        }).join('');
+                        const rtFromApt = rt.fromAirportCode ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${rt.fromAirportCode} — ${rt.fromAirportName}</div>` : '';
+                        const rtToApt   = rt.toAirportCode   ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${rt.toAirportCode} — ${rt.toAirportName}</div>`   : '';
+                        return `
+                        <div style="display:flex;align-items:center;gap:10px;margin:16px 0 14px;">
+                            <div style="flex:1;border-top:2px dashed #22c55e;"></div>
+                            <span style="font-size:0.68rem;font-weight:900;color:#16a34a;letter-spacing:1.5px;white-space:nowrap;background:#f0fdf4;padding:4px 12px;border-radius:20px;border:1.5px solid #22c55e;"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>RETURN FLIGHT</span>
+                            <div style="flex:1;border-top:2px dashed #22c55e;"></div>
+                        </div>
+                        <div id="rtTrackAirlineHeader" style="background:#f0fdf4;display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;margin-bottom:14px;border:1px solid #bbf7d0;">
+                            <img id="rtTrackLogoImg" alt="${rt.airline||''}" style="height:36px;max-width:140px;object-fit:contain;display:block;">
+                            <span style="font-weight:900;font-size:1.2rem;letter-spacing:-0.5px;color:#15803d;">${(rt.airline||'').toUpperCase()}</span>
+                            <span style="margin-left:auto;font-size:0.62rem;font-weight:800;padding:3px 10px;border-radius:20px;background:#dcfce7;color:#16a34a;border:1px solid #86efac;white-space:nowrap;">${rt.fareType||'Round Trip'}</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-bottom:14px;">
+                            <div>
+                                <span class="label" style="color:#16a34a;">Return From</span>
+                                <div style="font-size:1.4rem;font-weight:900;line-height:1.1;">${rt.fromCity||'---'}</div>
+                                <div style="font-size:0.72rem;color:#64748b;">${rt.fromCountry||''}</div>
+                                ${rtFromApt}
+                            </div>
+                            <div style="text-align:center;font-size:1.8rem;color:#16a34a;">✈</div>
+                            <div style="text-align:right;">
+                                <span class="label" style="color:#16a34a;">Return To</span>
+                                <div style="font-size:1.4rem;font-weight:900;line-height:1.1;">${rt.toCity||'---'}</div>
+                                <div style="font-size:0.72rem;color:#64748b;">${rt.toCountry||''}</div>
+                                ${rtToApt}
+                            </div>
+                        </div>
+                        ${rtStopsHTML}
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#f0fdf4;padding:12px;border-radius:12px;border:1px solid #bbf7d0;margin-bottom:4px;">
+                            <div><span class="label" style="color:#16a34a;">Dep. Date</span><div style="font-weight:800;font-size:0.88rem;">${rt.depDate||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Dep. Time</span><div style="font-weight:800;font-size:0.88rem;">${rt.dep||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Arr. Date</span><div style="font-weight:800;font-size:0.88rem;">${rt.arrDate||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Arr. Time</span><div style="font-weight:800;font-size:0.88rem;">${rt.arr||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Terminal</span><div style="font-weight:800;font-size:0.88rem;">${rt.terminal||'T1'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Gate</span><div style="font-weight:800;font-size:0.88rem;">${rt.gate||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Flight Number</span><div style="font-weight:800;font-size:0.88rem;">${rt.flightNum||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Seat</span><div style="font-weight:800;font-size:0.88rem;">${rt.seat||'—'}</div></div>
+                        </div>`;
+                    })() : ''}
+
+                    ${savedData.fromAirportCode || savedData.toAirportCode ? `<div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:10px 14px; font-size:0.78rem; color:#0369a1; font-weight:700; margin-bottom:4px;">
+                        ${savedData.fromAirportCode ? `<div>✈ DEP: ${savedData.fromAirportCode} — ${savedData.fromAirportName}</div>` : ''}
+                        ${savedData.transitAirportCode ? `<div>⏱ VIA: ${savedData.transitAirportCode} — ${savedData.transitAirportName}</div>` : ''}
+                        ${savedData.toAirportCode ? `<div>✈ ARR: ${savedData.toAirportCode} — ${savedData.toAirportName}</div>` : ''}
+                    </div>` : ''}
+                `;
+
+                // Apply airline logo to the branded header we just rendered
+                if (!isCancelled && savedData?.airline) {
+                    const trackLogoImg = document.getElementById('trackLogoImg');
+                    if (trackLogoImg) applyLogoToImg(trackLogoImg, savedData.airline);
+                    // Apply return flight airline logo
+                    const rtTrackLogoImg = document.getElementById('rtTrackLogoImg');
+                    if (rtTrackLogoImg && savedData.rtData?.airline) applyLogoToImg(rtTrackLogoImg, savedData.rtData.airline);
+                }
+            } else {
+                ticketCard.classList.add('hidden');
+                launchBtn.style.display = 'none';
+                idPrompt.classList.remove('hidden');
+            }
+        }
+
+        // ─── HISTORY ──────────────────────────────────────────────
+        async function loadHistory() {
+            const list = document.getElementById('historyList');
+            if (!list) return;
+
+            // Try Firestore first
+            const uid = localStorage.getItem('uid');
+            if (uid && window._fsGetUserFlights) {
+                try {
+                    const flights = await window._fsGetUserFlights(uid);
+                    if (flights.length > 0) {
+                        renderTrackHistoryItems(list, flights.map(f => ({
+                            id: f.id, from: f.fromCity || f.from, to: f.toCity || f.to, cancelled: f.cancelled || false
+                        })));
+                        return;
+                    }
+                } catch(e) { /* fall through */ }
+            }
+            // Fallback to localStorage history
+            const history = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
+            renderTrackHistoryItems(list, history);
+        }
+
+        function renderTrackHistoryItems(list, history) {
+            list.innerHTML = history.length ? '' : '<p style="font-size:0.8rem; color:var(--text-dim);">No previous tickets found.</p>';
+            history.forEach(item => {
+                const isCancelled = item.cancelled || false;
+                const div = document.createElement('div');
+                div.className = 'history-card';
+                if(isCancelled) div.style.opacity = '0.6';
+                div.innerHTML = `
+                    <div class="history-info">
+                        <span class="history-id">${item.id}${isCancelled ? ' <span style="color:#ef4444;font-size:0.65rem;">✗ CANCELLED</span>' : ''}</span>
+                        <span class="history-route">${item.from} → ${item.to}</span>
+                    </div>
+                    ${isCancelled
+                        ? '<span style="color:#ef4444;font-size:0.7rem;font-weight:800;">CANCELLED</span>'
+                        : '<button class="view-map-btn" style="padding:0.5rem 1rem;font-size:0.7rem;">View</button>'
+                    }`;
+                if(!isCancelled){
+                    div.querySelector('button').addEventListener('click', ()=> loadFlightById(item.id));
+                }
+                list.appendChild(div);
+            });
+        }
+
+        function validateManualID() {
+            const input = document.getElementById('manualID').value.trim().toUpperCase();
+            if (!input) return;
+            loadFlightById(input);
+        }
+
+        function showManualNotFound(id) {
+            const inp = document.getElementById('manualID');
+            if (inp) { inp.style.borderColor='#ef4444'; inp.style.background='#fff5f5'; setTimeout(()=>{ inp.style.borderColor=''; inp.style.background='#f1f5f9'; }, 2200); }
+            let errEl = document.getElementById('manualIDError');
+            if (!errEl) { errEl=document.createElement('p'); errEl.id='manualIDError'; errEl.style.cssText='color:#ef4444;font-size:0.82rem;font-weight:700;margin-top:10px;'; inp.insertAdjacentElement('afterend',errEl); }
+            errEl.textContent = `Flight "${id}" not found. Double-check the ID.`;
+            setTimeout(()=>{ if(errEl) errEl.textContent=''; }, 4000);
+        }
+
+        async function loadFlightById(id) {
+            id = id.trim().toUpperCase();
+            let data = localStorage.getItem('flight_' + id);
+            let parsed = data ? JSON.parse(data) : null;
+
+            // Try Firestore if not cached locally
+            if (!parsed && window._fsGetFlight) {
+                try {
+                    parsed = await window._fsGetFlight(id);
+                    if (parsed) localStorage.setItem('flight_' + id, JSON.stringify(parsed));
+                } catch(e) {}
+            }
+
+            if (!parsed) { showManualNotFound(id); return; }
+            flightId  = id;
+            savedData = parsed;
+            if (leafletMap) { leafletMap.remove(); leafletMap=null; planeMapMarker=null; }
+            document.getElementById('progressView').style.display = 'none';
+            try { window.history.pushState({}, '', '?id='+id); } catch(e) {}
+            // Show the ticket card in gatekeeper — user clicks to launch live view
+            renderGatekeeper();
+        }
+
+        // ─── ACTIVATE ─────────────────────────────────────────────
+        function activateTracker(guestMode) {
+            guestMode = guestMode || false;
+            if (!savedData) return;
+            
+            // Hide gatekeeper, show progress
+            document.getElementById('gatekeeper').classList.add('hidden');
+            document.getElementById('progressView').style.display = 'block';
+
+            // Reset progress elements
+            document.getElementById('cancelledBanner').classList.add('hidden');
+            document.getElementById('transitBadge').classList.add('hidden');
+            document.getElementById('cancelFlightZone').classList.add('hidden');
+            document.getElementById('activeTrack').style.width = '0%';
+            document.getElementById('planeCarrier').style.left = '0%';
+            document.getElementById('mapLoading').classList.remove('hidden');
+            document.getElementById('mapError').style.display = 'none';
+
+            // Show branded bar for guest view
+            if (isSharedLink || guestMode) {
+                const bar = document.getElementById('guestBrandBar');
+                if (bar) bar.style.display = 'block';
+            }
+
+            // Use fromCity/toCity if available
+            const fromLabel = savedData.fromCity || savedData.from.substring(0, 3);
+            const toLabel   = savedData.toCity   || savedData.to.substring(0, 3);
+
+            document.getElementById('dispAirline').innerText = savedData.airline;
+            document.getElementById('dispID').innerText      = "TRACKING: " + flightId;
+            document.getElementById('dispFrom').innerText    = fromLabel.substring(0, 3).toUpperCase();
+            document.getElementById('dispTo').innerText      = toLabel.substring(0, 3).toUpperCase();
+            document.getElementById('resName').innerText     = savedData.name;
+            document.getElementById('resDate').innerText     = savedData.date;
+            document.getElementById('resFlightNum').innerText = savedData.flightNum || '---';
+            document.getElementById('resSeat').innerText      = savedData.seat || '---';
+            document.getElementById('resGate').innerText     = (savedData.terminal || 'T1') + " / " + (savedData.gate || 'G1');
+            document.getElementById('resDep').innerText      = savedData.dep;
+            document.getElementById('resArr').innerText      = savedData.arr;
+            // Show arrival date if stored or derived from arrivalTime
+            (function() {
+                const lbl = document.getElementById('resArrDateLabel');
+                if (!lbl) return;
+                let arrDateStr = savedData.arrDate || '';
+                if (!arrDateStr && savedData.arrivalTime) {
+                    // Derive from timestamp
+                    const d = new Date(savedData.arrivalTime);
+                    const depD = new Date(savedData.departTime || 0);
+                    // Only show if it differs from the departure date
+                    const arrDay = d.toISOString().slice(0,10);
+                    const depDay = (savedData.date || '');
+                    if (arrDay !== depDay) arrDateStr = arrDay;
+                }
+                if (arrDateStr) {
+                    lbl.style.display = 'block';
+                    // Format nicely: e.g. "12 Jun 2025"
+                    const parts = arrDateStr.split('-');
+                    if (parts.length === 3) {
+                        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                        lbl.textContent = parseInt(parts[2]) + ' ' + (months[parseInt(parts[1])-1]||'') + ' ' + parts[0];
+                    } else {
+                        lbl.textContent = arrDateStr;
+                    }
+                } else {
+                    lbl.style.display = 'none';
+                }
+            })();
+
+            // Show airline logo
+            setTrackAirlineLogo(savedData.airline);
+
+            // Show ticket price if stored
+            if (savedData.ticketPrice) {
+                const pc = document.getElementById('resPriceCell');
+                const pv = document.getElementById('resPrice');
+                if (pc && pv) { pc.style.display='block'; pv.textContent=savedData.ticketPrice; }
+            }
+
+            // Show round trip return info if stored
+            if (savedData.showRoundTrip && savedData.rtData) {
+                const rc = document.getElementById('resRoundTripCell');
+                const rv = document.getElementById('resReturnInfo');
+                if (rc && rv) {
+                    rc.style.display = 'block';
+                    const rt = savedData.rtData;
+                    rv.innerHTML = `<span style="color:#16a34a;">↩ ${rt.airline||''}</span> &nbsp;·&nbsp; <span style="background:#dcfce7;color:#16a34a;font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:12px;">${rt.fareType||'Round Trip'}</span><br>` +
+                        `${rt.fromCity||'?'} → ${rt.toCity||'?'}<br>` +
+                        `Dep: ${rt.depDate||'—'} ${rt.dep||''} &nbsp; Arr: ${rt.arrDate||'—'} ${rt.arr||''}<br>` +
+                        `Gate: ${rt.gate||'—'} / ${rt.terminal||'T1'}<br>Flight: ${rt.flightNum||'—'} &nbsp;·&nbsp; Seat: ${rt.seat||'—'}` +
+                        (rt.fromAirportCode ? `<br><span style="color:#0284c7;font-size:0.78rem;">✈ ${rt.fromAirportCode} → ${rt.toAirportCode||''}</span>` : '') +
+                        ((rt.transitStops || []).length ? '<br><span style="color:#16a34a;font-size:0.78rem;">↪ Stops: ' + rt.transitStops.map(s => s.city + (s.airportCode ? ' (' + s.airportCode + ')' : '')).join(' → ') + '</span>' : '');
+                }
+            }
+
+            // Show cancelled banner if flight is cancelled
+            if (savedData.cancelled) {
+                document.getElementById('cancelledBanner').classList.remove('hidden');
+                document.getElementById('resStatus').innerText   = "CANCELLED";
+                document.getElementById('resStatus').style.color = "#ef4444";
+            }
+
+            // Show transit badge (multi-stop aware)
+            {
+                const rawStops = savedData.transitStops;
+                const hasStops = (Array.isArray(rawStops) && rawStops.length > 0) || (savedData.hasTransit && savedData.transit);
+                if (hasStops) {
+                    document.getElementById('transitBadge').classList.remove('hidden');
+                    if (Array.isArray(rawStops) && rawStops.length > 0) {
+                        document.getElementById('dispTransitCity').innerText =
+                            rawStops.map((s, i) => `Stop ${i+1}: ${s.city}`).join(' → ');
+                    } else {
+                        document.getElementById('dispTransitCity').innerText = savedData.transit || '';
+                    }
+                }
+            }
+
+            // Show cancel zone ONLY for owner (logged-in), never for guests
+            if (!isSharedLink && !guestMode && localStorage.getItem('isLoggedIn') === 'true' && !savedData.cancelled) {
+                document.getElementById('cancelFlightZone').classList.remove('hidden');
+            }
+
+            // Show airport info if available (multi-stop aware)
+            {
+                const cell = document.getElementById('resAirportCell');
+                const val  = document.getElementById('resAirports');
+                const aptLines = [];
+                if (savedData.fromAirportCode) aptLines.push(`✈ DEP: ${savedData.fromAirportCode} — ${savedData.fromAirportName}`);
+                // multi-stop stops
+                const rawStops = savedData.transitStops;
+                if (Array.isArray(rawStops) && rawStops.length > 0) {
+                    rawStops.forEach((s, i) => {
+                        if (s.airportCode) aptLines.push(`⏱ VIA (Stop ${i+1}): ${s.airportCode} — ${s.airportName}`);
+                    });
+                } else if (savedData.transitAirportCode) {
+                    aptLines.push(`⏱ VIA: ${savedData.transitAirportCode} — ${savedData.transitAirportName}`);
+                }
+                if (savedData.toAirportCode) aptLines.push(`✈ ARR: ${savedData.toAirportCode} — ${savedData.toAirportName}`);
+                if (cell && val && aptLines.length > 0) {
+                    cell.style.display = 'block';
+                    val.innerHTML = aptLines.join('<br>');
+                }
+            }
+
+            // Start progress bar simulation
+            startSimulation();
+
+            // Build live map (geocode city names via Nominatim)
+            initLiveMap();
+        }
+
+        // ─── CANCEL FLIGHT FLOW ───────────────────────────────────
+        function showCancelConfirm() {
+            document.getElementById('cancelAskBtn').style.display = 'none';
+            document.getElementById('cancelConfirmBox').style.display = 'flex';
+        }
+
+        function hideCancelConfirm() {
+            document.getElementById('cancelAskBtn').style.display = 'inline-flex';
+            document.getElementById('cancelConfirmBox').style.display = 'none';
+        }
+
+        function executeCancelFlight() {
+            if (!flightId) return;
+
+            // Mark flight as cancelled in localStorage
+            const key  = 'flight_' + flightId;
+            const data = JSON.parse(localStorage.getItem(key));
+            if (data) {
+                data.cancelled = true;
+                localStorage.setItem(key, JSON.stringify(data));
+                savedData = data; // update in-memory reference
+            }
+            if (savedData) savedData.cancelled = true;
+
+            // Update Firestore so guests see the cancellation too
+            if (window._fsUpdateFlight) {
+                window._fsUpdateFlight(flightId, { cancelled: true })
+                    .catch(err => console.error('Firestore cancel error:', err));
+            }
+
+            // Mark in ticket history
+            let history = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
+            history = history.map(h => h.id === flightId ? {...h, cancelled: true} : h);
+            localStorage.setItem('ticketHistory', JSON.stringify(history));
+
+            // Hide cancel zone
+            document.getElementById('cancelFlightZone').classList.add('hidden');
+
+            // Show cancelled banner
+            document.getElementById('cancelledBanner').classList.remove('hidden');
+
+            // Update status
+            document.getElementById('resStatus').innerText   = "CANCELLED";
+            document.getElementById('resStatus').style.color = "#ef4444";
+
+            // Instantly snap plane back to origin (0%)
+            document.getElementById('activeTrack').style.transition = 'width 0.8s ease';
+            document.getElementById('planeCarrier').style.transition = 'left 0.8s ease';
+            document.getElementById('activeTrack').style.width = '0%';
+            document.getElementById('planeCarrier').style.left = '0%';
+
+            // Return map plane to origin if map loaded
+            if (planeMapMarker && window._mapOrigin) {
+                planeMapMarker.setLatLng([window._mapOrigin.lat, window._mapOrigin.lng]);
+                const el = document.getElementById('planeMapEl');
+                if (el) el.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        // ─── TIMELINE SIMULATION (multi-stop) ────────────────────
+        function startSimulation() {
+            const takeoff = savedData.departTime;
+            const landing = savedData.arrivalTime;
+            const totalDuration = landing - takeoff;
+
+            // Build layover windows from multi-stop data (or legacy single-stop)
+            let layovers = [];
+            const rawStops = savedData.transitStops;
+            if (Array.isArray(rawStops) && rawStops.length > 0) {
+                layovers = rawStops.map(s => ({
+                    arrTS:  s.arrTime,
+                    depTS:  s.arrTime + s.durationMin * 60000,
+                    label:  s.city || 'STOP'
+                }));
+            } else if (savedData.hasTransit && savedData.transitArrTime) {
+                const tArr = savedData.transitArrTime;
+                const tDur = (savedData.transitDuration || 0) * 60000;
+                layovers = [{
+                    arrTS: tArr,
+                    depTS: tArr + tDur,
+                    label: savedData.transitCity || 'TRANSIT'
+                }];
+            }
+
+            // Total layover time to subtract from elapsed (so bar reaches 100% at landing)
+            const totalLayoverMs = layovers.reduce((sum, l) => sum + (l.depTS - l.arrTS), 0);
+            const flightTimeMs   = totalDuration - totalLayoverMs;
+
+            if (savedData.cancelled) {
+                document.getElementById('resStatus').innerText   = "CANCELLED";
+                document.getElementById('resStatus').style.color = "#ef4444";
+                document.getElementById('activeTrack').style.width = "0%";
+                document.getElementById('planeCarrier').style.left = "0%";
+                return;
+            }
+
+            function update() {
+                if (savedData && savedData.cancelled) {
+                    document.getElementById('resStatus').innerText   = "CANCELLED";
+                    document.getElementById('resStatus').style.color = "#ef4444";
+                    return;
+                }
+
+                const now = Date.now();
+                let progress = 0;
+                let statusText = '', statusColor = '';
+
+                if (now < takeoff) {
+                    progress = 0; statusText = "BOARDING"; statusColor = "#f59e0b";
+                } else if (now >= landing) {
+                    progress = 1; statusText = "ARRIVED"; statusColor = "#64748b";
+                } else {
+                    // Check if currently in a layover
+                    const activeLayover = layovers.find(l => now >= l.arrTS && now < l.depTS);
+                    if (activeLayover) {
+                        // Freeze progress at the point this stop was reached
+                        let elapsed = activeLayover.arrTS - takeoff;
+                        // Subtract all prior layovers
+                        for (const l of layovers) {
+                            if (l.depTS <= activeLayover.arrTS) elapsed -= (l.depTS - l.arrTS);
+                        }
+                        progress = flightTimeMs > 0 ? elapsed / flightTimeMs : 0;
+                        statusText = "LAYOVER — " + activeLayover.label;
+                        statusColor = "#f59e0b";
+                    } else {
+                        // Flying — subtract all completed layovers from elapsed
+                        let elapsed = now - takeoff;
+                        for (const l of layovers) {
+                            if (now >= l.depTS) elapsed -= (l.depTS - l.arrTS);
+                        }
+                        progress = flightTimeMs > 0 ? elapsed / flightTimeMs : (now - takeoff) / totalDuration;
+                        statusText = "EN-ROUTE"; statusColor = "#22c55e";
+                    }
+                }
+
+                document.getElementById('resStatus').innerText   = statusText;
+                document.getElementById('resStatus').style.color = statusColor;
+
+                const percent = (Math.max(0, Math.min(1, progress)) * 100).toFixed(4);
+                document.getElementById('activeTrack').style.width = percent + "%";
+                document.getElementById('planeCarrier').style.left = percent + "%";
+
+                // Update timeline transit markers
+                renderTimelineStopMarkers(layovers, takeoff, flightTimeMs);
+            }
+
+            update();
+            setInterval(update, 1000);
+        }
+
+        // Renders small amber dots on the timeline bar for each stop
+        function renderTimelineStopMarkers(layovers, takeoff, flightTimeMs) {
+            const trackLine = document.querySelector('.track-line');
+            if (!trackLine) return;
+            // Only render once
+            if (trackLine.dataset.stopsRendered) return;
+            trackLine.dataset.stopsRendered = '1';
+            layovers.forEach((l, si) => {
+                let elapsed = l.arrTS - takeoff;
+                for (const prev of layovers) {
+                    if (prev.depTS <= l.arrTS) elapsed -= (prev.depTS - prev.arrTS);
+                }
+                const pct = flightTimeMs > 0 ? Math.max(0, Math.min(100, (elapsed / flightTimeMs) * 100)) : 0;
+                const dot = document.createElement('div');
+                dot.title = 'Stop ' + (si+1);
+                dot.style.cssText = `position:absolute; left:${pct}%; top:50%; transform:translate(-50%,-50%);
+                    width:14px; height:14px; border-radius:50%; background:#f59e0b;
+                    border:2px solid #fff; box-shadow:0 0 0 2px #f59e0b; z-index:5; cursor:default;`;
+                trackLine.appendChild(dot);
+            });
+        }
+
+        // ─── LIVE MAP ─────────────────────────────────────────────
+        async function initLiveMap() {
+            const loadingEl = document.getElementById('mapLoading');
+            const errorEl   = document.getElementById('mapError');
+
+            // ── Prefer saved airport coordinates (exact); fall back to airport-aware geocoding ──
+            // Priority: 1) saved lat/lon  2) airport name geocode  3) city geocode
+            async function resolvePoint(aptLat, aptLon, aptName, aptIata, cityQuery) {
+                // 1. Use exact saved coordinates when available
+                if (aptLat != null && aptLon != null && !isNaN(aptLat) && !isNaN(aptLon)) {
+                    return { lat: parseFloat(aptLat), lng: parseFloat(aptLon) };
+                }
+                // 2. Geocode using airport name (much more accurate than city name)
+                if (aptName && aptName.length > 2) {
+                    try {
+                        const result = await geocodeAirport(aptName, aptIata, cityQuery);
+                        if (result) return result;
+                    } catch(e) { /* fall through to city geocode */ }
+                }
+                // 3. Fall back to city geocoding
+                return geocode(cityQuery);
+            }
+
+            const fromQuery = [savedData.fromCity, savedData.fromCountry].filter(Boolean).join(', ') || savedData.from;
+            const toQuery   = [savedData.toCity, savedData.toCountry].filter(Boolean).join(', ') || savedData.to;
+
+            let origin, dest;
+            try {
+                [origin, dest] = await Promise.all([
+                    resolvePoint(savedData.fromAirportLat, savedData.fromAirportLon, savedData.fromAirportName, savedData.fromAirportCode, fromQuery),
+                    resolvePoint(savedData.toAirportLat,   savedData.toAirportLon,   savedData.toAirportName,   savedData.toAirportCode,   toQuery)
+                ]);
+            } catch(e) {
+                loadingEl.classList.add('hidden');
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            // ── Resolve all transit stop coords ─────────────────────
+            // Support both new multi-stop format (transitStops[]) and
+            // legacy single-stop format (transitCity / transitCountry)
+            let stopData = [];
+            const rawStops = savedData.transitStops;
+            if (Array.isArray(rawStops) && rawStops.length > 0) {
+                stopData = rawStops;
+            } else if (savedData.hasTransit && savedData.transitCity) {
+                // legacy shim
+                stopData = [{
+                    city: savedData.transitCity,
+                    country: savedData.transitCountry || '',
+                    arrTime: savedData.transitArrTime || 0,
+                    durationMin: savedData.transitDuration || 0,
+                    airportCode: savedData.transitAirportCode || '',
+                    airportName: savedData.transitAirportName || ''
+                }];
+            }
+
+            // Geocode each stop (best-effort), prefer airport coords if saved
+            const stopPts = [];
+            for (const s of stopData) {
+                if (s.airportLat != null && s.airportLon != null && !isNaN(s.airportLat) && !isNaN(s.airportLon)) {
+                    stopPts.push({ lat: parseFloat(s.airportLat), lng: parseFloat(s.airportLon) });
+                } else if (s.airportName && s.airportName.length > 2) {
+                    // Use airport name for accurate placement instead of city
+                    const q = [s.city, s.country].filter(Boolean).join(', ');
+                    try { stopPts.push(await geocodeAirport(s.airportName, s.airportCode, q) || await geocode(q)); }
+                    catch(e) { stopPts.push(null); }
+                } else {
+                    const q = [s.city, s.country].filter(Boolean).join(', ');
+                    try { stopPts.push(await geocode(q)); } catch(e) { stopPts.push(null); }
+                }
+            }
+            // Filter out failed geocodes (keep pairing with stopData)
+            const validStops = stopData.map((s, i) => ({ ...s, pt: stopPts[i] })).filter(s => s.pt);
+
+            loadingEl.classList.add('hidden');
+
+            // Build Leaflet map
+            leafletMap = L.map('liveMap', { zoomControl: true });
+            setTimeout(() => leafletMap.invalidateSize(), 100);
+
+            // Use public, keyless OSM tiles; CARTO's former default now returns
+            // an API-key watermark instead of map imagery for this application.
+            const primaryTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors',
+                maxZoom: 19
+            });
+            const fallbackTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                subdomains: 'abcd', maxZoom: 19
+            });
+            primaryTile.on('tileerror', () => { if (!leafletMap.hasLayer(fallbackTile)) fallbackTile.addTo(leafletMap); });
+            primaryTile.addTo(leafletMap);
+
+            // Fit bounds around all waypoints
+            const boundsPoints = [[origin.lat, origin.lng], [dest.lat, dest.lng]];
+            validStops.forEach(s => boundsPoints.push([s.pt.lat, s.pt.lng]));
+            leafletMap.fitBounds(L.latLngBounds(boundsPoints), { padding: [50, 50] });
+
+            // ── Draw waypoints + arcs ────────────────────────────────
+            const waypoints = [origin, ...validStops.map(s => s.pt), dest];
+            const arcColors = ['#f59e0b','#e879f9','#fb923c','#a3e635']; // per-leg stop colors
+
+            // Origin dot (green)
+            L.circleMarker([origin.lat, origin.lng], {
+                radius: 9, fillColor: '#22c55e', color: '#fff', weight: 3, fillOpacity: 1
+            }).addTo(leafletMap)
+              .bindPopup(`<b>ORIGIN</b><br>${savedData.fromCity || fromQuery}${savedData.fromAirportCode ? '<br><span style="color:#0284c7;font-weight:700;">✈ ' + savedData.fromAirportCode + '</span>' : ''}`);
+
+            // Stop dots + connecting arcs
+            validStops.forEach((stop, si) => {
+                const color = arcColors[si % arcColors.length];
+                // Arc from previous waypoint to this stop
+                const prevPt = si === 0 ? origin : validStops[si-1].pt;
+                const arc = [];
+                for (let i = 0; i <= 80; i++) arc.push(greatCirclePoint(prevPt, stop.pt, i/80));
+                L.polyline(arc, { color, weight: 2.5, opacity: 0.55, dashArray: '8 6' }).addTo(leafletMap);
+
+                // Stop marker
+                L.circleMarker([stop.pt.lat, stop.pt.lng], {
+                    radius: 9, fillColor: color, color: '#fff', weight: 3, fillOpacity: 1
+                }).addTo(leafletMap)
+                  .bindPopup(`<b>STOP ${si+1}</b><br>${stop.city}${stop.country ? ', '+stop.country : ''}${stop.durationMin ? '<br>Layover: '+stop.durationMin+' min' : ''}${stop.airportCode ? '<br><span style="color:'+color+';font-weight:700;">✈ '+stop.airportCode+'</span>' : ''}`);
+            });
+
+            // Arc from last stop (or origin if no stops) to destination
+            const lastBeforeDest = validStops.length > 0 ? validStops[validStops.length-1].pt : origin;
+            const finalArc = [];
+            for (let i = 0; i <= 80; i++) finalArc.push(greatCirclePoint(lastBeforeDest, dest, i/80));
+            L.polyline(finalArc, { color: '#0284c7', weight: 2.5, opacity: 0.45, dashArray: '8 6' }).addTo(leafletMap);
+
+            // Destination dot (blue)
+            L.circleMarker([dest.lat, dest.lng], {
+                radius: 9, fillColor: '#0284c7', color: '#fff', weight: 3, fillOpacity: 1
+            }).addTo(leafletMap)
+              .bindPopup(`<b>DESTINATION</b><br>${savedData.toCity || toQuery}${savedData.toAirportCode ? '<br><span style="color:#0284c7;font-weight:700;">✈ ' + savedData.toAirportCode + '</span>' : ''}`);
+
+            // Animated plane icon
+            const planeIcon = L.divIcon({
+                className: '',
+                html: `<span class="plane-map-icon" id="planeMapEl">✈️</span>`,
+                iconSize: [26, 26],
+                iconAnchor: [13, 13]
+            });
+            planeMapMarker = L.marker([origin.lat, origin.lng], { icon: planeIcon, zIndexOffset: 1000 }).addTo(leafletMap);
+
+            // Sync map plane with simulation timestamps — pass all valid stops
+            startMapAnimation(origin, dest, validStops);
+        }
+
+        // ─── GEOCODING — multi-source with retries ───────────────
+        // Inline city fallback so map always has coords even when APIs are down
+        const GEO_FALLBACK = {
+            'accra':{'lat':5.5600,'lng':-0.2057},'kumasi':{'lat':6.6885,'lng':-1.6244},
+            'london':{'lat':51.5074,'lng':-0.1278},'paris':{'lat':48.8566,'lng':2.3522},
+            'new york':{'lat':40.7128,'lng':-74.0060},'los angeles':{'lat':34.0522,'lng':-118.2437},
+            'dubai':{'lat':25.2048,'lng':55.2708},'tokyo':{'lat':35.6762,'lng':139.6503},
+            'singapore':{'lat':1.3521,'lng':103.8198},'sydney':{'lat':-33.8688,'lng':151.2093},
+            'johannesburg':{'lat':-26.2041,'lng':28.0473},'nairobi':{'lat':-1.2921,'lng':36.8219},
+            'lagos':{'lat':6.5244,'lng':3.3792},'cairo':{'lat':30.0444,'lng':31.2357},
+            'casablanca':{'lat':33.5731,'lng':-7.5898},'abidjan':{'lat':5.3545,'lng':-4.0024},
+            'dakar':{'lat':14.7167,'lng':-17.4677},'addis ababa':{'lat':9.0250,'lng':38.7469},
+            'amsterdam':{'lat':52.3676,'lng':4.9041},'berlin':{'lat':52.5200,'lng':13.4050},
+            'madrid':{'lat':40.4168,'lng':-3.7038},'rome':{'lat':41.9028,'lng':12.4964},
+            'frankfurt':{'lat':50.1109,'lng':8.6821},'zurich':{'lat':47.3769,'lng':8.5417},
+            'toronto':{'lat':43.6532,'lng':-79.3832},'chicago':{'lat':41.8781,'lng':-87.6298},
+            'miami':{'lat':25.7617,'lng':-80.1918},'washington':{'lat':38.9072,'lng':-77.0369},
+            'beijing':{'lat':39.9042,'lng':116.4074},'shanghai':{'lat':31.2304,'lng':121.4737},
+            'hong kong':{'lat':22.3193,'lng':114.1694},'seoul':{'lat':37.5665,'lng':126.9780},
+            'bangkok':{'lat':13.7563,'lng':100.5018},'delhi':{'lat':28.7041,'lng':77.1025},
+            'mumbai':{'lat':19.0760,'lng':72.8777},'karachi':{'lat':24.8607,'lng':67.0011},
+            'istanbul':{'lat':41.0082,'lng':28.9784},'moscow':{'lat':55.7558,'lng':37.6173},
+            'doha':{'lat':25.2854,'lng':51.5310},'abu dhabi':{'lat':24.4539,'lng':54.3773},
+            'riyadh':{'lat':24.6877,'lng':46.7219},'kuwait city':{'lat':29.3759,'lng':47.9774},
+            'sao paulo':{'lat':-23.5505,'lng':-46.6333},'buenos aires':{'lat':-34.6037,'lng':-58.3816},
+            'bogota':{'lat':4.7110,'lng':-74.0721},'lima':{'lat':-12.0464,'lng':-77.0428},
+            'mexico city':{'lat':19.4326,'lng':-99.1332},'montreal':{'lat':45.5017,'lng':-73.5673},
+            'vancouver':{'lat':49.2827,'lng':-123.1207},'san francisco':{'lat':37.7749,'lng':-122.4194},
+            'dallas':{'lat':32.7767,'lng':-96.7970},'houston':{'lat':29.7604,'lng':-95.3698},
+            'atlanta':{'lat':33.7490,'lng':-84.3880},'boston':{'lat':42.3601,'lng':-71.0589},
+            'phoenix':{'lat':33.4484,'lng':-112.0740},'seattle':{'lat':47.6062,'lng':-122.3321},
+            'denver':{'lat':39.7392,'lng':-104.9903},'las vegas':{'lat':36.1699,'lng':-115.1398},
+            'cape town':{'lat':-33.9249,'lng':18.4241},'dar es salaam':{'lat':-6.7924,'lng':39.2083},
+            'kinshasa':{'lat':-4.3317,'lng':15.3216},'khartoum':{'lat':15.5007,'lng':32.5599},
+            'tripoli':{'lat':32.8872,'lng':13.1913},'tunis':{'lat':36.8190,'lng':10.1658},
+            'algiers':{'lat':36.7372,'lng':3.0863},'lome':{'lat':6.1375,'lng':1.2123},
+            'cotonou':{'lat':6.3535,'lng':2.4343},'bamako':{'lat':12.6392,'lng':-8.0029},
+            'conakry':{'lat':9.6966,'lng':-13.5786},'ouagadougou':{'lat':12.3569,'lng':-1.5352},
+            'freetown':{'lat':8.4657,'lng':-13.2317},'monrovia':{'lat':6.3106,'lng':-10.8047},
+            'abuja':{'lat':9.0765,'lng':7.3986},'lusaka':{'lat':-15.4167,'lng':28.2833},
+            'harare':{'lat':-17.8252,'lng':31.0335},'kampala':{'lat':0.3476,'lng':32.5825},
+            'kigali':{'lat':-1.9706,'lng':30.1044},'maputo':{'lat':-25.9692,'lng':32.5732},
+            'lilongwe':{'lat':-13.9669,'lng':33.7873},'gaborone':{'lat':-24.6282,'lng':25.9231},
+            'oslo':{'lat':59.9139,'lng':10.7522},'stockholm':{'lat':59.3293,'lng':18.0686},
+            'copenhagen':{'lat':55.6761,'lng':12.5683},'helsinki':{'lat':60.1699,'lng':24.9384},
+            'lisbon':{'lat':38.7223,'lng':-9.1393},'brussels':{'lat':50.8503,'lng':4.3517},
+            'vienna':{'lat':48.2082,'lng':16.3738},'warsaw':{'lat':52.2297,'lng':21.0122},
+            'prague':{'lat':50.0755,'lng':14.4378},'budapest':{'lat':47.4979,'lng':19.0402},
+            'bucharest':{'lat':44.4268,'lng':26.1025},'athens':{'lat':37.9838,'lng':23.7275},
+            'jakarta':{'lat':-6.2088,'lng':106.8456},'kuala lumpur':{'lat':3.1390,'lng':101.6869},
+            'manila':{'lat':14.5995,'lng':120.9842},'dhaka':{'lat':23.8103,'lng':90.4125},
+            'colombo':{'lat':6.9271,'lng':79.8612},'kathmandu':{'lat':27.7172,'lng':85.3240},
+            'tehran':{'lat':35.6892,'lng':51.3890},'baghdad':{'lat':33.3152,'lng':44.3661},
+            'beirut':{'lat':33.8886,'lng':35.4955},'amman':{'lat':31.9454,'lng':35.9284},
+            'tel aviv':{'lat':32.0853,'lng':34.7818},'athens':{'lat':37.9838,'lng':23.7275},
+            'new zealand':{'lat':-40.9006,'lng':174.8860},'auckland':{'lat':-36.8485,'lng':174.7633},
+            'melbourne':{'lat':-37.8136,'lng':144.9631},'brisbane':{'lat':-27.4698,'lng':153.0251},
+            'perth':{'lat':-31.9505,'lng':115.8605},'auckland':{'lat':-36.8485,'lng':174.7633},
+        };
+
+        function fallbackGeocode(cityName) {
+            const key = cityName.trim().toLowerCase().split(',')[0].trim();
+            if (GEO_FALLBACK[key]) return GEO_FALLBACK[key];
+            // Try partial match
+            for (const [k, v] of Object.entries(GEO_FALLBACK)) {
+                if (key.includes(k) || k.includes(key)) return v;
+            }
+            return null;
+        }
+
+        // ─── AIRPORT-AWARE GEOCODING ──────────────────────────────
+        // Searches for the airport by name first (much more accurate than city),
+        // then falls back to IATA code lookup, then city query.
+        async function geocodeAirport(airportName, iataCode, cityFallback) {
+            // Try 1: Search airport name directly via Nominatim
+            if (airportName) {
+                const cleanName = airportName.split(',')[0].trim(); // drop trailing city
+                const u1 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanName)}&format=json&limit=1&featureType=`;
+                const r1 = await geocodeWithRetry(u1, 2);
+                if (r1) return r1;
+            }
+            // Try 2: Airport name + city
+            if (airportName && cityFallback) {
+                const combined = airportName.split(',')[0].trim() + ', ' + cityFallback.split(',')[0].trim();
+                const u2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(combined)}&format=json&limit=1`;
+                const r2 = await geocodeWithRetry(u2, 2);
+                if (r2) return r2;
+            }
+            // Try 3: IATA code search (e.g. 'KIA airport Ghana')
+            if (iataCode && iataCode.length === 3) {
+                const u3 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(iataCode + ' airport')}&format=json&limit=1`;
+                const r3 = await geocodeWithRetry(u3, 1);
+                if (r3) return r3;
+            }
+            return null; // caller will fall back to city geocode
+        }
+
+        async function geocodeWithRetry(url, attempts) {
+            for (let i = 0; i < attempts; i++) {
+                try {
+                    const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'SkyTrackPro/1.0' } });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (data && data.length) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+                } catch(e) {
+                    if (i < attempts - 1) await new Promise(r => setTimeout(r, 800 * (i + 1)));
+                }
+            }
+            return null;
+        }
+
+        async function geocode(cityName) {
+            if (!cityName) throw new Error('No city name');
+
+            // First try fallback DB (instant, no network)
+            const fbResult = fallbackGeocode(cityName);
+
+            // Primary: Nominatim with city search
+            const cityOnly = cityName.split(',')[0].trim();
+            const url1 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityOnly)}&format=json&limit=1&featureType=city`;
+            const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1`;
+
+            const result = await geocodeWithRetry(url1, 2) || await geocodeWithRetry(url2, 2);
+            if (result) return result;
+
+            // Fallback: photon geocoder (European, different server)
+            try {
+                const pRes = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(cityOnly)}&limit=1`);
+                if (pRes.ok) {
+                    const pData = await pRes.json();
+                    if (pData.features && pData.features.length) {
+                        const coords = pData.features[0].geometry.coordinates;
+                        return { lat: coords[1], lng: coords[0] };
+                    }
+                }
+            } catch(e) { /* fall through */ }
+
+            // Last resort: built-in fallback DB
+            if (fbResult) return fbResult;
+            throw new Error('Could not geocode: ' + cityName);
+        }
+
+        // ─── GREAT-CIRCLE INTERPOLATION ───────────────────────────
+        function greatCirclePoint(a, b, t) {
+            const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+            const lat1 = a.lat * D2R, lng1 = a.lng * D2R;
+            const lat2 = b.lat * D2R, lng2 = b.lng * D2R;
+
+            const d = 2 * Math.asin(Math.sqrt(
+                Math.pow(Math.sin((lat2 - lat1) / 2), 2) +
+                Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin((lng2 - lng1) / 2), 2)
+            ));
+            if (d === 0) return { lat: a.lat, lng: a.lng };
+
+            const A = Math.sin((1 - t) * d) / Math.sin(d);
+            const B = Math.sin(t * d) / Math.sin(d);
+            const x = A * Math.cos(lat1) * Math.cos(lng1) + B * Math.cos(lat2) * Math.cos(lng2);
+            const y = A * Math.cos(lat1) * Math.sin(lng1) + B * Math.cos(lat2) * Math.sin(lng2);
+            const z = A * Math.sin(lat1) + B * Math.sin(lat2);
+            return {
+                lat: Math.atan2(z, Math.sqrt(x * x + y * y)) * R2D,
+                lng: Math.atan2(y, x) * R2D
+            };
+        }
+
+        // ─── BEARING (for plane rotation) ─────────────────────────
+        function getBearing(a, b) {
+            const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+            const dLng = (b.lng - a.lng) * D2R;
+            const lat1 = a.lat * D2R, lat2 = b.lat * D2R;
+            const y = Math.sin(dLng) * Math.cos(lat2);
+            const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+            return (Math.atan2(y, x) * R2D + 360) % 360;
+        }
+
+        // ─── MAP ANIMATION (multi-stop) ───────────────────────────
+        // validStops = array of {city, country, arrTime, durationMin, pt:{lat,lng}, ...}
+        function startMapAnimation(origin, dest, validStops) {
+            const takeoff = savedData.departTime;
+            const landing = savedData.arrivalTime;
+            window._mapOrigin = origin;
+
+            // Build waypoint legs: [{from, to, depTS, arrTS}]
+            // Each leg: plane departs fromWP at legDepTS, arrives toWP at legArrTS
+            const legs = [];
+            let prevPt  = origin;
+            let prevDepTS = takeoff;
+
+            for (const stop of validStops) {
+                legs.push({ from: prevPt, to: stop.pt, depTS: prevDepTS, arrTS: stop.arrTime });
+                prevPt    = stop.pt;
+                prevDepTS = stop.arrTime + stop.durationMin * 60000; // departs after layover
+            }
+            // Final leg to destination
+            legs.push({ from: prevPt, to: dest, depTS: prevDepTS, arrTS: landing });
+
+            // Layover windows: [{startTS, endTS, pt}]
+            const layovers = validStops.map(s => ({
+                startTS: s.arrTime,
+                endTS:   s.arrTime + s.durationMin * 60000,
+                pt:      s.pt
+            }));
+
+            function updateMap() {
+                if (savedData && savedData.cancelled) {
+                    planeMapMarker.setLatLng([origin.lat, origin.lng]);
+                    const el = document.getElementById('planeMapEl');
+                    if (el) el.style.transform = 'rotate(0deg)';
+                    return;
+                }
+
+                const now = Date.now();
+                let pos, nextPos;
+
+                // Check if in a layover
+                const inLayover = layovers.find(l => now >= l.startTS && now < l.endTS);
+                if (inLayover) {
+                    pos = inLayover.pt;
+                    nextPos = inLayover.pt;
+                } else {
+                    // Find active leg
+                    const activeLeg = legs.find(lg => now >= lg.depTS && now < lg.arrTS);
+                    if (activeLeg) {
+                        const t = Math.max(0, Math.min(1, (now - activeLeg.depTS) / (activeLeg.arrTS - activeLeg.depTS)));
+                        pos     = greatCirclePoint(activeLeg.from, activeLeg.to, t);
+                        const tNext = Math.min(1, t + 30000 / (activeLeg.arrTS - activeLeg.depTS));
+                        nextPos = greatCirclePoint(activeLeg.from, activeLeg.to, tNext);
+                    } else if (now >= landing) {
+                        pos = dest; nextPos = dest;
+                    } else {
+                        pos = origin; nextPos = origin;
+                    }
+                }
+
+                planeMapMarker.setLatLng([pos.lat, pos.lng]);
+                if (pos !== nextPos) {
+                    const bearing = getBearing(pos, nextPos);
+                    const el = document.getElementById('planeMapEl');
+                    if (el) el.style.transform = `rotate(${bearing - 45}deg)`;
+                }
+            }
+
+            updateMap();
+            setInterval(updateMap, 1000);
+        }
+
+        // ─── KICK OFF ─────────────────────────────────────────────
+        loadFlightData();
+
+        // ═══════════════════════════════════════════════════════════════════
+        // ── AIRLINE LOGO SYSTEM ─────────────────────────────────────────────
+        // Each entry: { url: '<real photo URL>', svg: '<inline SVG fallback>' }
+        // Logic: Try real URL first → if it fails (blocked/404/CORS) the
+        //        onerror handler instantly swaps to the inline SVG data URI.
+        //        SVG fallbacks are embedded so they NEVER require a network hit.
+        // ═══════════════════════════════════════════════════════════════════
+        const AIRLINE_LOGOS = {
+            'american airlines': {
+                url: 'https://bootflare.com/wp-content/uploads/2023/03/American-Airlines-Logo2-1536x966.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 70'><rect width='260' height='70' rx='8' fill='%23001489'/><text x='130' y='28' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='%23C8102E' text-anchor='middle' letter-spacing='1'>AMERICAN</text><text x='130' y='52' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='white' text-anchor='middle' letter-spacing='1'>AIRLINES</text></svg>`
+            },
+            'delta air lines': {
+                url: 'https://tse1.mm.bing.net/th/id/OIP.0tWvpic_drnLEDLtFMVfBwHaEK?rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23003366'/><polygon points='10,54 34,10 58,54' fill='%23E01933'/><text x='128' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='24' fill='white' text-anchor='middle'>delta</text></svg>`
+            },
+            'united airlines': {
+                url: 'https://logodix.com/logo/1145688.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%230033A0'/><text x='100' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='20' fill='white' text-anchor='middle'>UNITED</text></svg>`
+            },
+            'southwest airlines': {
+                url: 'https://logo.clearbit.com/southwest.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 65'><rect width='240' height='65' rx='8' fill='%23304CB2'/><text x='120' y='28' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='%23FFBF27' text-anchor='middle'>SOUTHWEST</text><text x='120' y='52' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='%23E31837' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'spirit airlines': {
+                url: 'https://logos-world.net/wp-content/uploads/2023/01/Spirit-Airlines-Logo-2007.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23FFD700'/><text x='100' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='%23231F20' text-anchor='middle'>SPIRIT</text></svg>`
+            },
+            'jetblue airways': {
+                url: 'https://th.bing.com/th/id/R.96d53f1a468dcb027a2cbc4e03ffb793?rik=PIRtayvR04V96w&pid=ImgRaw&r=0',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%230033A0'/><text x='100' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='white' text-anchor='middle'>jetBlue</text></svg>`
+            },
+            'frontier airlines': {
+                url: 'https://tse4.mm.bing.net/th/id/OIP.EI0tu4QuAQ4IoN25TsbIygHaEK?rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 60'><rect width='210' height='60' rx='6' fill='%2300843D'/><text x='105' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='17' fill='white' text-anchor='middle'>FRONTIER</text></svg>`
+            },
+            'alaska airlines': {
+                url: 'https://th.bing.com/th/id/R.2f5befb4c9d9e8de560c5ccb614f8a3d?rik=pcdPHjm8EpzzBA&pid=ImgRaw&r=0',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%230F2356'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='%2300A3E0' text-anchor='middle'>ALASKA</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'emirates': {
+                url: 'https://tse4.mm.bing.net/th/id/OIP.Y309OpAxYo4NSPp0TUf0bQHaEK?rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23D71921'/><text x='100' y='42' font-family='Georgia,serif' font-size='26' fill='%23C5A028' text-anchor='middle' font-style='italic'>Emirates</text></svg>`
+            },
+            'qatar airways': {
+                url: 'https://logos-world.net/wp-content/uploads/2020/03/Qatar-Airways-Emblem.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%236C1D45'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='%23C5A028' text-anchor='middle'>QATAR</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'lufthansa': {
+                url: 'https://logo.clearbit.com/lufthansa.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'><rect width='220' height='60' rx='6' fill='%230066CC'/><circle cx='32' cy='30' r='20' fill='%23FFCC00'/><text x='130' y='39' font-family='Arial Black,Arial' font-weight='900' font-size='18' fill='white' text-anchor='middle'>LUFTHANSA</text></svg>`
+            },
+            'british airways': {
+                url: 'https://tse2.mm.bing.net/th/id/OIP.x5CeO0eoNM7ADUHJdVg_ywHaEK?rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%230B2559'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>BRITISH</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='%23EB2226' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'air france': {
+                url: 'https://logo.clearbit.com/airfrance.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23002157'/><text x='100' y='26' font-family='Arial,sans-serif' font-weight='700' font-size='13' fill='white' text-anchor='middle'>AIR</text><text x='100' y='48' font-family='Arial,sans-serif' font-weight='700' font-size='20' fill='%23D2001A' text-anchor='middle'>FRANCE</text></svg>`
+            },
+            'klm': {
+                url: 'https://logo.clearbit.com/klm.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60'><rect width='160' height='60' rx='6' fill='%2300A1DE'/><text x='80' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='28' fill='white' text-anchor='middle'>KLM</text></svg>`
+            },
+            'turkish airlines': {
+                url: 'https://logos-world.net/wp-content/uploads/2020/03/Turkish-Airlines-Logo-2010-2017.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23C8102E'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>TURKISH</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'singapore airlines': {
+                url: 'https://logo.clearbit.com/singaporeair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'><rect width='220' height='60' rx='6' fill='%23011F5B'/><text x='110' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='%23F0C04A' text-anchor='middle'>SINGAPORE</text><text x='110' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'etihad airways': {
+                url: 'https://th.bing.com/th/id/OIP.1tfPPYGUWfE--JwYtWfjHQHaEK?o=7rm=3&rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23BD9B5F'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>ETIHAD</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='%23231F20' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'air canada': {
+                url: 'https://logos-world.net/wp-content/uploads/2021/05/Air-Canada-Logo-1987-1994.png',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23F01428'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='white' text-anchor='middle'>AIR</text><text x='90' y='50' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='white' text-anchor='middle'>CANADA</text></svg>`
+            },
+            'ryanair': {
+                url: 'https://logo.clearbit.com/ryanair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23073590'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='%23F7A600' text-anchor='middle'>Ryanair</text></svg>`
+            },
+            'easyjet': {
+                url: 'https://logo.clearbit.com/easyjet.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23FF6600'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='white' text-anchor='middle'>easyJet</text></svg>`
+            },
+            'iberia': {
+                url: 'https://logo.clearbit.com/iberia.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60'><rect width='160' height='60' rx='6' fill='%23C8102E'/><text x='80' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='24' fill='%23F7D000' text-anchor='middle'>iberia</text></svg>`
+            },
+            'vueling': {
+                url: 'https://logo.clearbit.com/vueling.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23FFD100'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='%23231F20' text-anchor='middle'>vueling</text></svg>`
+            },
+            'cathay pacific': {
+                url: 'https://logo.clearbit.com/cathaypacific.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'><rect width='200' height='60' rx='6' fill='%23006564'/><text x='100' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>CATHAY</text><text x='100' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>PACIFIC</text></svg>`
+            },
+            'japan airlines': {
+                url: 'https://logo.clearbit.com/jal.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 60'><rect width='210' height='60' rx='6' fill='%23D71920'/><circle cx='28' cy='30' r='18' fill='white'/><text x='120' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>JAPAN</text><text x='120' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='12' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'ana': {
+                url: 'https://logo.clearbit.com/ana.co.jp',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 60'><rect width='140' height='60' rx='6' fill='%230B2066'/><text x='70' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='28' fill='white' text-anchor='middle'>ANA</text></svg>`
+            },
+            'korean air': {
+                url: 'https://logo.clearbit.com/koreanair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%230041A3'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>KOREAN</text><text x='90' y='48' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='%23E31837' text-anchor='middle'>AIR</text></svg>`
+            },
+            'ethiopian airlines': {
+                url: 'https://th.bing.com/th/id/OIP.gPJToKW6EiuYLaRGQijZZQHaEK?o=7rm=3&rs=1&pid=ImgDetMain&o=7&rm=3',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 60'><rect width='210' height='60' rx='6' fill='%23009A44'/><text x='105' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='12' fill='%23FEDD00' text-anchor='middle'>ETHIOPIAN</text><text x='105' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='12' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'kenya airways': {
+                url: 'https://logo.clearbit.com/kenya-airways.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23C8102E'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>KENYA</text><text x='90' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'rwandair': {
+                url: 'https://logo.clearbit.com/rwandair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%2300609C'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='20' fill='white' text-anchor='middle'>RwandAir</text></svg>`
+            },
+            'arik air': {
+                url: 'https://logo.clearbit.com/arikair.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 170 60'><rect width='170' height='60' rx='6' fill='%23006938'/><text x='85' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='white' text-anchor='middle'>ARIK AIR</text></svg>`
+            },
+            'air arabia': {
+                url: 'https://logo.clearbit.com/airarabia.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23E31837'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='14' fill='white' text-anchor='middle'>AIR</text><text x='90' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='14' fill='white' text-anchor='middle'>ARABIA</text></svg>`
+            },
+            'flydubai': {
+                url: 'https://logo.clearbit.com/flydubai.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23E31837'/><text x='90' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' fill='white' text-anchor='middle'>flydubai</text></svg>`
+            },
+            'africa world airlines': {
+                url: 'https://logo.clearbit.com/africaworldairlines.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'><rect width='220' height='60' rx='6' fill='%23E31837'/><text x='110' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='11' fill='white' text-anchor='middle'>AFRICA WORLD</text><text x='110' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='11' fill='white' text-anchor='middle'>AIRLINES</text></svg>`
+            },
+            'ghana airways': {
+                url: 'https://logo.clearbit.com/ghanaairways.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 60'><rect width='180' height='60' rx='6' fill='%23006B3F'/><text x='90' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='%23FCD116' text-anchor='middle'>GHANA</text><text x='90' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='13' fill='white' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+            'south african airways': {
+                url: 'https://logo.clearbit.com/flysaa.com',
+                svg: `data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'><rect width='220' height='60' rx='6' fill='%23003DA5'/><text x='110' y='27' font-family='Arial Black,Arial' font-weight='700' font-size='11' fill='white' text-anchor='middle'>SOUTH AFRICAN</text><text x='110' y='48' font-family='Arial Black,Arial' font-weight='700' font-size='11' fill='%23FFB81C' text-anchor='middle'>AIRWAYS</text></svg>`
+            },
+        };
+
+        // Generates a branded SVG badge for any unlisted airline — always works
+        function _makeFallbackSVG(name) {
+            const esc = (name || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&apos;','"':'&quot;'}[c]));
+            const words = esc.toUpperCase().split(' ');
+            const mid = Math.ceil(words.length / 2);
+            const l1 = words.slice(0, mid).join(' ');
+            const l2 = words.slice(mid).join(' ');
+            return 'data:image/svg+xml;charset=utf-8,'
+                + `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 60'>`
+                + `<rect width='220' height='60' rx='6' fill='%230284c7'/>`
+                + (l2
+                    ? `<text x='110' y='26' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>${l1}</text>`
+                    + `<text x='110' y='47' font-family='Arial Black,Arial' font-weight='900' font-size='13' fill='white' text-anchor='middle'>${l2}</text>`
+                    : `<text x='110' y='38' font-family='Arial Black,Arial' font-weight='900' font-size='14' fill='white' text-anchor='middle'>${l1}</text>`)
+                + `</svg>`;
+        }
+
+        // Lookup by lowercase key (handles ALL-CAPS names from Firestore)
+        function _getLogoEntry(name) {
+            if (!name?.trim()) return null;
+            return AIRLINE_LOGOS[name.trim().toLowerCase()] || null;
+        }
+
+        // Apply logo to any <img> element: real photo first, SVG fallback on error
+        function applyLogoToImg(imgEl, airlineName) {
+            if (!imgEl || !airlineName?.trim()) { if (imgEl) imgEl.style.display = 'none'; return; }
+            const entry  = _getLogoEntry(airlineName);
+            const svgUrl = entry ? entry.svg : _makeFallbackSVG(airlineName);
+            imgEl.style.display = 'block';
+            if (entry?.url) {
+                imgEl.src = entry.url;
+                imgEl.onerror = () => { imgEl.onerror = null; imgEl.src = svgUrl; };
+            } else {
+                imgEl.src = svgUrl;
+                imgEl.onerror = null;
+            }
+        }
+
+        // Convenience: set the ticket logo on index.html
+        function setAirlineLogo(airlineName) {
+            applyLogoToImg(document.getElementById('logoImg'), airlineName);
+        }
+
+
+        // track.html-specific logo helpers (use shared AIRLINE_LOGOS engine above)
+        function getTrackLogoUrl(name) {
+            if (!name) return null;
+            const entry = _getLogoEntry(name);
+            return entry ? entry.url : _makeFallbackSVG(name);
+        }
+
+        function setTrackAirlineLogo(airlineName) {
+            const wrap = document.getElementById('trackAirlineLogoWrap');
+            const img  = document.getElementById('trackAirlineLogo');
+            if (!wrap || !img || !airlineName?.trim()) { if (wrap) wrap.style.display = 'none'; return; }
+            applyLogoToImg(img, airlineName);
+            wrap.style.display = 'flex';
+            // Ensure wrap hides if SVG itself somehow fails (edge case)
+            img.addEventListener('error', () => { wrap.style.display = 'none'; }, { once: true });
+        }
+
+
+    </script>
+</body>
+</html>
