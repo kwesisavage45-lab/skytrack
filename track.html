@@ -112,7 +112,7 @@
         .timeline-container {
             position: relative;
             height: 120px;
-            margin: 80px 0;
+            margin: 40px 0 80px;
             display: flex;
             align-items: center;
         }
@@ -138,6 +138,7 @@
             position: absolute;
             left: 0%;
             transform: translateX(-50%);
+            top: 50%; margin-top: -20px; line-height: 40px;
             transition: left 1s linear;
             z-index: 10;
         }
@@ -151,7 +152,8 @@
 
         .location-marker {
             position: absolute;
-            top: 35px;
+            top: 0;
+            line-height: 1.3;
             font-weight: 800;
             text-transform: uppercase;
             font-size: 0.75rem;
@@ -1264,13 +1266,15 @@
             leafletMap = L.map('liveMap', { zoomControl: true });
             setTimeout(() => leafletMap.invalidateSize(), 100);
 
-            const primaryTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>',
-                subdomains: 'abcd', maxZoom: 19
-            });
-            const fallbackTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+            // Use public, keyless OSM tiles; CARTO's former default now returns
+            // an API-key watermark instead of map imagery for this application.
+            const primaryTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors',
                 maxZoom: 19
+            });
+            const fallbackTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                subdomains: 'abcd', maxZoom: 19
             });
             primaryTile.on('tileerror', () => { if (!leafletMap.hasLayer(fallbackTile)) fallbackTile.addTo(leafletMap); });
             primaryTile.addTo(leafletMap);
