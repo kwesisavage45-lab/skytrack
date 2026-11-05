@@ -707,6 +707,13 @@
 
                     ${(savedData.showRoundTrip && savedData.rtData) ? (() => {
                         const rt = savedData.rtData;
+                        const rtStopsHTML = (rt.transitStops || []).map((s, i) => {
+                            const dur = Number(s.durationMin) || 0;
+                            const durLabel = dur >= 60 ? Math.floor(dur / 60) + 'h ' + (dur % 60 ? (dur % 60) + 'm' : '') : dur + 'm';
+                            const aptLine = s.airportCode ? `<div style="font-size:0.68rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${s.airportCode}${s.airportName ? ' — ' + s.airportName : ''}</div>` : '';
+                            const timeLabel = s.arrTime ? new Date(s.arrTime).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : '';
+                            return `<div style="display:flex;justify-content:space-between;align-items:center;background:#f0fdf4;border:1px dashed #22c55e;border-radius:12px;padding:10px 14px;margin:0 0 8px;font-size:0.8rem;"><div><strong style="color:#16a34a;">Return Stop ${i+1}${timeLabel ? ' · Arrives ' + timeLabel : ''}</strong><div style="font-weight:800;color:#1e293b;">${s.city}${s.country ? ', ' + s.country : ''}</div>${aptLine}</div><div style="text-align:right;color:#64748b;font-weight:800;">Layover<br>${durLabel}</div></div>`;
+                        }).join('');
                         const rtFromApt = rt.fromAirportCode ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${rt.fromAirportCode} — ${rt.fromAirportName}</div>` : '';
                         const rtToApt   = rt.toAirportCode   ? `<div style="font-size:0.72rem;color:#0284c7;font-weight:800;margin-top:3px;">✈ ${rt.toAirportCode} — ${rt.toAirportName}</div>`   : '';
                         return `
@@ -735,6 +742,7 @@
                                 ${rtToApt}
                             </div>
                         </div>
+                        ${rtStopsHTML}
                         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#f0fdf4;padding:12px;border-radius:12px;border:1px solid #bbf7d0;margin-bottom:4px;">
                             <div><span class="label" style="color:#16a34a;">Dep. Date</span><div style="font-weight:800;font-size:0.88rem;">${rt.depDate||'—'}</div></div>
                             <div><span class="label" style="color:#16a34a;">Dep. Time</span><div style="font-weight:800;font-size:0.88rem;">${rt.dep||'—'}</div></div>
@@ -742,6 +750,8 @@
                             <div><span class="label" style="color:#16a34a;">Arr. Time</span><div style="font-weight:800;font-size:0.88rem;">${rt.arr||'—'}</div></div>
                             <div><span class="label" style="color:#16a34a;">Terminal</span><div style="font-weight:800;font-size:0.88rem;">${rt.terminal||'T1'}</div></div>
                             <div><span class="label" style="color:#16a34a;">Gate</span><div style="font-weight:800;font-size:0.88rem;">${rt.gate||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Flight Number</span><div style="font-weight:800;font-size:0.88rem;">${rt.flightNum||'—'}</div></div>
+                            <div><span class="label" style="color:#16a34a;">Seat</span><div style="font-weight:800;font-size:0.88rem;">${rt.seat||'—'}</div></div>
                         </div>`;
                     })() : ''}
 
@@ -939,8 +949,9 @@
                     rv.innerHTML = `<span style="color:#16a34a;">↩ ${rt.airline||''}</span> &nbsp;·&nbsp; <span style="background:#dcfce7;color:#16a34a;font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:12px;">${rt.fareType||'Round Trip'}</span><br>` +
                         `${rt.fromCity||'?'} → ${rt.toCity||'?'}<br>` +
                         `Dep: ${rt.depDate||'—'} ${rt.dep||''} &nbsp; Arr: ${rt.arrDate||'—'} ${rt.arr||''}<br>` +
-                        `Gate: ${rt.gate||'—'} / ${rt.terminal||'T1'}` +
-                        (rt.fromAirportCode ? `<br><span style="color:#0284c7;font-size:0.78rem;">✈ ${rt.fromAirportCode} → ${rt.toAirportCode||''}</span>` : '');
+                        `Gate: ${rt.gate||'—'} / ${rt.terminal||'T1'}<br>Flight: ${rt.flightNum||'—'} &nbsp;·&nbsp; Seat: ${rt.seat||'—'}` +
+                        (rt.fromAirportCode ? `<br><span style="color:#0284c7;font-size:0.78rem;">✈ ${rt.fromAirportCode} → ${rt.toAirportCode||''}</span>` : '') +
+                        ((rt.transitStops || []).length ? '<br><span style="color:#16a34a;font-size:0.78rem;">↪ Stops: ' + rt.transitStops.map(s => s.city + (s.airportCode ? ' (' + s.airportCode + ')' : '')).join(' → ') + '</span>' : '');
                 }
             }
 
@@ -1253,16 +1264,13 @@
             leafletMap = L.map('liveMap', { zoomControl: true });
             setTimeout(() => leafletMap.invalidateSize(), 100);
 
-            // Keyless open-source basemap. OSM is primary; CARTO is a visual fallback.
-            const primaryTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                maxZoom: 19,
-                crossOrigin: true
+            const primaryTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>',
+                subdomains: 'abcd', maxZoom: 19
             });
-            const fallbackTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                subdomains: 'abcd', maxZoom: 19,
-                crossOrigin: true
+            const fallbackTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+                maxZoom: 19
             });
             primaryTile.on('tileerror', () => { if (!leafletMap.hasLayer(fallbackTile)) fallbackTile.addTo(leafletMap); });
             primaryTile.addTo(leafletMap);
@@ -1417,39 +1425,18 @@
                 const r3 = await geocodeWithRetry(u3, 1);
                 if (r3) return r3;
             }
-            // Photon is a second keyless OpenStreetMap search service.
-            const photonQuery = [airportName, cityFallback].filter(Boolean).join(', ');
-            if (photonQuery) {
-                try {
-                    const pController = new AbortController();
-                    const pTimeout = setTimeout(() => pController.abort(), 9000);
-                    const pRes = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(photonQuery)}&limit=1`, { signal: pController.signal });
-                    clearTimeout(pTimeout);
-                    const pData = await pRes.json();
-                    const coords = pData.features?.[0]?.geometry?.coordinates;
-                    if (coords?.length === 2) return { lat: coords[1], lng: coords[0] };
-                } catch(e) { /* caller will fall back to city geocode */ }
-            }
             return null; // caller will fall back to city geocode
         }
 
         async function geocodeWithRetry(url, attempts) {
             for (let i = 0; i < attempts; i++) {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 9000);
                 try {
-                    // Do not set User-Agent here: browsers forbid that request header.
-                    const res = await fetch(url, {
-                        headers: { 'Accept-Language': 'en' },
-                        signal: controller.signal
-                    });
+                    const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'SkyTrackPro/1.0' } });
                     if (!res.ok) throw new Error('HTTP ' + res.status);
                     const data = await res.json();
                     if (data && data.length) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
                 } catch(e) {
                     if (i < attempts - 1) await new Promise(r => setTimeout(r, 800 * (i + 1)));
-                } finally {
-                    clearTimeout(timeout);
                 }
             }
             return null;
