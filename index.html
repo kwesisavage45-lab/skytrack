@@ -227,6 +227,8 @@
         .transit-toggle-row label { font-size: 0.85rem; font-weight: 600; color: var(--text); cursor: pointer; }
         .transit-toggle-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
         .transit-fields { margin-bottom: 20px; animation: slideUp 0.3s ease; }
+        .rt-stop-count-btn { padding:7px 12px; border-radius:20px; border:1.5px solid #86efac; background:transparent; color:#166534; font-size:0.72rem; font-weight:800; cursor:pointer; }
+        .rt-stop-count-btn.active { background:#16a34a; border-color:#16a34a; color:#fff; }
         .cancel-flight-btn { background: #ef4444 !important; }
         .cancel-flight-btn:hover { background: #dc2626 !important; box-shadow: 0 6px 20px rgba(239,68,68,0.4) !important; }
 
@@ -730,6 +732,19 @@
                                 </div>
                             </div>
 
+                            <!-- Return-flight multi-stop controls -->
+                            <div class="transit-toggle-row" style="flex-wrap:wrap; gap:10px; border-color:#22c55e; background:rgba(34,197,94,0.06);">
+                                <i class="fas fa-route" style="color:#16a34a; font-size:1rem;"></i>
+                                <label style="flex:1; min-width:160px;"><strong>Return Stops</strong> <span style="font-weight:400; color:var(--text-dim);">— how many stops on the return?</span></label>
+                                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                    <button type="button" class="rt-stop-count-btn active" data-stops="0" onclick="setRtStopCount(0)">0 — Direct</button>
+                                    <button type="button" class="rt-stop-count-btn" data-stops="1" onclick="setRtStopCount(1)">1 Stop</button>
+                                    <button type="button" class="rt-stop-count-btn" data-stops="2" onclick="setRtStopCount(2)">2 Stops</button>
+                                    <button type="button" class="rt-stop-count-btn" data-stops="3" onclick="setRtStopCount(3)">3 Stops</button>
+                                </div>
+                            </div>
+                            <div id="rtTransitStopsContainer"></div>
+
                             <!-- Show on ticket toggle -->
                             <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:rgba(34,197,94,0.07); border:1px dashed #22c55e; border-radius:12px;">
                                 <input type="checkbox" id="showRoundTripOnTicket" style="width:17px;height:17px;accent-color:#22c55e;cursor:pointer;" checked>
@@ -836,7 +851,7 @@
                 <div class="ticket-visual" id="ticketImage">
                     <div class="ticket-main">
                         <div class="airline-branding">
-                            <img id="logoImg" src="" class="airline-logo">
+                            <img id="logoImg" src="" class="airline-logo" alt="Airline logo">
                             <span id="displayAirline" class="airline-name">AIRLINE</span>
                         </div>
                         
@@ -885,7 +900,7 @@
                             </div>
                             <!-- RT Airline branding -->
                             <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-                                <img id="rtLogoImg" src="" style="height:32px; max-width:130px; object-fit:contain; display:none;">
+                                <img id="rtLogoImg" src="" alt="Return airline logo" style="height:32px; max-width:130px; object-fit:contain; display:none;">
                                 <span id="rtDisplayAirline" style="font-weight:800; font-size:1.1rem; letter-spacing:-0.5px; color:#1a1a1a;"></span>
                                 <span id="rtFareTypeBadge" style="margin-left:auto; font-size:0.62rem; font-weight:800; padding:3px 10px; border-radius:20px; background:#dcfce7; color:#16a34a; border:1px solid #86efac; white-space:nowrap;"></span>
                             </div>
@@ -905,6 +920,7 @@
                                     <div id="rtDisplayToAirport" style="font-size:0.62rem; color:#0284c7; font-weight:800; margin-top:3px;"></div>
                                 </div>
                             </div>
+                            <div id="rtTransitStopsTicketArea"></div>
                             <!-- RT Date / Gate / Arrival -->
                             <div class="pass-row">
                                 <div><span class="pass-label">Dep. Date</span><div id="rtDisplayDepDate" class="pass-val" style="font-size:0.95rem;">---</div></div>
@@ -913,7 +929,8 @@
                             </div>
                             <div class="pass-row" style="margin-top:10px;">
                                 <div><span class="pass-label">Arr. Date</span><div id="rtDisplayArrDate" class="pass-val" style="font-size:0.95rem;">---</div></div>
-                                <div style="text-align:right;"><span class="pass-label">Arrival Time</span><div id="rtDisplayArr" class="pass-val" style="font-size:0.95rem;">---</div></div>
+                                <div><span class="pass-label">Arrival Time</span><div id="rtDisplayArr" class="pass-val" style="font-size:0.95rem;">---</div></div>
+                                <div style="text-align:right;"><span class="pass-label">Flight / Seat</span><div id="rtDisplayFlightSeat" class="pass-val" style="font-size:0.95rem;">---</div></div>
                             </div>
                         </div>
                     </div>
@@ -1601,6 +1618,65 @@
             }
         }
 
+        // ── Return-flight multi-stop controls ──────────────────────
+        let _currentRtStopCount = 0;
+
+        function setRtStopCount(n) {
+            _currentRtStopCount = Math.max(0, Math.min(3, Number(n) || 0));
+            document.querySelectorAll('.rt-stop-count-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.stops, 10) === _currentRtStopCount);
+            });
+            renderRtStopSections(_currentRtStopCount);
+        }
+
+        function renderRtStopSections(n) {
+            const container = document.getElementById('rtTransitStopsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            for (let i = 0; i < n; i++) {
+                container.innerHTML += `
+                <div class="stop-section" style="border-color:#86efac;" id="rtStopSection${i}">
+                    <div class="stop-section-header">
+                        <div class="stop-number-badge" style="background:#16a34a;">${i + 1}</div>
+                        <div>
+                            <div style="font-weight:800; font-size:0.9rem;">Return Stop ${i + 1}</div>
+                            <div style="font-size:0.72rem; color:var(--text-dim);">Intermediate stop on the return journey</div>
+                        </div>
+                    </div>
+                    <div class="grid-inputs">
+                        <div class="input-group"><label>City <span style="color:#ef4444;">*</span></label><input type="text" id="rtStopCity${i}" placeholder="e.g. Dubai"></div>
+                        <div class="input-group"><label>Country <span style="color:#ef4444;">*</span></label><input type="text" id="rtStopCountry${i}" placeholder="e.g. United Arab Emirates"></div>
+                    </div>
+                    <div class="grid-inputs">
+                        <div class="input-group"><label>Airport Code (optional)</label><input type="text" id="rtStopAirportCode${i}" placeholder="e.g. DXB" maxlength="4" oninput="this.value=this.value.toUpperCase()"></div>
+                        <div class="input-group"><label>Airport Name (optional)</label><input type="text" id="rtStopAirportName${i}" placeholder="e.g. Dubai International"></div>
+                    </div>
+                    <div class="grid-inputs">
+                        <div class="input-group">
+                            <label>Arrival Time at Stop</label>
+                            <div class="time-wrapper"><input type="text" id="rtStopArrTime${i}" placeholder="HH:MM" maxlength="5" class="time-mask"><select id="rtStopArrAMPM${i}" class="ampm-select"><option>AM</option><option>PM</option></select></div>
+                        </div>
+                        <div class="input-group">
+                            <label>Layover Duration</label>
+                            <select id="rtStopDuration${i}" onchange="handleRtStopLayoverChange(${i}, this.value)">
+                                <option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120" selected>2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option><option value="custom">Custom time…</option>
+                            </select>
+                            <div id="rtStopCustomLayoverWrap${i}" style="display:none; margin-top:10px;">
+                                <input type="number" id="rtStopCustomLayoverVal${i}" placeholder="Minutes" min="1" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--border); background:rgba(0,0,0,0.2); color:white; outline:none;">
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            container.querySelectorAll('.time-mask').forEach(applyTimeMask);
+            syncNewTimeInputs(container);
+        }
+
+        function handleRtStopLayoverChange(idx, val) {
+            const wrap = document.getElementById('rtStopCustomLayoverWrap' + idx);
+            if (wrap) wrap.style.display = val === 'custom' ? 'block' : 'none';
+        }
+
         function handleStopLayoverChange(idx, val) {
             const wrap = document.getElementById('stopCustomLayoverWrap' + idx);
             if (!wrap) return;
@@ -2089,8 +2165,46 @@
                 const rtArrAMPM     = document.getElementById('rtArrAMPM')?.value || 'AM';
                 const rtFromApt     = window._selectedRtAirports?.rtFrom || null;
                 const rtToApt       = window._selectedRtAirports?.rtTo   || null;
+                const rtTransitStops = [];
+                const rtStopCount = _currentRtStopCount || 0;
+                let rtDepTS = rtDepDate && rtDepTimeRaw ? parseRawToTs(rtDepDate, rtDepTimeRaw, rtDepAMPM, _timeFmt) : 0;
+                let rtLandingTS = (rtArrDate || rtDepDate) && rtArrTimeRaw ? parseRawToTs(rtArrDate || rtDepDate, rtArrTimeRaw, rtArrAMPM, _timeFmt) : 0;
+                if (rtLandingTS && rtDepTS) while (rtLandingTS <= rtDepTS) rtLandingTS += 86400000;
+                let previousRtStopRef = rtDepTS;
+                for (let si = 0; si < rtStopCount; si++) {
+                    const city = (document.getElementById('rtStopCity' + si)?.value || '').trim();
+                    const country = (document.getElementById('rtStopCountry' + si)?.value || '').trim();
+                    const timeRaw = (document.getElementById('rtStopArrTime' + si)?.value || '').trim();
+                    const ampm = document.getElementById('rtStopArrAMPM' + si)?.value || 'AM';
+                    const durationSelect = document.getElementById('rtStopDuration' + si)?.value || '120';
+                    let durationMin = parseInt(durationSelect, 10);
+                    if (durationSelect === 'custom') durationMin = parseInt(document.getElementById('rtStopCustomLayoverVal' + si)?.value || '0', 10);
+                    if (!city || !country || !rtDepTS || !rtLandingTS || !timeRaw || !timeRaw.includes(':') || !durationMin || durationMin < 1) {
+                        showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Return Stop Information Missing',
+                            body:`<p>Complete the city, country, return departure/arrival date and time, stop arrival time, and layover duration for return stop ${si + 1}.</p>`,
+                            buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
+                        return;
+                    }
+                    let arrTime = parseRawToTs(rtDepDate, timeRaw, ampm, _timeFmt);
+                    while (arrTime <= previousRtStopRef) arrTime += 86400000;
+                    if (arrTime + durationMin * 60000 >= rtLandingTS) {
+                        showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Return Stop Timing Conflict',
+                            body:`<p>Return stop ${si + 1}, including its layover, must finish before the return flight arrival time.</p>`,
+                            buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
+                        return;
+                    }
+                    rtTransitStops.push({
+                        city: city.toUpperCase(), country: country.toUpperCase(), arrTime,
+                        durationMin,
+                        airportCode: (document.getElementById('rtStopAirportCode' + si)?.value || '').trim().toUpperCase(),
+                        airportName: (document.getElementById('rtStopAirportName' + si)?.value || '').trim()
+                    });
+                    previousRtStopRef = arrTime + durationMin * 60000;
+                }
                 const rtTerminal    = ['T1','T2','T3'][Math.floor(Math.random()*3)];
                 const rtGate        = String.fromCharCode(65+Math.floor(Math.random()*6)) + Math.floor(Math.random()*30+1);
+                const rtFlightNum   = rtAirline.substring(0, 2).toUpperCase() + Math.floor(Math.random() * 900 + 100);
+                const rtSeat        = Math.floor(Math.random() * 30 + 1) + String.fromCharCode(65 + Math.floor(Math.random() * 6));
                 rtData = {
                     fareType:    rtFareType,
                     airline:     rtAirline.toUpperCase(),
@@ -2106,6 +2220,9 @@
                     fromAirportName: rtFromApt?.name || '',
                     toAirportCode:   rtToApt?.iata   || '',
                     toAirportName:   rtToApt?.name   || '',
+                    transitStops: rtTransitStops,
+                    flightNum:   rtFlightNum,
+                    seat:        rtSeat,
                     terminal:    rtTerminal,
                     gate:        rtGate,
                 };
@@ -2169,8 +2286,9 @@
             localStorage.setItem('flight_' + id, JSON.stringify(flightData));
             updateUserHistory(id, from.toUpperCase(), to.toUpperCase());
 
-            // Store current ticket ID for cancel button
+            // Store current ticket data for the full-page PDF exporter.
             window._currentTicketId = id;
+            window._currentFlightData = flightData;
 
             document.getElementById('displayName').innerText        = flightData.name;
             document.getElementById('displayFrom').innerText        = flightData.fromCity;
@@ -2212,6 +2330,20 @@
                     document.getElementById('rtDisplayGate').innerText    = rtData.gate + ' / ' + rtData.terminal;
                     document.getElementById('rtDisplayArrDate').innerText = rtData.arrDate || '---';
                     document.getElementById('rtDisplayArr').innerText     = rtData.arr     || '---';
+                    document.getElementById('rtDisplayFlightSeat').innerText = (rtData.flightNum || '---') + ' / ' + (rtData.seat || '---');
+                    const rtStopsArea = document.getElementById('rtTransitStopsTicketArea');
+                    if (rtStopsArea) {
+                        rtStopsArea.innerHTML = (rtData.transitStops || []).map((stop, si) => {
+                            const dur = stop.durationMin || 0;
+                            const durStr = dur >= 60 ? Math.floor(dur / 60) + 'h ' + (dur % 60 ? (dur % 60) + 'm' : '') : dur + 'm';
+                            const apt = stop.airportCode ? `<div style="font-size:0.62rem;color:#0284c7;font-weight:800;margin-top:2px;">✈ ${stop.airportCode}${stop.airportName ? ' — ' + stop.airportName : ''}</div>` : '';
+                            const stopTime = stop.arrTime ? formatTimeDisplay(stop.arrTime, _timeFmt) : '';
+                            return `<div class="pass-row" style="background:#f0fdf4;border-radius:10px;padding:9px 10px;border:1px dashed #22c55e;margin:0 0 8px;">
+                                <div><span class="pass-label" style="color:#16a34a;">↩ Return Stop ${si + 1}${stopTime ? ' · Arrives ' + stopTime : ''}</span><div class="pass-val" style="font-size:0.9rem;">${stop.city}${stop.country ? ', ' + stop.country : ''}</div>${apt}</div>
+                                <div style="text-align:right;"><span class="pass-label">Layover</span><div class="pass-val" style="font-size:0.9rem;">${durStr}</div></div>
+                            </div>`;
+                        }).join('');
+                    }
                 } else {
                     rtBadgeWrap.style.display = 'none';
                 }
@@ -2674,6 +2806,11 @@
                 const src = imgEl?.src || '';
                 // Already a data URI — use as-is
                 if (src.startsWith('data:')) { resolve(src); return; }
+                if (!src) {
+                    const entry = _getLogoEntry(airlineName);
+                    resolve(entry ? entry.svg : _makeFallbackSVG(airlineName));
+                    return;
+                }
 
                 // Try drawing the external image onto a canvas
                 const probe = new Image();
@@ -2699,48 +2836,224 @@
             });
         }
 
-        async function downloadPDF() {
-            const { jsPDF } = window.jspdf;
-            const element = document.getElementById('ticketImage');
-            const logoImg = document.getElementById('logoImg');
-
-            // ── Convert logo to base64 BEFORE html2canvas runs ──────────────
-            // html2canvas cannot read cross-origin pixel data, so any external
-            // logo URL renders as a blank rectangle. Swapping to a data URI
-            // first means the canvas sees only same-origin content.
-            const airlineName = document.getElementById('displayAirline')?.innerText?.trim() || '';
-            let origLogoSrc = null;
-            if (logoImg && logoImg.src && !logoImg.src.startsWith('data:')) {
-                origLogoSrc = logoImg.src;
-                const b64 = await toDataURL(logoImg, airlineName);
-                logoImg.src = b64;
-                // Give the browser one frame to swap the src
-                await new Promise(r => requestAnimationFrame(r));
-            }
-
-            // Temporarily make the ticket render at a fixed wide size for PDF quality
-            const origStyle = element.style.cssText;
-            element.style.cssText += '; min-width:700px; max-width:700px; width:700px; flex-direction:row !important;';
-
-            const canvas = await html2canvas(element, { 
-                useCORS: true, scale: 2, 
-                width: 700, 
-                logging: false,
-                imageTimeout: 3000,
+        // Builds a readable, full-page A4 landscape itinerary instead of scaling
+        // the compact on-screen ticket image into a short PDF strip.
+        async function getPdfLogoPng(airlineName) {
+            const entry = _getLogoEntry(airlineName || '');
+            const imageData = await toDataURL({ src: entry?.url || '' }, airlineName || '');
+            return new Promise(resolve => {
+                const image = new Image();
+                const timeout = setTimeout(() => resolve(null), 3500);
+                image.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = image.naturalWidth || 300;
+                        canvas.height = image.naturalHeight || 100;
+                        canvas.getContext('2d').drawImage(image, 0, 0);
+                        clearTimeout(timeout);
+                        resolve(canvas.toDataURL('image/png'));
+                    } catch (e) { clearTimeout(timeout); resolve(null); }
+                };
+                image.onerror = () => { clearTimeout(timeout); resolve(null); };
+                image.src = imageData;
             });
+        }
 
-            element.style.cssText = origStyle;
+        async function buildFullPageFlightPDF(data, filename) {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const pageW = 210, pageH = 297, margin = 10;
+            const navy = [15, 35, 68], blue = [2, 132, 199], green = [22, 163, 74];
+            const ink = [30, 41, 59], muted = [100, 116, 139], pale = [248, 250, 252];
+            // Older saved tickets predate return-flight assignments. Give them
+            // values once, then persist them so later downloads remain consistent.
+            if (data.rtData) {
+                let assignmentsAdded = false;
+                if (!data.rtData.flightNum) {
+                    data.rtData.flightNum = String(data.rtData.airline || data.airline || 'ST').substring(0, 2).toUpperCase() + Math.floor(Math.random() * 900 + 100);
+                    assignmentsAdded = true;
+                }
+                if (!data.rtData.seat) {
+                    data.rtData.seat = Math.floor(Math.random() * 30 + 1) + String.fromCharCode(65 + Math.floor(Math.random() * 6));
+                    assignmentsAdded = true;
+                }
+                if (assignmentsAdded && data.id) {
+                    try { localStorage.setItem('flight_' + data.id, JSON.stringify(data)); } catch (e) {}
+                    if (window._currentFlightData?.id === data.id) window._currentFlightData = data;
+                    if (window._fsUpdateFlight) window._fsUpdateFlight(data.id, { rtData: data.rtData }).catch(err => console.warn('Return assignment sync failed:', err));
+                }
+            }
+            const safe = value => value == null || value === '' ? '—' : String(value);
+            const wrapped = (value, width, size = 7, maxLines = 2) => {
+                pdf.setFontSize(size);
+                return pdf.splitTextToSize(safe(value), width).slice(0, maxLines);
+            };
+            const allLegs = [{
+                kind: 'OUTBOUND', airline: data.airline, fromCity: data.fromCity || data.from,
+                fromCountry: data.fromCountry, fromAirportCode: data.fromAirportCode,
+                fromAirportName: data.fromAirportName, toCity: data.toCity || data.to,
+                toCountry: data.toCountry, toAirportCode: data.toAirportCode,
+                toAirportName: data.toAirportName, date: data.date, dep: data.dep,
+                arrDate: data.arrDate || data.date, arr: data.arr, flightNum: data.flightNum,
+                gate: data.gate, terminal: data.terminal, seat: data.seat,
+                stops: Array.isArray(data.transitStops) ? data.transitStops : []
+            }];
+            if (data.showRoundTrip && data.rtData) {
+                const rt = data.rtData;
+                allLegs.push({
+                    kind: 'RETURN', airline: rt.airline, fromCity: rt.fromCity,
+                    fromCountry: rt.fromCountry, fromAirportCode: rt.fromAirportCode,
+                    fromAirportName: rt.fromAirportName, toCity: rt.toCity,
+                    toCountry: rt.toCountry, toAirportCode: rt.toAirportCode,
+                    toAirportName: rt.toAirportName, date: rt.depDate, dep: rt.dep,
+                    arrDate: rt.arrDate, arr: rt.arr, flightNum: rt.flightNum,
+                    gate: rt.gate, terminal: rt.terminal, seat: rt.seat,
+                    stops: Array.isArray(rt.transitStops) ? rt.transitStops : []
+                });
+            }
+            const logos = await Promise.all(allLegs.map(leg => getPdfLogoPng(leg.airline)));
 
-            // Restore original logo src so the on-screen ticket still looks right
-            if (origLogoSrc && logoImg) logoImg.src = origLogoSrc;
+            // Full-width title band and passenger/booking summary.
+            pdf.setFillColor(...navy); pdf.rect(0, 0, pageW, 23, 'F');
+            pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(17);
+            pdf.text('FLIGHT ITINERARY', margin, 10);
+            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5);
+            pdf.text('SKYTRACK PRO  |  Keep this itinerary with your travel documents', margin, 18);
+            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9);
+            pdf.text('FLIGHT ID  ' + safe(data.id || window._currentTicketId), pageW - margin, 10, { align: 'right' });
+            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5);
+            pdf.text(safe(data.date), pageW - margin, 18, { align: 'right' });
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            // A4 Landscape proportioned to ticket
-            const pdfW = 297, pdfH = 130;
-            const pdf  = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [pdfW, pdfH] });
-            pdf.addImage(imgData, 'JPEG', 5, 5, pdfW - 10, pdfH - 10);
-            pdf.save('Flight-Ticket.pdf');
-            showToast('📄 Ticket PDF downloaded!', '#0284c7');
+            pdf.setFillColor(255, 255, 255); pdf.setDrawColor(226, 232, 240);
+            pdf.roundedRect(margin, 28, pageW - margin * 2, 18, 2, 2, 'FD');
+            pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6.5);
+            pdf.text('PASSENGER', margin + 5, 34);
+            pdf.text('CLASS', margin + 70, 34);
+            pdf.text('TICKET PRICE', margin + 130, 34);
+            pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+            pdf.text(wrapped(data.name, 58, 10, 1), margin + 5, 42);
+            pdf.setFontSize(8.5); pdf.text(safe(data.class), margin + 70, 42);
+            pdf.setTextColor(...green); pdf.text(safe(data.ticketPrice), margin + 130, 42);
+
+            const gap = allLegs.length > 1 ? 5 : 0;
+            const panelW = pageW - margin * 2;
+            const panelY = 52, panelH = allLegs.length > 1 ? 115 : 230;
+            function drawLeg(leg, idx) {
+                const x = margin, y = panelY + idx * (panelH + gap);
+                const single = allLegs.length === 1;
+                const accent = leg.kind === 'RETURN' ? green : blue;
+                pdf.setFillColor(255, 255, 255); pdf.setDrawColor(203, 213, 225); pdf.setLineWidth(0.35);
+                pdf.roundedRect(x, y, panelW, panelH, 2.5, 2.5, 'FD');
+                pdf.setFillColor(...accent); pdf.roundedRect(x, y, panelW, 12, 2.5, 2.5, 'F');
+                pdf.rect(x, y + 7, panelW, 5, 'F');
+                if (logos[idx]) {
+                    try { pdf.addImage(logos[idx], 'PNG', x + 5, y + 1.5, 16, 8); } catch (e) {}
+                }
+                pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
+                pdf.text(leg.kind, x + 24, y + 5);
+                pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
+                pdf.text(safe(leg.airline), x + 24, y + 9.5);
+
+                // Route card: city, country and airport names/codes remain readable.
+                pdf.setFillColor(...pale); pdf.setDrawColor(226, 232, 240);
+                const routeY = y + 15, routeH = single ? 50 : 30;
+                pdf.roundedRect(x + 4, routeY, panelW - 8, routeH, 2, 2, 'FD');
+                const half = (panelW - 24) / 2;
+                pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6);
+                pdf.text('FROM', x + 8, y + (single ? 23 : 21));
+                pdf.text('TO', x + panelW - 8, y + (single ? 23 : 21), { align: 'right' });
+                pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(single ? 15 : 12);
+                const citySize = single ? 15 : 12;
+                const fromLines = wrapped(leg.fromCity, half, citySize, 2);
+                const toLines = wrapped(leg.toCity, half, citySize, 2);
+                pdf.text(fromLines, x + 8, y + (single ? 33 : 27));
+                pdf.text(toLines, x + panelW - 8, y + (single ? 33 : 27), { align: 'right' });
+                pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.2);
+                pdf.text(wrapped(leg.fromCountry, half, 6.2, 1), x + 8, y + (single ? 44 : 34));
+                pdf.text(wrapped(leg.toCountry, half, 6.2, 1), x + panelW - 8, y + (single ? 44 : 34), { align: 'right' });
+                const fromAirport = [leg.fromAirportCode, leg.fromAirportName].filter(Boolean).join(' — ');
+                const toAirport = [leg.toAirportCode, leg.toAirportName].filter(Boolean).join(' — ');
+                pdf.setTextColor(...accent); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(5.8);
+                pdf.text(wrapped(fromAirport, half, 5.8, 1), x + 8, y + (single ? 55 : 41));
+                pdf.text(wrapped(toAirport, half, 5.8, 1), x + panelW - 8, y + (single ? 55 : 41), { align: 'right' });
+                pdf.setDrawColor(...accent); pdf.setLineWidth(0.7);
+                const arrowY = y + (single ? 37 : 30), arrowX = x + panelW / 2;
+                pdf.line(arrowX - 4, arrowY, arrowX + 4, arrowY);
+                pdf.line(arrowX + 4, arrowY, arrowX + 1.5, arrowY - 2);
+                pdf.line(arrowX + 4, arrowY, arrowX + 1.5, arrowY + 2);
+
+                // Six clearly separated flight facts in a 3 x 2 grid.
+                const factRows = [
+                    [['DEPARTURE DATE', leg.date], ['DEPARTURE TIME', leg.dep], ['ARRIVAL DATE', leg.arrDate]],
+                    [['ARRIVAL TIME', leg.arr], ['GATE / TERMINAL', safe(leg.gate) + ' / ' + safe(leg.terminal)], ['FLIGHT / SEAT', safe(leg.flightNum) + ' / ' + safe(leg.seat)]]
+                ];
+                const cellGap = 3, cellW = (panelW - 14 - cellGap * 2) / 3;
+                const factTop = single ? 74 : 49;
+                const factGap = single ? 28 : 15.5;
+                const factH = single ? 22 : 13.5;
+                factRows.forEach((row, ri) => row.forEach((fact, ci) => {
+                    const cx = x + 5 + ci * (cellW + cellGap), cy = y + factTop + ri * factGap;
+                    pdf.setFillColor(ri === 0 ? 248 : 250, ri === 0 ? 250 : 252, ri === 0 ? 252 : 255);
+                    pdf.roundedRect(cx, cy, cellW, factH, 1.5, 1.5, 'F');
+                    pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(single ? 7 : 6);
+                    pdf.text(fact[0], cx + 2, cy + (single ? 7.5 : 4.3));
+                    pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(single ? 9 : 8);
+                    const valueSize = single ? 9 : 8;
+                    pdf.text(wrapped(fact[1], cellW - 4, valueSize, 2), cx + 2, cy + (single ? 15.5 : 9.5));
+                }));
+
+                pdf.setTextColor(...accent); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7);
+                const stopsLabelY = single ? 135 : 82;
+                const stopsStartY = single ? 140 : 85;
+                const stopGap = single ? 23 : 9;
+                const stopH = single ? 19 : 8.5;
+                pdf.text(leg.stops.length ? 'STOPS / LAYOVERS' : 'ROUTE STATUS', x + 5, y + stopsLabelY);
+                if (!leg.stops.length) {
+                    pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8);
+                    pdf.text('Direct flight — no scheduled intermediate stops', x + 5, y + stopsStartY + 5);
+                } else {
+                    leg.stops.slice(0, 3).forEach((stop, si) => {
+                        const sy = y + stopsStartY + si * stopGap;
+                        pdf.setFillColor(leg.kind === 'RETURN' ? 240 : 255, leg.kind === 'RETURN' ? 253 : 251, leg.kind === 'RETURN' ? 244 : 235);
+                        pdf.roundedRect(x + 4, sy, panelW - 8, stopH, 1.2, 1.2, 'F');
+                        const time = stop.arrTime ? formatTimeDisplay(stop.arrTime, data.timeFormat || '12h') : '';
+                        const place = safe(stop.city) + (stop.country ? ', ' + stop.country : '');
+                        const code = stop.airportCode ? '  ·  ' + stop.airportCode + (stop.airportName ? ' — ' + stop.airportName : '') : '';
+                        const duration = Number(stop.durationMin) || 0;
+                        const durationText = duration >= 60 ? Math.floor(duration / 60) + 'h ' + (duration % 60 ? (duration % 60) + 'm' : '') : duration + 'm';
+                        const stopFont = single ? 8.5 : 7;
+                        const stopBaseline = single ? 11 : 4;
+                        pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(stopFont);
+                        pdf.text(wrapped((si + 1) + '. ' + place + (time ? ' · arrives ' + time : '') + code, panelW - 42, stopFont, 1), x + 6, sy + stopBaseline);
+                        pdf.setTextColor(...accent); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(single ? 8 : 6.8);
+                        pdf.text('LAYOVER ' + durationText, x + panelW - 6, sy + (single ? 11 : 4), { align: 'right' });
+                    });
+                }
+            }
+            allLegs.forEach(drawLeg);
+
+            // Footer is intentionally light and leaves breathing room around the page.
+            pdf.setDrawColor(226, 232, 240); pdf.line(margin, 291, pageW - margin, 291);
+            pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5);
+            pdf.text('This itinerary is for reference. Confirm live timings, terminal and gate details with your airline.', margin, 295);
+            pdf.text('SkyTrack Pro  •  ' + safe(data.id || window._currentTicketId), pageW - margin, 295, { align: 'right' });
+            pdf.save(filename || 'Flight-Itinerary.pdf');
+        }
+
+        async function downloadPDF() {
+            let data = window._currentFlightData || null;
+            const currentId = window._currentTicketId || document.getElementById('displayID')?.innerText?.trim();
+            if (!data && currentId) {
+                try { data = JSON.parse(localStorage.getItem('flight_' + currentId) || 'null'); } catch (e) {}
+            }
+            if (!data) { showToast('Flight data is not available for PDF export', '#ef4444'); return; }
+            try {
+                await buildFullPageFlightPDF(data, 'Flight-Itinerary-' + (data.id || currentId || 'ticket') + '.pdf');
+                showToast('Full-page flight itinerary PDF downloaded!', '#0284c7');
+            } catch (err) {
+                console.error('PDF generation error:', err);
+                showToast('PDF generation failed', '#ef4444');
+            }
         }
 
         // Trigger airline logo on initial page load from select default
@@ -2751,161 +3064,20 @@
 
         // ── Download PDF for a historical flight by ID ──────────────────────
         async function downloadHistoryPDF(flightId) {
-            // Load flight data from localStorage or Firestore
             let data = null;
             const raw = localStorage.getItem('flight_' + flightId);
-            if (raw) { try { data = JSON.parse(raw); } catch(e){} }
+            if (raw) { try { data = JSON.parse(raw); } catch (e) {} }
             if (!data && window._fsGetFlight) {
-                try { data = await window._fsGetFlight(flightId); } catch(e){}
+                try { data = await window._fsGetFlight(flightId); } catch (e) {}
             }
-            if (!data) { showToast('⚠️ Flight data not found', '#ef4444'); return; }
-
-            showToast('⏳ Generating PDF...', '#0284c7');
-
-            const { jsPDF } = window.jspdf;
-            const airlineName = (data.airline || '').toUpperCase();
-            const logoEntry = _getLogoEntry(data.airline || '');
-            const logoSrc = logoEntry ? logoEntry.svg : _makeFallbackSVG(data.airline || '');
-
-            // Build a temporary ticket element
-            const tmp = document.createElement('div');
-            tmp.style.cssText = 'position:fixed; left:-9999px; top:0; width:700px; background:#fff; color:#1a1a1a; border-radius:20px; display:flex; overflow:hidden; font-family:Inter,sans-serif; z-index:-1;';
-
-            // Generate a barcode display number from the ID
-            const barcodeDisplay = data.barcodeNumber || (flightId.replace(/-/g,'') + '000000').substr(0,13);
-
-            const fromApt = data.fromAirportCode ? `✈ ${data.fromAirportCode} — ${data.fromAirportName}` : '';
-            const toApt   = data.toAirportCode   ? `✈ ${data.toAirportCode} — ${data.toAirportName}`     : '';
-            const priceHTML = data.ticketPrice ? `<div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Ticket Price</span><div style="font-size:1rem;font-weight:800;color:#22c55e;">${data.ticketPrice}</div></div>` : '';
-            const roundTripHTML = (data.showRoundTrip && data.rtData) ? (() => {
-                const rt = data.rtData;
-                const rtLogoEntry = _getLogoEntry(rt.airline || '');
-                const rtLogoSrc = rtLogoEntry ? rtLogoEntry.svg : _makeFallbackSVG(rt.airline || '');
-                const rtFromApt = rt.fromAirportCode ? `<div style="font-size:0.62rem;color:#0284c7;font-weight:800;margin-top:2px;">✈ ${rt.fromAirportCode} — ${rt.fromAirportName}</div>` : '';
-                const rtToApt   = rt.toAirportCode   ? `<div style="font-size:0.62rem;color:#0284c7;font-weight:800;margin-top:2px;">✈ ${rt.toAirportCode} — ${rt.toAirportName}</div>`   : '';
-                return `
-                <div style="display:flex;align-items:center;gap:10px;margin:16px 0 10px;">
-                    <div style="flex:1;border-top:2px dashed #22c55e;"></div>
-                    <span style="font-size:0.65rem;font-weight:900;color:#16a34a;letter-spacing:2px;white-space:nowrap;background:#f0fdf4;padding:3px 10px;border-radius:20px;border:1.5px solid #22c55e;">↩ RETURN FLIGHT</span>
-                    <div style="flex:1;border-top:2px dashed #22c55e;"></div>
-                </div>
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                    <img src="${rtLogoSrc}" style="height:30px;max-width:120px;object-fit:contain;" crossorigin="anonymous" alt="${rt.airline||''}">
-                    <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.5px;">${rt.airline||''}</span>
-                    <span style="margin-left:auto;font-size:0.58rem;font-weight:800;padding:2px 9px;border-radius:20px;background:#dcfce7;color:#16a34a;border:1px solid #86efac;">${rt.fareType||'Round Trip'}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f0fdf4;border-radius:10px;margin-bottom:10px;">
-                    <div>
-                        <div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;margin-bottom:1px;">Return From</div>
-                        <div style="font-size:1.3rem;font-weight:900;">${rt.fromCity||'---'}</div>
-                        <div style="font-size:0.62rem;color:#64748b;">${rt.fromCountry||''}</div>
-                        ${rtFromApt}
-                    </div>
-                    <div style="font-size:1.4rem;color:#16a34a;">✈</div>
-                    <div style="text-align:right;">
-                        <div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;margin-bottom:1px;">Return To</div>
-                        <div style="font-size:1.3rem;font-weight:900;">${rt.toCity||'---'}</div>
-                        <div style="font-size:0.62rem;color:#64748b;">${rt.toCountry||''}</div>
-                        ${rtToApt}
-                    </div>
-                </div>
-                <div style="display:flex;justify-content:space-between;font-size:0.8rem;background:#f8fafc;padding:10px;border-radius:10px;">
-                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Dep. Date</div><div style="font-weight:800;">${rt.depDate||'---'}</div></div>
-                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Dep. Time</div><div style="font-weight:800;">${rt.dep||'---'}</div></div>
-                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Arr. Date</div><div style="font-weight:800;">${rt.arrDate||'---'}</div></div>
-                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Arr. Time</div><div style="font-weight:800;">${rt.arr||'---'}</div></div>
-                    <div><div style="font-size:0.55rem;color:#16a34a;font-weight:800;text-transform:uppercase;">Gate / Term.</div><div style="font-weight:800;">${rt.gate||'—'} / ${rt.terminal||'T1'}</div></div>
-                </div>`;
-            })() : '';
-
-            tmp.innerHTML = `
-                <div style="flex:2; padding:30px; border-right:2px dashed #e2e8f0; position:relative;">
-                    <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px;">
-                        <img src="${logoSrc}" style="height:40px; max-width:160px; object-fit:contain;" crossorigin="anonymous" onerror="this.onerror=null;this.src='${_makeFallbackSVG(data.airline||'')}'" alt="${airlineName}">
-                        <span style="font-weight:800; font-size:1.4rem; letter-spacing:-1px;">${airlineName}</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-                        <div>
-                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Passenger</span>
-                            <div style="font-size:1.2rem;font-weight:700;">${data.name || ''}</div>
-                            <div style="font-size:0.7rem;color:#64748b;">${data.class || ''}</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Class</span>
-                            <div style="font-size:1.1rem;font-weight:700;">${data.class || ''}</div>
-                        </div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:20px; padding:15px; background:#f8fafc; border-radius:12px;">
-                        <div>
-                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">From</span>
-                            <div style="font-size:1.8rem;font-weight:900;">${data.fromCity || ''}</div>
-                            <div style="font-size:0.7rem;color:#64748b;">${data.fromCountry || ''}</div>
-                            ${fromApt ? `<div style="font-size:0.65rem;color:#0284c7;font-weight:800;margin-top:2px;">${fromApt}</div>` : ''}
-                        </div>
-                        <div style="font-size:2rem; align-self:center;">✈</div>
-                        <div style="text-align:right;">
-                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">To</span>
-                            <div style="font-size:1.8rem;font-weight:900;">${data.toCity || ''}</div>
-                            <div style="font-size:0.7rem;color:#64748b;">${data.toCountry || ''}</div>
-                            ${toApt ? `<div style="font-size:0.65rem;color:#0284c7;font-weight:800;margin-top:2px;">${toApt}</div>` : ''}
-                        </div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                        <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Departure</span><div style="font-size:1.1rem;font-weight:700;">${data.dep || ''}</div></div>
-                        <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Departure Date</span><div style="font-size:1.1rem;font-weight:700;">${data.date || ''}</div></div>
-                        <div style="text-align:right;"><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Arrival</span><div style="font-size:1.1rem;font-weight:700;">${data.arr || ''}</div></div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                        <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Flight No.</span><div style="font-size:1.1rem;font-weight:700;">${data.flightNum || '—'}</div></div>
-                        <div><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Gate / Term.</span><div style="font-size:1.1rem;font-weight:700;">${data.gate || '—'} / ${data.terminal || 'T1'}</div></div>
-                        <div style="text-align:right;"><span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Seat</span><div style="font-size:1.1rem;font-weight:700;">${data.seat || '—'}</div></div>
-                    </div>
-                    ${roundTripHTML}
-                </div>
-                <div style="flex:0.8; padding:30px; background:#f8fafc; display:flex; flex-direction:column; justify-content:space-between;">
-                    <div>
-                        <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Flight ID</span>
-                        <div style="color:#0284c7;font-weight:800;font-size:1rem;">${flightId}</div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between;">
-                        <div>
-                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Terminal</span>
-                            <div style="font-size:0.8rem;font-weight:700;">${data.terminal || 'T1'}</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Seat</span>
-                            <div style="font-size:0.8rem;font-weight:700;">${data.seat || '—'}</div>
-                        </div>
-                    </div>
-                    <div>
-                        <span style="font-size:0.65rem;color:#64748b;font-weight:800;text-transform:uppercase;display:block;">Airport Code</span>
-                        <div style="font-size:0.85rem;font-weight:800;color:#0284c7;letter-spacing:1px;">${data.fromAirportCode || '---'}</div>
-                    </div>
-                    ${priceHTML}
-                    <div style="text-align:center;">
-                        <div style="font-size:0.65rem;font-weight:700;letter-spacing:2px;color:#64748b;font-family:'Courier New',monospace;margin-bottom:2px;">${barcodeDisplay}</div>
-                        <div style="font-family:'Libre Barcode 128',cursive;font-size:3rem;">${barcodeDisplay}</div>
-                    </div>
-                </div>`;
-
-            document.body.appendChild(tmp);
-
-            await new Promise(r => requestAnimationFrame(r));
-            await new Promise(r => setTimeout(r, 200));
-
+            if (!data) { showToast('Flight data not found', '#ef4444'); return; }
+            showToast('Generating full-page itinerary PDF...', '#0284c7');
             try {
-                const canvas = await html2canvas(tmp, { useCORS: true, scale: 2, width: 700, logging: false, imageTimeout: 3000 });
-                document.body.removeChild(tmp);
-                const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                const pdfW = 297, pdfH = 130;
-                const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [pdfW, pdfH] });
-                pdf.addImage(imgData, 'JPEG', 5, 5, pdfW - 10, pdfH - 10);
-                pdf.save(`Flight-Ticket-${flightId}.pdf`);
-                showToast('📄 PDF downloaded!', '#0284c7');
-            } catch(err) {
-                document.body.removeChild(tmp);
-                showToast('❌ PDF generation failed', '#ef4444');
-                console.error(err);
+                await buildFullPageFlightPDF(data, 'Flight-Itinerary-' + flightId + '.pdf');
+                showToast('Full-page itinerary PDF downloaded!', '#0284c7');
+            } catch (err) {
+                console.error('Historical PDF generation error:', err);
+                showToast('PDF generation failed', '#ef4444');
             }
         }
 
