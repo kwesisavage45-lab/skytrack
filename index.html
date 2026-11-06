@@ -3231,6 +3231,36 @@
             });
         }
 
+        // Faint SkyTrack Pro watermark (paper-plane mark + wordmark), drawn on a canvas and rotated
+        function makeSkyTrackWatermarkPng() {
+            try {
+                const size = 1400, c = document.createElement('canvas');
+                c.width = c.height = size;
+                const g = c.getContext('2d');
+                g.translate(size / 2, size / 2);
+                g.rotate(-Math.PI / 6);
+                g.fillStyle = '#0f2344';
+                g.strokeStyle = '#0f2344';
+                // paper-plane mark
+                g.save();
+                g.translate(0, -170);
+                g.scale(2.6, 2.6);
+                g.beginPath();
+                g.moveTo(-60, -5); g.lineTo(60, -50); g.lineTo(25, 50);
+                g.lineTo(2, 12); g.lineTo(-22, 28); g.lineTo(-18, 2); g.closePath();
+                g.fill();
+                g.restore();
+                // wordmark
+                g.textAlign = 'center';
+                g.textBaseline = 'middle';
+                g.font = '800 190px Helvetica, Arial, sans-serif';
+                g.fillText('SkyTrack Pro', 0, 130);
+                g.font = '600 56px Helvetica, Arial, sans-serif';
+                g.fillText('F L I G H T   I T I N E R A R Y', 0, 245);
+                return c.toDataURL('image/png');
+            } catch (e) { return null; }
+        }
+
         async function buildFullPageFlightPDF(data, filename) {
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -3455,6 +3485,16 @@
             }
             pdf.text('This itinerary is for reference. Confirm live timings, terminal and gate details with your airline.', margin, 295);
             pdf.text('SkyTrack Pro  •  ' + safe(data.id || window._currentTicketId) + '  •  Page 1/1', pageW - margin, 295, { align: 'right' });
+            // Watermark: faint, centred, drawn last so it sits over the panels
+            try {
+                const wm = makeSkyTrackWatermarkPng();
+                if (wm && typeof pdf.GState === 'function') {
+                    pdf.saveGraphicsState();
+                    pdf.setGState(new pdf.GState({ opacity: 0.06 }));
+                    pdf.addImage(wm, 'PNG', (pageW - 170) / 2, (pageH - 170) / 2, 170, 170);
+                    pdf.restoreGraphicsState();
+                }
+            } catch (e) { console.warn('Watermark skipped:', e); }
             pdf.save(filename || 'Flight-Itinerary.pdf');
         }
 
