@@ -1365,11 +1365,22 @@
                 morgantown: { lat: 39.629500, lng: -79.955900 }
             };
             const KNOWN_AIRPORT_CITY = { ZRH: 'zurich', ORD: 'chicago', MDW: 'chicago', MGW: 'morgantown' };
+            const CITY_GUARD_ALIASES = {
+                'new york city': 'new york', nyc: 'new york', 'los angeles city': 'los angeles',
+                'hong kong island': 'hong kong', 'kuala lumpur city': 'kuala lumpur',
+                'abu dhabi city': 'abu dhabi', 'mexico city': 'mexico city'
+            };
+            const cityReferenceCache = new Map();
+
+            function cityKeyFromQuery(cityQuery) {
+                const query = String(cityQuery || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                const city = query.split(',')[0].trim().replace(/[^a-z\s-]/g, '').trim();
+                return CITY_GUARD_ALIASES[city] || city;
+            }
 
             function knownRoutePoint(aptIata, cityQuery) {
                 const code = String(aptIata || '').trim().toUpperCase();
-                const query = String(cityQuery || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-                const city = query.split(',')[0].trim().replace(/[^a-z\s-]/g, '').trim();
+                const city = cityKeyFromQuery(cityQuery);
 
                 // Explicit route city wins over conflicting saved coordinates or
                 // a mismatched code; matching airport codes retain airport precision.
@@ -1382,26 +1393,64 @@
                 return null;
             }
 
-            // ── Prefer verified route points; then saved coordinates; then geocoding ──
-            async function resolvePoint(aptLat, aptLon, aptName, aptIata, cityQuery) {
-                // Verified local endpoint/airport point takes precedence over persisted
-                // coordinates because older records may contain a bad geocoder result.
-                const known = knownRoutePoint(aptIata, cityQuery);
-                if (known) return { lat: known.lat, lng: known.lng };
+            function builtInCityReference(cityQuery) {
+                const key = cityKeyFromQuery(cityQuery);
+                // GEO_FALLBACK is the built-in worldwide city/hub coordinate table.
+                const point = GEO_FALLBACK[key] || KNOWN_CITY_POINTS[key];
+                return point ? { lat: Number(point.lat), lng: Number(point.lng) } : null;
+            }
 
-                // 1. Use exact saved coordinates when available
+            async function getCityReference(cityQuery) {
+                const cacheKey = String(cityQuery || '').trim().toLowerCase();
+                if (cityReferenceCache.has(cacheKey)) return cityReferenceCache.get(cacheKey);
+                let point = builtInCityReference(cityQuery);
+                if (!point) {
+                    try { point = await geocode(cityQuery); } catch(e) { point = null; }
+                }
+                cityReferenceCache.set(cacheKey, point);
+                return point;
+            }
+
+            function distanceKm(a, b) {
+                const rad = n => n * Math.PI / 180;
+                const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+                const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+                return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+            }
+
+            async function validatePointAgainstCity(point, cityQuery, label) {
+                if (!point || !Number.isFinite(Number(point.lat)) || !Number.isFinite(Number(point.lng))) return point;
+                const cityPoint = await getCityReference(cityQuery);
+                if (!cityPoint) return point;
+                const distance = distanceKm(point, cityPoint);
+                if (distance > 400) {
+                    console.warn(`[SkyTrack map] ${label} resolved ${Math.round(distance)} km from ticket city "${cityQuery}"; using the built-in/geocoded city location instead.`, { resolved: point, cityLocation: cityPoint });
+                    return cityPoint;
+                }
+                return point;
+            }
+
+            // ── Prefer verified route points; then saved coordinates; then geocoding ──
+            // Every resolved endpoint is checked against the ticket's city/country.
+            async function resolvePoint(aptLat, aptLon, aptName, aptIata, cityQuery, label) {
+                let point = null;
+                // Use the selected airport's saved coordinates first when available.
+                // The 400 km check rejects stale/wrong coordinates, but preserves a
+                // valid selected airport instead of snapping it to the city center.
                 if (aptLat != null && aptLon != null && !isNaN(aptLat) && !isNaN(aptLon)) {
-                    return { lat: parseFloat(aptLat), lng: parseFloat(aptLon) };
+                    point = await validatePointAgainstCity(
+                        { lat: parseFloat(aptLat), lng: parseFloat(aptLon) }, cityQuery, label
+                    );
                 }
-                // 2. Geocode using airport name (much more accurate than city name)
-                if (aptName && aptName.length > 2) {
-                    try {
-                        const result = await geocodeAirport(aptName, aptIata, cityQuery);
-                        if (result) return result;
-                    } catch(e) { /* fall through to city geocode */ }
+                // If no airport coordinates exist, use the verified local airport/city point.
+                if (!point) point = knownRoutePoint(aptIata, cityQuery);
+                // Otherwise geocode the selected airport name and validate it.
+                if (!point && aptName && aptName.length > 2) {
+                    try { point = await geocodeAirport(aptName, aptIata, cityQuery); } catch(e) { /* fall through */ }
                 }
-                // 3. Fall back to city geocoding
-                return geocode(cityQuery);
+                // Last resort: use the ticket city, also subject to the same check.
+                if (!point) point = await geocode(cityQuery);
+                return validatePointAgainstCity(point, cityQuery, label);
             }
 
             const fromQuery = [savedData.fromCity, savedData.fromCountry].filter(Boolean).join(', ') || savedData.from;
@@ -1410,8 +1459,8 @@
             let origin, dest;
             try {
                 [origin, dest] = await Promise.all([
-                    resolvePoint(savedData.fromAirportLat, savedData.fromAirportLon, savedData.fromAirportName, savedData.fromAirportCode, fromQuery),
-                    resolvePoint(savedData.toAirportLat,   savedData.toAirportLon,   savedData.toAirportName,   savedData.toAirportCode,   toQuery)
+                    resolvePoint(savedData.fromAirportLat, savedData.fromAirportLon, savedData.fromAirportName, savedData.fromAirportCode, fromQuery, 'Origin'),
+                    resolvePoint(savedData.toAirportLat,   savedData.toAirportLon,   savedData.toAirportName,   savedData.toAirportCode,   toQuery, 'Destination')
                 ]);
             } catch(e) {
                 loadingEl.classList.add('hidden');
@@ -1438,24 +1487,28 @@
                 }];
             }
 
-            // Geocode each stop (best-effort), prefer airport coords if saved
+            // Geocode every stop, then verify the resolved point against its ticket city.
             const stopPts = [];
-            for (const s of stopData) {
+            for (let stopIndex = 0; stopIndex < stopData.length; stopIndex++) {
+                const s = stopData[stopIndex];
                 const stopQuery = [s.city, s.country].filter(Boolean).join(', ');
-                const knownStop = knownRoutePoint(s.airportCode, stopQuery);
-                if (knownStop) {
-                    stopPts.push({ lat: knownStop.lat, lng: knownStop.lng });
-                } else if (s.airportLat != null && s.airportLon != null && !isNaN(s.airportLat) && !isNaN(s.airportLon)) {
-                    stopPts.push({ lat: parseFloat(s.airportLat), lng: parseFloat(s.airportLon) });
-                } else if (s.airportName && s.airportName.length > 2) {
-                    // Use airport name for accurate placement instead of city
-                    const q = stopQuery;
-                    try { stopPts.push(await geocodeAirport(s.airportName, s.airportCode, q) || await geocode(q)); }
-                    catch(e) { stopPts.push(null); }
-                } else {
-                    const q = stopQuery;
-                    try { stopPts.push(await geocode(q)); } catch(e) { stopPts.push(null); }
+                let point = null;
+                // Prefer exact selected stop-airport coordinates if they match the city.
+                if (s.airportLat != null && s.airportLon != null && !isNaN(s.airportLat) && !isNaN(s.airportLon)) {
+                    point = await validatePointAgainstCity(
+                        { lat: parseFloat(s.airportLat), lng: parseFloat(s.airportLon) }, stopQuery,
+                        `Transit stop ${stopIndex + 1}`
+                    );
                 }
+                if (!point) point = knownRoutePoint(s.airportCode, stopQuery);
+                if (!point && s.airportName && s.airportName.length > 2) {
+                    try { point = await geocodeAirport(s.airportName, s.airportCode, stopQuery); } catch(e) { /* try city below */ }
+                }
+                if (!point) {
+                    try { point = await geocode(stopQuery); } catch(e) { point = null; }
+                }
+                if (point) point = await validatePointAgainstCity(point, stopQuery, `Transit stop ${stopIndex + 1}`);
+                stopPts.push(point);
             }
             // Filter out failed geocodes (keep pairing with stopData)
             const validStops = stopData.map((s, i) => ({ ...s, pt: stopPts[i] })).filter(s => s.pt);
@@ -1593,6 +1646,12 @@
             'new zealand':{'lat':-40.9006,'lng':174.8860},'auckland':{'lat':-36.8485,'lng':174.7633},
             'melbourne':{'lat':-37.8136,'lng':144.9631},'brisbane':{'lat':-27.4698,'lng':153.0251},
             'perth':{'lat':-31.9505,'lng':115.8605},'auckland':{'lat':-36.8485,'lng':174.7633},
+            'geneva':{'lat':46.2044,'lng':6.1432},'morgantown':{'lat':39.6295,'lng':-79.9559},
+            'newark':{'lat':40.7357,'lng':-74.1724},'orlando':{'lat':28.5383,'lng':-81.3792},
+            'pittsburgh':{'lat':40.4406,'lng':-79.9959},'jeddah':{'lat':21.4858,'lng':39.1925},
+            'muscat':{'lat':23.5880,'lng':58.3829},'reykjavik':{'lat':64.1466,'lng':-21.9426},
+            'osaka':{'lat':34.6937,'lng':135.5023},'sapporo':{'lat':43.0618,'lng':141.3545},
+            'santiago':{'lat':-33.4489,'lng':-70.6693},'philadelphia':{'lat':39.9526,'lng':-75.1652},
         };
 
         function fallbackGeocode(cityName) {
@@ -1657,7 +1716,7 @@
             const url1 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityOnly)}&format=json&limit=1&featureType=city`;
             const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1`;
 
-            const result = await geocodeWithRetry(url1, 2) || await geocodeWithRetry(url2, 2);
+            const result = await geocodeWithRetry(url2, 2) || await geocodeWithRetry(url1, 2);
             if (result) return result;
 
             // Fallback: photon geocoder (European, different server)
