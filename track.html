@@ -873,10 +873,6 @@
                         ${savedData.transitAirportCode ? `<div>⏱ VIA: ${savedData.transitAirportCode} — ${savedData.transitAirportName}</div>` : ''}
                         ${savedData.toAirportCode ? `<div>✈ ARR: ${savedData.toAirportCode} — ${savedData.toAirportName}</div>` : ''}
                     </div>` : ''}
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
-                        <a href="index.html?pdf=${encodeURIComponent(savedData.id || flightId)}" style="flex:1;text-align:center;text-decoration:none;background:#6366f1;color:#fff;padding:12px 14px;border-radius:12px;font-weight:800;font-size:0.82rem;"><i class="fas fa-file-pdf" style="margin-right:6px;"></i>Download E-Ticket PDF</a>
-                        <a href="track.html?id=${encodeURIComponent(savedData.id || flightId)}&share=1" style="flex:1;text-align:center;text-decoration:none;background:#0284c7;color:#fff;padding:12px 14px;border-radius:12px;font-weight:800;font-size:0.82rem;"><i class="fas fa-satellite-dish" style="margin-right:6px;"></i>Open Tracking Link</a>
-                    </div>
                 `;
 
                 // Apply airline logo to the branded header we just rendered
