@@ -8,28 +8,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg:#0f172a; --card:rgba(30,41,59,0.75); --text:#f8fafc;
-            --text-dim:#94a3b8; --accent:#38bdf8; --border:rgba(255,255,255,0.1);
-            --modal-bg:rgba(15,23,42,0.97);
+            --bg:#0f172a; --card:#1e293b; --text:#f8fafc;
+            --text-dim:#94a3b8; --accent:#38bdf8; --border:#334155;
+            --modal-bg:#1e293b;
         }
         [data-theme="light"] {
-            --bg:#f8fafc; --card:rgba(255,255,255,0.95); --text:#0f172a;
-            --text-dim:#475569; --accent:#0284c7; --border:rgba(0,0,0,0.1);
-            --modal-bg:rgba(255,255,255,0.98);
+            --bg:#f1f5f9; --card:#ffffff; --text:#0f172a;
+            --text-dim:#475569; --accent:#0284c7; --border:#e2e8f0;
+            --modal-bg:#ffffff;
         }
         *{margin:0;padding:0;box-sizing:border-box;}
         body{
             background-color:var(--bg);
-            background-image:radial-gradient(circle at top right,rgba(56,189,248,0.13),transparent 60%),
-                             radial-gradient(circle at bottom left,rgba(56,189,248,0.08),transparent 60%);
             color:var(--text);font-family:'Inter',sans-serif;
             min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;
         }
         .login-container{width:100%;max-width:430px;padding:20px;animation:slideUp 0.55s ease;z-index:10;}
-        .glass-card{
+        .login-card{
             background:var(--card);padding:2.5rem;border-radius:28px;
-            border:1px solid var(--border);backdrop-filter:blur(20px);
-            box-shadow:0 25px 60px rgba(0,0,0,0.35);text-align:center;
+            border:1px solid var(--border);
+            box-shadow:0 10px 30px rgba(15,23,42,0.10);text-align:center;
         }
         .logo{font-size:1.7rem;font-weight:800;color:var(--accent);text-decoration:none;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:1.8rem;}
         h2{margin-bottom:0.4rem;font-weight:800;font-size:1.45rem;transition:color 0.3s;}
@@ -41,7 +39,7 @@
         .toggle-password:hover{color:var(--accent);}
         .input-group input{
             width:100%;padding:13px 44px;border-radius:12px;
-            border:1.5px solid var(--border);background:rgba(0,0,0,0.18);
+            border:1.5px solid var(--border);background:#0f172a;
             color:var(--text);outline:none;font-size:0.93rem;font-family:inherit;
             transition:border-color 0.2s,box-shadow 0.2s;
         }
@@ -78,7 +76,7 @@
         }
         .toast.show{transform:translateX(-50%) translateY(0);}
         /* Modal */
-        .modal{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(6px);}
+        .modal{position:fixed;inset:0;background:rgba(15,23,42,0.6);display:none;align-items:center;justify-content:center;z-index:200;}
         .modal.open{display:flex;}
         .modal-content{
             background:var(--modal-bg);padding:2.5rem;border-radius:22px;
@@ -89,7 +87,7 @@
         .modal-content p{color:var(--text-dim);font-size:0.85rem;margin:10px 0 18px;}
         .modal-content input{
             width:100%;padding:13px 16px;border-radius:12px;
-            border:1.5px solid var(--border);background:rgba(0,0,0,0.12);
+            border:1.5px solid var(--border);background:#0f172a;
             color:var(--text);outline:none;margin-bottom:14px;font-family:inherit;font-size:0.93rem;
             transition:border-color 0.2s;
         }
@@ -112,7 +110,7 @@
 </div>
 
 <div class="login-container">
-    <div class="glass-card">
+    <div class="login-card">
         <div class="logo"><i class="fas fa-paper-plane"></i> SkyTrack Pro</div>
         <h2 id="viewTitle">Welcome Back</h2>
         <p class="subtitle" id="viewSubtitle">Access your elite flight dashboard</p>
@@ -347,7 +345,7 @@
         const next = html.getAttribute('data-theme')==='dark'?'light':'dark';
         setTheme(next); localStorage.setItem('theme',next);
     });
-    setTheme(localStorage.getItem('theme')||'dark');
+    setTheme(localStorage.getItem('theme')||'light');
 
     // Close modal on backdrop click
     document.getElementById('forgotModal').addEventListener('click',function(e){ if(e.target===this) closeModal(); });
