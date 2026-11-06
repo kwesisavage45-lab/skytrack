@@ -333,9 +333,9 @@
             <div class="solid-card" style="text-align:center;">
                 <div style="font-size:3rem; margin-bottom:12px;">✈️</div>
                 <h2 style="font-weight:900; margin-bottom:8px; font-size:1.8rem;">Track Your Flight</h2>
-                <p style="color:var(--text-dim); margin-bottom:28px; font-size:0.95rem;">Enter your SkyTrack ID to view full flight details and live progress</p>
+                <p style="color:var(--text-dim); margin-bottom:28px; font-size:0.95rem;">Search by Flight ID, Airline PNR, or E-Ticket No. to view the booking and ticket</p>
                 <div style="position:relative; margin-bottom:20px;">
-                    <input type="text" id="heroTrackInput" placeholder="e.g. ST-ABC12" 
+                    <input type="text" id="heroTrackInput" placeholder="Flight ID, Airline PNR, or e-ticket number" 
                         style="width:100%; padding:18px 60px 18px 20px; border-radius:50px; border:2px solid var(--border); background:rgba(0,0,0,0.05); color:var(--text); font-size:1.1rem; text-align:center; text-transform:uppercase; outline:none; font-family:inherit; letter-spacing:2px;"
                         oninput="this.value=this.value.toUpperCase()"
                         onkeydown="if(event.key==='Enter') heroTrackSearch()">
@@ -377,6 +377,74 @@
                 <div class="input-group" style="margin-bottom: 20px;">
                     <label>Passenger Full Name</label>
                     <input type="text" id="fullName" placeholder="e.g. Alexandra Reed">
+                </div>
+
+                <!-- Passenger extras (all optional) -->
+                <div class="grid-inputs" style="margin-bottom:16px;">
+                    <div class="input-group">
+                        <label>Gender <span style="color:var(--text-dim); font-weight:400;">(optional)</span></label>
+                        <select id="passengerGender">
+                            <option value="">— select —</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Phone <span style="color:var(--text-dim); font-weight:400;">(optional)</span></label>
+                        <input type="tel" id="passengerPhone" placeholder="e.g. +233 24 123 4567" maxlength="20">
+                    </div>
+                </div>
+                <div class="grid-inputs" style="margin-bottom:16px;">
+                    <div class="input-group">
+                        <label>Email / Gmail <span style="color:var(--text-dim); font-weight:400;">(optional)</span></label>
+                        <input type="email" id="passengerEmail" placeholder="e.g. name@gmail.com">
+                    </div>
+                    <div class="input-group">
+                        <label>Mode of Payment <span style="color:var(--text-dim); font-weight:400;">(optional)</span></label>
+                        <select id="paymentMode" onchange="onPaymentModeChange()">
+                            <option value="">— select —</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Card">Card</option>
+                            <option value="Bank">Bank</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="cardPreview" class="hidden" style="margin:-6px 0 16px; padding:10px 14px; border-radius:10px; border:1px dashed var(--accent); font-size:0.82rem; color:var(--text-dim);">
+                    <i class="fas fa-credit-card" style="color:var(--accent); margin-right:6px;"></i>
+                    Card (auto-generated): <strong id="cardPreviewText" style="color:var(--text); letter-spacing:1px; font-family:'Courier New',monospace;"></strong>
+                </div>
+                <div class="input-group" style="margin-bottom:20px;">
+                    <label>Meal <span style="color:var(--text-dim); font-weight:400;">(optional)</span></label>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <select id="mealSelect" onchange="onMealChange()" style="flex:1;">
+                            <option value="">No meal</option>
+                            <option value="Standard Meal">Standard Meal</option>
+                            <option value="Vegetarian Meal">Vegetarian Meal</option>
+                            <option value="Vegan Meal">Vegan Meal</option>
+                            <option value="Halal Meal">Halal Meal</option>
+                            <option value="Kosher Meal">Kosher Meal</option>
+                            <option value="Seafood Meal">Seafood Meal</option>
+                            <option value="Gluten-Free Meal">Gluten-Free Meal</option>
+                            <option value="Child Meal">Child Meal</option>
+                        </select>
+                        <span id="mealPreviewIcon" class="hidden" style="width:44px; height:44px; flex:none;"></span>
+                    </div>
+                </div>
+
+                <div class="input-group" style="margin-bottom:20px;">
+                    <label for="bookedOnEnabled"><input type="checkbox" id="bookedOnEnabled" onchange="toggleBookedOnDate()" style="width:auto; margin-right:7px; accent-color:var(--accent);"> Add booked-on date <span style="color:var(--text-dim); font-weight:400;">(optional)</span></label>
+                    <input type="date" id="bookedOnDate" aria-label="Choose the date the flight was booked" disabled style="opacity:0.55;">
+                    <small style="color:var(--text-dim); font-size:0.75rem;">Leave unchecked to omit it. When enabled, choose any date to print at the bottom of the PDF ticket.</small>
+                </div>
+
+                <div class="input-group" style="margin-bottom:20px;">
+                    <label>Boarding Group <span style="color:var(--text-dim); font-weight:400;">(optional)</span></label>
+                    <select id="boardingGroupSelect">
+                        <option value="">No boarding group</option>
+                        <option value="random">Assign a random group</option>
+                    </select>
+                    <small style="color:var(--text-dim); font-size:0.75rem;">When selected, a random group (A–F) will be assigned to the ticket.</small>
                 </div>
 
                 <div class="trip-type-selector">
@@ -858,6 +926,12 @@
                             <div style="text-align: right;"><span class="pass-label">Flight Class</span><div class="pass-val" id="displayClass">---</div></div>
                         </div>
 
+                        <div class="pass-row">
+                            <div><span class="pass-label">Gender</span><div id="displayGender" class="pass-val">---</div></div>
+                            <div><span class="pass-label">Aircraft</span><div id="displayAircraft" class="pass-val" style="font-size:0.95rem;">---</div></div>
+                            <div style="text-align: right;"><span class="pass-label">Status</span><div id="displayStatus" class="pass-val" style="color:#16a34a;">✔ CONFIRMED</div></div>
+                        </div>
+
                         <div class="pass-row" style="margin: 30px 0;">
                             <div>
                                 <span class="pass-label">From</span>
@@ -884,6 +958,17 @@
                             <div><span class="pass-label">Flight Number</span><div id="displayFlightNum" class="pass-val">---</div></div>
                             <div><span class="pass-label">Gate / Terminal</span><div class="pass-val" id="displayGate">---</div></div>
                             <div style="text-align: right;"><span class="pass-label">Seat</span><div id="displaySeat" class="pass-val">---</div></div>
+                        </div>
+                        <div class="pass-row" id="contactRow" style="display:none;">
+                            <div id="contactEmailWrap"><span class="pass-label">Email</span><div id="displayEmail" class="pass-val" style="font-size:0.85rem; word-break:break-all;"></div></div>
+                            <div id="contactPhoneWrap" style="text-align: right;"><span class="pass-label">Phone</span><div id="displayPhone" class="pass-val" style="font-size:0.85rem;"></div></div>
+                        </div>
+                        <div class="pass-row" id="mealPayRow" style="display:none; align-items:center;">
+                            <div id="displayMealWrap" style="display:flex; align-items:center; gap:8px;">
+                                <span id="displayMealIcon" style="width:34px; height:34px; display:inline-block;"></span>
+                                <div><span class="pass-label">Meal</span><div id="displayMeal" class="pass-val" style="font-size:0.85rem;">---</div></div>
+                            </div>
+                            <div style="text-align: right;"><span class="pass-label">Payment</span><div id="displayPayment" class="pass-val" style="font-size:0.85rem;">---</div></div>
                         </div>
                         <div id="transitStopsTicketArea"></div>
                         <!-- ── Return Flight Section (round trip) ── -->
@@ -940,6 +1025,14 @@
                                 <div id="displayID" class="ticket-id-val">--</div>
                                 <i class="fas fa-copy" onclick="copyOnlyID()" style="cursor: pointer; font-size: 0.8rem; color: var(--accent);"></i>
                             </div>
+                            <div style="margin-top:7px;">
+                                <span class="pass-label">Booking Reference</span>
+                                <div id="displayBookingReference" style="font-size:0.85rem; font-weight:800; color:#0f172a; letter-spacing:1px;">---</div>
+                            </div>
+                            <div style="margin-top:7px;">
+                                <span class="pass-label">Airline PNR</span>
+                                <div id="displayPNR" style="font-size:0.85rem; font-weight:800; color:#0f172a; letter-spacing:1px;">---</div>
+                            </div>
                         </div>
                         <div style="display: flex; justify-content: space-between;">
                             <div>
@@ -951,6 +1044,10 @@
                                 <div id="stubSeat" style="font-size: 0.8rem; font-weight: 700;">---</div>
                             </div>
                         </div>
+                        <div id="boardingGroupTicketWrap" style="display:none;">
+                            <span class="pass-label">Boarding Group</span>
+                            <div id="displayBoardingGroup" style="font-size:0.9rem; font-weight:800; color:#0284c7;">---</div>
+                        </div>
                         <div>
                             <span class="pass-label">Airport Code</span>
                             <div id="stubAirportCode" style="font-size: 0.85rem; font-weight: 800; color:#0284c7; letter-spacing:1px;">---</div>
@@ -960,8 +1057,9 @@
                             <div id="stubPrice" style="font-size: 1rem; font-weight: 800; color:#22c55e;">---</div>
                         </div>
                         <div class="barcode-wrap" style="text-align:center;">
+                            <span class="pass-label">E-Ticket No.</span>
                             <div id="barcodeNumber" style="font-size:0.65rem; font-weight:700; letter-spacing:2px; color:#64748b; font-family:'Courier New',monospace; margin-bottom:2px;">0000000000000</div>
-                            <div class="barcode" id="barcodeValue">123456789</div>
+                            <div id="barcodeValue" style="margin-top:4px;"></div>
                         </div>
                     </div>
                 </div>
@@ -1048,18 +1146,22 @@
             const snap = await getDoc(doc(db, 'flights', id));
             return snap.exists() ? snap.data() : null;
         };
+        window._fsFindFlightByCode = async (code) => {
+            const raw = String(code || '').trim().toUpperCase();
+            if (!raw) return null;
+            const digits = raw.replace(/\D/g, '');
+            const field = digits.length === 13 ? 'eTicket' : 'pnr';
+            const value = field === 'eTicket' ? digits : raw;
+            const snap = await getDocs(query(collection(db, 'flights'), where(field, '==', value)));
+            return snap.empty ? null : snap.docs[0].data();
+        };
         window._fsUpdateFlight = async (id, fields) => {
             await updateDoc(doc(db, 'flights', id), fields);
         };
         window._fsGetUserFlights = async (uid) => {
-            const q = query(
-                collection(db, 'flights'),
-                where('uid', '==', uid),
-                orderBy('createdAt', 'desc'),
-                limit(5)
-            );
+            const q = query(collection(db, 'flights'), where('uid', '==', uid));
             const snap = await getDocs(q);
-            return snap.docs.map(d => d.data());
+            return snap.docs.map(d => d.data()).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
         };
 
         onAuthStateChanged(auth, user => {
@@ -1175,19 +1277,28 @@
             refreshHistorySection();
         }
 
+        function mergeAccountFlights(cloudFlights, uid) {
+            const cloud = Array.isArray(cloudFlights) ? cloudFlights : [];
+            const byId = new Map(cloud.filter(f => f && f.id).map(f => [f.id, f]));
+            let local = [];
+            try { local = JSON.parse(localStorage.getItem('ticketHistory') || '[]'); } catch (e) {}
+            local.filter(item => item && item.id && (
+                item.uid === uid || (!cloud.length && (!item.uid || item.uid === 'anonymous'))
+            )).forEach(item => { if (!byId.has(item.id)) byId.set(item.id, item); });
+            return Array.from(byId.values()).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        }
+
         async function refreshHistorySection() {
             const list = document.getElementById('fullHistoryList');
             if(!list) return;
             list.innerHTML = '<p style="color:var(--text-dim); font-size:0.85rem; text-align:center; padding:20px 0;"><span class="dot-spin" style="display:inline-block;"></span> Loading your flights…</p>';
 
-            let flights = [];
+            let cloudFlights = [];
             const uid = localStorage.getItem('uid');
             if(uid && window._fsGetUserFlights) {
-                try { flights = await window._fsGetUserFlights(uid); } catch(e) {}
+                try { cloudFlights = await window._fsGetUserFlights(uid); } catch(e) {}
             }
-            if(!flights.length) {
-                flights = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
-            }
+            const flights = mergeAccountFlights(cloudFlights, uid);
 
             if(!flights.length) {
                 list.innerHTML = '<div style="text-align:center; padding:40px 0;"><div style="font-size:3rem; margin-bottom:12px;">🎫</div><p style="color:var(--text-dim);">No flights found. Generate a ticket to get started!</p></div>';
@@ -1299,14 +1410,12 @@
             if(!wrap) return;
             if(!checkAuth()) { wrap.innerHTML = ''; return; }
             
-            let flights = [];
+            let cloudFlights = [];
             const uid = localStorage.getItem('uid');
             if(uid && window._fsGetUserFlights) {
-                try { flights = await window._fsGetUserFlights(uid); } catch(e) {}
+                try { cloudFlights = await window._fsGetUserFlights(uid); } catch(e) {}
             }
-            if(!flights.length) {
-                flights = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
-            }
+            const flights = mergeAccountFlights(cloudFlights, uid);
             if(!flights.length) { wrap.innerHTML = ''; return; }
 
             wrap.innerHTML = `<h4 style="font-weight:800; color:var(--text-dim); font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;"><i class="fas fa-history" style="margin-right:6px;"></i>Your Recent Flights</h4>`;
@@ -1330,18 +1439,37 @@
             });
         }
 
+        async function findFlightByLookupCode(code) {
+            const raw = String(code || '').trim().toUpperCase();
+            if (!raw) return null;
+            const direct = localStorage.getItem('flight_' + raw);
+            if (direct) { try { const d = JSON.parse(direct); if (d) return d; } catch (e) {} }
+            if (window._fsGetFlight) {
+                try { const d = await window._fsGetFlight(raw); if (d) return d; } catch (e) {}
+            }
+            const digits = raw.replace(/\D/g, '');
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!key || !key.startsWith('flight_')) continue;
+                try {
+                    const d = JSON.parse(localStorage.getItem(key) || 'null');
+                    if (d && (String(d.id || '').toUpperCase() === raw || String(d.pnr || '').toUpperCase() === raw ||
+                        (digits.length === 13 && String(d.eTicket || '').replace(/\D/g, '') === digits))) return d;
+                } catch (e) {}
+            }
+            if (window._fsFindFlightByCode) {
+                try { return await window._fsFindFlightByCode(raw); } catch (e) { console.warn('Code lookup failed:', e); }
+            }
+            return null;
+        }
+
         async function heroTrackSearch() {
             const input = document.getElementById('heroTrackInput').value.trim().toUpperCase();
             if(!input) return;
             const result = document.getElementById('heroTrackResult');
             result.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);"><div class="dot-spin" style="display:inline-block; margin-right:8px;"></div> Looking up flight…</div>';
 
-            let data = null;
-            const local = localStorage.getItem('flight_' + input);
-            if(local) { try { data = JSON.parse(local); } catch(e){} }
-            if(!data && window._fsGetFlight) {
-                try { data = await window._fsGetFlight(input); } catch(e){}
-            }
+            const data = await findFlightByLookupCode(input);
 
             if(!data) {
                 result.innerHTML = `<div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:16px; padding:24px; text-align:center;">
@@ -1369,7 +1497,11 @@
                         </div>
                         <div style="text-align:right;">
                             <div style="font-size:0.65rem; color:#0284c7; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px;">Flight ID</div>
-                            <div style="font-size:1.1rem; font-weight:900; color:#0284c7; letter-spacing:1px;">${input}</div>
+                            <div style="font-size:1.1rem; font-weight:900; color:#0284c7; letter-spacing:1px;">${data.id || '—'}</div>
+                            <div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-top:6px;">Airline PNR</div>
+                            <div style="font-size:0.9rem; font-weight:800; letter-spacing:1px;">${data.pnr || '—'}</div>
+                            <div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-top:5px;">E-Ticket No.</div>
+                            <div style="font-size:0.75rem; font-weight:800; letter-spacing:0.5px;">${data.eTicket || '—'}</div>
                         </div>
                     </div>
                     <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center; margin-bottom:20px;">
@@ -1398,9 +1530,14 @@
                         <div><div style="font-size:0.62rem; color:#0284c7; font-weight:800; text-transform:uppercase; margin-bottom:2px;">Seat</div><div style="font-weight:800; font-size:0.85rem;">${data.seat || '—'}</div></div>
                         ${priceRow}
                     </div>
-                    <button onclick="window.location.href='track.html?id=${input}'" class="btn-auth" style="width:100%; padding:0.9rem; font-size:0.95rem;">
-                        <i class="fas fa-satellite-dish" style="margin-right:8px;"></i> View Live Flight Progress
-                    </button>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <a href="track.html?id=${encodeURIComponent(data.id || '')}&share=1" class="btn-auth" style="padding:0.9rem 0.6rem; font-size:0.88rem; text-decoration:none;">
+                            <i class="fas fa-satellite-dish" style="margin-right:8px;"></i> Track Flight
+                        </a>
+                        <button onclick="downloadHistoryPDF('${data.id || ''}')" class="btn-auth" style="padding:0.9rem 0.6rem; font-size:0.88rem; background:#6366f1;">
+                            <i class="fas fa-file-pdf" style="margin-right:8px;"></i> E-Ticket PDF
+                        </button>
+                    </div>
                 </div>
             </div>`;
 
@@ -1458,6 +1595,16 @@
                     checkAndShowResumeBanner();
                 }, 1200);
             }
+        });
+
+        // Tracker-page PDF links return here and immediately download the requested e-ticket.
+        window.addEventListener('load', async () => {
+            const pdfId = new URLSearchParams(window.location.search).get('pdf');
+            if (!pdfId) return;
+            for (let attempt = 0; attempt < 60 && (!window.jspdf || !window._fsGetFlight); attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            await downloadHistoryPDF(pdfId);
         });
 
         // Shared time-mask handler — enforces HH:MM format and clamps to valid range
@@ -2010,6 +2157,198 @@
 
         window._paymentVerified = false;
 
+
+        // ═══════════════════════════════════════════════════════════
+        //  BOOKING EXTRAS: aircraft, e-ticket, card, meal, barcode
+        // ═══════════════════════════════════════════════════════════
+        const AIRCRAFT_TYPES = [
+            'BOEING 737-800', 'BOEING 737 MAX 8', 'BOEING 747-400', 'BOEING 757-200',
+            'BOEING 767-300ER', 'BOEING 777-200', 'BOEING 777-300ER',
+            'BOEING 787-8 DREAMLINER', 'BOEING 787-9 DREAMLINER',
+            'AIRBUS A220-300', 'AIRBUS A319', 'AIRBUS A320-200', 'AIRBUS A321neo',
+            'AIRBUS A330-300', 'AIRBUS A340-600', 'AIRBUS A350-900', 'AIRBUS A380-800',
+            'EMBRAER E190', 'EMBRAER E195'
+        ];
+        function randomAircraft() { return AIRCRAFT_TYPES[Math.floor(Math.random() * AIRCRAFT_TYPES.length)]; }
+
+        // 13-digit e-ticket: 3-digit airline code + 10-digit serial
+        function randomETicket() {
+            let n = String(Math.floor(Math.random() * 900) + 100);
+            for (let i = 0; i < 10; i++) n += Math.floor(Math.random() * 10);
+            return n;
+        }
+
+        // Compact, independent reservation reference; never reuse the flight tracking ID.
+        function randomBookingReference() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+            return 'BK-' + code;
+        }
+        function randomAirlinePNR() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+            return code;
+        }
+
+        function randomBoardingGroup() {
+            return String.fromCharCode(65 + Math.floor(Math.random() * 6));
+        }
+
+        function toggleBookedOnDate() {
+            const enabled = !!document.getElementById('bookedOnEnabled')?.checked;
+            const dateInput = document.getElementById('bookedOnDate');
+            if (!dateInput) return;
+            dateInput.disabled = !enabled;
+            dateInput.style.opacity = enabled ? '1' : '0.55';
+            if (!enabled) dateInput.value = '';
+        }
+
+        // Random Luhn-valid card number. Only the brand and last 4 digits are
+        // ever kept — the full number is discarded immediately.
+        function generateCard() {
+            const brand = Math.random() < 0.5 ? 'VISA' : 'MASTERCARD';
+            const digits = brand === 'VISA' ? [4] : [5, 1 + Math.floor(Math.random() * 5)];
+            while (digits.length < 15) digits.push(Math.floor(Math.random() * 10));
+            let sum = 0;
+            digits.slice().reverse().forEach((d, i) => { if (i % 2 === 0) { d *= 2; if (d > 9) d -= 9; } sum += d; });
+            digits.push((10 - (sum % 10)) % 10);
+            const last4 = digits.slice(12).join('');
+            return { brand, last4, masked: 'XXXX XXXX XXXX ' + last4 };
+        }
+
+        function onPaymentModeChange() {
+            const mode = document.getElementById('paymentMode').value;
+            const box = document.getElementById('cardPreview');
+            if (mode === 'Card') {
+                window._cardInfo = generateCard();
+                document.getElementById('cardPreviewText').textContent = window._cardInfo.masked + '  ·  ' + window._cardInfo.brand;
+                box.classList.remove('hidden');
+            } else {
+                window._cardInfo = null;
+                box.classList.add('hidden');
+            }
+        }
+
+        // Meal icon (SVG) — used on screen and rasterised for the PDF
+        const MEAL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#0284c7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">'
+            + '<path d="M24 12c-3-3 3-5 0-9M32 12c-3-3 3-5 0-9M40 12c-3-3 3-5 0-9" stroke-width="2.2"/>'
+            + '<circle cx="32" cy="36" r="17" fill="#e0f2fe"/><circle cx="32" cy="36" r="10"/>'
+            + '<path d="M4 18v11a4 4 0 0 0 8 0V18M8 18v14M8 33v27"/>'
+            + '<path d="M60 18c-5 3-6 12-6 20h6zM60 38v22"/></svg>';
+
+        function onMealChange() {
+            const icon = document.getElementById('mealPreviewIcon');
+            if (document.getElementById('mealSelect').value) { icon.innerHTML = MEAL_SVG; icon.classList.remove('hidden'); }
+            else { icon.innerHTML = ''; icon.classList.add('hidden'); }
+        }
+
+        function svgToPngDataUrl(svg, px) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => {
+                    const c = document.createElement('canvas'); c.width = c.height = px;
+                    c.getContext('2d').drawImage(img, 0, 0, px, px);
+                    resolve(c.toDataURL('image/png'));
+                };
+                img.onerror = () => resolve(null);
+                img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg', '<svg width="' + px + '" height="' + px + '"'));
+            });
+        }
+
+        // ── Code 128 (subset B) — verified against a reference encoder ──
+        const C128_PATTERNS = ('212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112').split(' ');
+        function code128Widths(text) {
+            const codes = [104];
+            for (const ch of String(text)) codes.push(ch.charCodeAt(0) - 32);
+            let sum = 104;
+            for (let i = 1; i < codes.length; i++) sum += codes[i] * i;
+            codes.push(sum % 103, 106);
+            return codes.map(c => C128_PATTERNS[c]).join('').split('').map(Number);
+        }
+        function code128Svg(text, h) {
+            h = h || 44;
+            const widths = code128Widths(text), total = widths.reduce((a, b) => a + b, 0) + 20;
+            let x = 10, bars = '';
+            widths.forEach((w, i) => { if (i % 2 === 0) bars += '<rect x="' + x + '" y="0" width="' + w + '" height="' + h + '"/>'; x += w; });
+            return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + total + ' ' + h + '" preserveAspectRatio="none" shape-rendering="crispEdges" style="width:100%;height:' + h + 'px;display:block;background:#fff;"><g fill="#000">' + bars + '</g></svg>';
+        }
+        function drawCode128Pdf(pdf, text, x, y, w, h) {
+            const widths = code128Widths(text), total = widths.reduce((a, b) => a + b, 0) + 20, mw = w / total;
+            pdf.setFillColor(0, 0, 0);
+            let cx = x + 10 * mw;
+            widths.forEach((wd, i) => { if (i % 2 === 0) pdf.rect(cx, y, wd * mw, h, 'F'); cx += wd * mw; });
+        }
+        function fmtETicket(n) { n = String(n || ''); return n.length === 13 ? n.slice(0, 3) + '-' + n.slice(3) : n; }
+        function paymentLabel(d) {
+            const m = (d.paymentMode || '').toUpperCase();
+            if (m === 'CARD') return 'CARD  ' + (d.cardMasked || '') + (d.cardBrand ? '  (' + d.cardBrand + ')' : '');
+            return m || '';
+        }
+
+        // Fills the optional/extra details on the on-screen ticket
+        function renderBookingExtras(d) {
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+            set('displayGender', d.gender ? d.gender.toUpperCase() : '—');
+            set('displayAircraft', d.aircraft || '—');
+            const st = document.getElementById('displayStatus');
+            if (st) { st.innerText = d.cancelled ? '✖ CANCELLED' : '✔ CONFIRMED'; st.style.color = d.cancelled ? '#ef4444' : '#16a34a'; }
+            const contact = document.getElementById('contactRow');
+            if (contact) {
+                const hasEmail = !!String(d.email || '').trim();
+                const hasPhone = !!String(d.phone || '').trim();
+                contact.style.display = (hasEmail || hasPhone) ? 'flex' : 'none';
+                const emailWrap = document.getElementById('contactEmailWrap');
+                const phoneWrap = document.getElementById('contactPhoneWrap');
+                if (emailWrap) emailWrap.style.display = hasEmail ? '' : 'none';
+                if (phoneWrap) phoneWrap.style.display = hasPhone ? '' : 'none';
+                set('displayEmail', hasEmail ? d.email : '');
+                set('displayPhone', hasPhone ? d.phone : '');
+            }
+            const mp = document.getElementById('mealPayRow');
+            if (mp) {
+                mp.style.display = (d.meal || d.paymentMode) ? 'flex' : 'none';
+                document.getElementById('displayMealWrap').style.visibility = d.meal ? 'visible' : 'hidden';
+                document.getElementById('displayMealIcon').innerHTML = d.meal ? MEAL_SVG : '';
+                set('displayMeal', d.meal || ''); set('displayPayment', paymentLabel(d) || '—');
+            }
+            set('barcodeNumber', fmtETicket(d.eTicket));
+            set('displayBookingReference', d.bookingReference || '');
+            set('displayPNR', d.pnr || '');
+            const groupWrap = document.getElementById('boardingGroupTicketWrap');
+            const groupValue = document.getElementById('displayBoardingGroup');
+            if (groupWrap) groupWrap.style.display = d.boardingGroup ? '' : 'none';
+            if (groupValue) groupValue.textContent = d.boardingGroup ? 'GROUP ' + d.boardingGroup : '';
+            const bc = document.getElementById('barcodeValue');
+            if (bc) bc.innerHTML = code128Svg(d.eTicket, 44);
+        }
+
+        // Older saved tickets predate these fields: assign once, then persist.
+        function ensureTicketExtras(data) {
+            const patch = {};
+            if (!data.eTicket)       { data.eTicket = randomETicket();      patch.eTicket = data.eTicket; }
+            if (!data.bookingReference) { data.bookingReference = randomBookingReference(); patch.bookingReference = data.bookingReference; }
+            if (!data.pnr) { data.pnr = randomAirlinePNR(); patch.pnr = data.pnr; }
+            if (!data.aircraft)      { data.aircraft = randomAircraft();    patch.aircraft = data.aircraft; }
+            if (!data.bookingStatus) { data.bookingStatus = 'CONFIRMED';    patch.bookingStatus = data.bookingStatus; }
+            if (data.rtData && !data.rtData.aircraft) { data.rtData.aircraft = randomAircraft(); patch.rtData = data.rtData; }
+            if (Object.keys(patch).length && data.id) {
+                try { localStorage.setItem('flight_' + data.id, JSON.stringify(data)); } catch (e) {}
+                if (window._currentFlightData?.id === data.id) window._currentFlightData = data;
+                if (window._fsUpdateFlight) window._fsUpdateFlight(data.id, patch).catch(err => console.warn('Extras sync failed:', err));
+            }
+            return data;
+        }
+
+        function validateOptionalContact() {
+            const email = document.getElementById('passengerEmail').value.trim();
+            const phone = document.getElementById('passengerPhone').value.trim();
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address (e.g. name@gmail.com), or leave it empty.';
+            if (phone && !/^\+?[\d\s\-()]{6,20}$/.test(phone)) return 'Please enter a valid phone number, or leave it empty.';
+            return '';
+        }
+
         function generateTicket() {
             // ── PAYMENT GATE ─────────────────────────────────────────
             if (!window._paymentVerified) {
@@ -2049,8 +2388,26 @@
 
             if (!name || !fromCity || !toCity || !departDate || !depTimeRaw || !arrTimeRaw || !airline) {
                 showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Missing Information', body:'<p>Please fill in all required fields before generating your ticket.</p>', buttons:[{label:'Got it', cls:'modal-btn-primary', action:closeSkyModal}] });
+                window._paymentVerified = true; // payment is not lost when validation stops generation
                 return;
             }
+            const _contactErr = validateOptionalContact();
+            if (_contactErr) {
+                showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Check Details', body:'<p>' + _contactErr + '</p>', buttons:[{label:'Got it', cls:'modal-btn-primary', action:closeSkyModal}] });
+                window._paymentVerified = true;
+                return;
+            }
+            const genderVal = document.getElementById('passengerGender').value;
+            const emailVal  = document.getElementById('passengerEmail').value.trim();
+            const phoneVal  = document.getElementById('passengerPhone').value.trim();
+            const payMode   = document.getElementById('paymentMode').value;
+            const mealVal   = document.getElementById('mealSelect').value;
+            const boardingGroupVal = document.getElementById('boardingGroupSelect')?.value === 'random' ? randomBoardingGroup() : '';
+            const bookedOnVal = document.getElementById('bookedOnEnabled')?.checked
+                ? (document.getElementById('bookedOnDate')?.value || '').trim()
+                : '';
+            let cardInfo = null;
+            if (payMode === 'Card') cardInfo = window._cardInfo || generateCard();
 
             // FIX 1 — Timezone-safe timestamps (supports 12h and 24h modes)
             const _timeFmt = window._timeFormat || '12h';
@@ -2223,6 +2580,7 @@
                     seat:        rtSeat,
                     terminal:    rtTerminal,
                     gate:        rtGate,
+                    aircraft:    randomAircraft(),
                 };
             }
             const returnDate = rtData?.depDate || '';
@@ -2251,6 +2609,20 @@
                 seat:        Math.floor(Math.random() * 30 + 1) + String.fromCharCode(65 + Math.floor(Math.random() * 6)),
                 flightNum:   airline.substring(0, 2).toUpperCase() + Math.floor(Math.random() * 900 + 100),
                 class:       flightClass,
+                gender:      genderVal,
+                email:       emailVal,
+                phone:       phoneVal,
+                paymentMode: payMode,
+                cardBrand:   cardInfo ? cardInfo.brand  : '',
+                cardMasked:  cardInfo ? cardInfo.masked : '',   // full card number is never stored
+                meal:        mealVal,
+                eTicket:     randomETicket(),
+                bookingReference: randomBookingReference(),
+                pnr:           randomAirlinePNR(),
+                boardingGroup: boardingGroupVal,
+                bookedOn:     bookedOnVal,
+                aircraft:    randomAircraft(),
+                bookingStatus: 'CONFIRMED',
                 airline:     airline.toUpperCase(),
                 id:          id,
                 hasTransit:       hasTransit,
@@ -2276,7 +2648,9 @@
 
             // Save to Firestore (cloud) so shared links work on any device
             const uid = localStorage.getItem('uid') || 'anonymous';
-            const firestoreData = { ...flightData, uid, createdAt: Date.now() };
+            flightData.uid = uid;
+            flightData.createdAt = Date.now();
+            const firestoreData = { ...flightData };
             if (window._fsSetFlight) {
                 window._fsSetFlight(id, firestoreData).catch(err => console.error('Firestore save error:', err));
             }
@@ -2357,11 +2731,8 @@
             document.getElementById('displayToAirport').innerText   = toApt;
             document.getElementById('stubAirportCode').innerText    = flightData.fromAirportCode || '---';
 
-            // Generate random 13-digit barcode number
-            let barcodeNum = '';
-            for (let i = 0; i < 13; i++) barcodeNum += Math.floor(Math.random() * 10);
-            document.getElementById('barcodeNumber').innerText = barcodeNum;
-            document.getElementById('barcodeValue').innerText = barcodeNum;
+            // Gender, aircraft, status, contact, meal, payment + e-ticket barcode
+            renderBookingExtras(flightData);
 
             // ── Multi-stop ticket display ────────────────────────────
             const stopsArea = document.getElementById('transitStopsTicketArea');
@@ -2427,8 +2798,9 @@
 
         function updateUserHistory(id, from, to) {
             let history = JSON.parse(localStorage.getItem('ticketHistory') || '[]');
-            history.unshift({id, from, to, date: new Date().toLocaleDateString()});
-            localStorage.setItem('ticketHistory', JSON.stringify(history.slice(0, 5)));
+            history = history.filter(item => item && item.id !== id);
+            history.unshift({id, from, to, date: new Date().toLocaleDateString(), uid: localStorage.getItem('uid') || 'anonymous'});
+            localStorage.setItem('ticketHistory', JSON.stringify(history));
             loadHistory();
         }
 
@@ -2470,6 +2842,8 @@
             if (window._currentTicketId === id) {
                 const btn = document.querySelector('.cancel-flight-btn');
                 if (btn) { btn.innerHTML = '<i class="fas fa-ban"></i> FLIGHT CANCELLED'; btn.disabled = true; btn.style.opacity = '0.6'; btn.style.cursor = 'not-allowed'; }
+                const stEl = document.getElementById('displayStatus');
+                if (stEl) { stEl.innerText = '✖ CANCELLED'; stEl.style.color = '#ef4444'; }
                 const ticketImg = document.getElementById('ticketImage');
                 // Remove any existing cancel overlay first
                 ticketImg.querySelectorAll('.cancel-overlay').forEach(el => el.remove());
@@ -2860,29 +3234,28 @@
         async function buildFullPageFlightPDF(data, filename) {
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            const pageW = 210, pageH = 297, margin = 10;
+            const pageW = 210, pageH = 297, margin = 10, panelW = 190;
             const navy = [15, 35, 68], blue = [2, 132, 199], green = [22, 163, 74];
             const ink = [30, 41, 59], muted = [100, 116, 139], pale = [248, 250, 252];
-            // Older saved tickets predate return-flight assignments. Give them
-            // values once, then persist them so later downloads remain consistent.
+            ensureTicketExtras(data);
             if (data.rtData) {
-                let assignmentsAdded = false;
+                let changed = false;
                 if (!data.rtData.flightNum) {
                     data.rtData.flightNum = String(data.rtData.airline || data.airline || 'ST').substring(0, 2).toUpperCase() + Math.floor(Math.random() * 900 + 100);
-                    assignmentsAdded = true;
+                    changed = true;
                 }
                 if (!data.rtData.seat) {
                     data.rtData.seat = Math.floor(Math.random() * 30 + 1) + String.fromCharCode(65 + Math.floor(Math.random() * 6));
-                    assignmentsAdded = true;
+                    changed = true;
                 }
-                if (assignmentsAdded && data.id) {
+                if (changed && data.id) {
                     try { localStorage.setItem('flight_' + data.id, JSON.stringify(data)); } catch (e) {}
                     if (window._currentFlightData?.id === data.id) window._currentFlightData = data;
                     if (window._fsUpdateFlight) window._fsUpdateFlight(data.id, { rtData: data.rtData }).catch(err => console.warn('Return assignment sync failed:', err));
                 }
             }
             const safe = value => value == null || value === '' ? '—' : String(value);
-            const wrapped = (value, width, size = 7, maxLines = 2) => {
+            const wrapped = (value, width, size = 7, maxLines = 1) => {
                 pdf.setFontSize(size);
                 return pdf.splitTextToSize(safe(value), width).slice(0, maxLines);
             };
@@ -2893,7 +3266,7 @@
                 toCountry: data.toCountry, toAirportCode: data.toAirportCode,
                 toAirportName: data.toAirportName, date: data.date, dep: data.dep,
                 arrDate: data.arrDate || data.date, arr: data.arr, flightNum: data.flightNum,
-                gate: data.gate, terminal: data.terminal, seat: data.seat,
+                gate: data.gate, terminal: data.terminal, seat: data.seat, aircraft: data.aircraft,
                 stops: Array.isArray(data.transitStops) ? data.transitStops : []
             }];
             if (data.showRoundTrip && data.rtData) {
@@ -2905,136 +3278,183 @@
                     toCountry: rt.toCountry, toAirportCode: rt.toAirportCode,
                     toAirportName: rt.toAirportName, date: rt.depDate, dep: rt.dep,
                     arrDate: rt.arrDate, arr: rt.arr, flightNum: rt.flightNum,
-                    gate: rt.gate, terminal: rt.terminal, seat: rt.seat,
+                    gate: rt.gate, terminal: rt.terminal, seat: rt.seat, aircraft: rt.aircraft,
                     stops: Array.isArray(rt.transitStops) ? rt.transitStops : []
                 });
             }
             const logos = await Promise.all(allLegs.map(leg => getPdfLogoPng(leg.airline)));
+            const mealPng = data.meal ? await svgToPngDataUrl(MEAL_SVG, 192) : null;
+            const isCancelled = !!data.cancelled;
+            const statusText = isCancelled ? 'CANCELLED' : 'CONFIRMED';
+            const statusRgb = isCancelled ? [239, 68, 68] : green;
+            const label = (txt, x, y, size = 5.5) => {
+                pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(size); pdf.text(txt, x, y);
+            };
+            const pill = (x, y, w, text) => {
+                pdf.setFillColor(...statusRgb); pdf.roundedRect(x, y, w, 6, 3, 3, 'F');
+                pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6.5);
+                pdf.text(text, x + w / 2, y + 4, { align: 'center' });
+            };
 
-            // Full-width title band and passenger/booking summary.
-            pdf.setFillColor(...navy); pdf.rect(0, 0, pageW, 23, 'F');
-            pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(17);
-            pdf.text('FLIGHT ITINERARY', margin, 10);
-            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5);
-            pdf.text('SKYTRACK PRO  |  Keep this itinerary with your travel documents', margin, 18);
-            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9);
-            pdf.text('FLIGHT ID  ' + safe(data.id || window._currentTicketId), pageW - margin, 10, { align: 'right' });
-            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5);
-            pdf.text(safe(data.date), pageW - margin, 18, { align: 'right' });
+            // Compact title band and passenger strip.
+            pdf.setFillColor(...navy); pdf.rect(0, 0, pageW, 18, 'F');
+            pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(14);
+            pdf.text('FLIGHT ITINERARY', margin, 8.5);
+            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.8);
+            pdf.text('SKYTRACK PRO  |  Keep this itinerary with your travel documents', margin, 14);
+            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
+            pdf.text('FLIGHT ID  ' + safe(data.id || window._currentTicketId), pageW - margin, 8.5, { align: 'right' });
+            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.8);
+            pdf.text(safe(data.date), pageW - margin, 14, { align: 'right' });
 
-            pdf.setFillColor(255, 255, 255); pdf.setDrawColor(226, 232, 240);
-            pdf.roundedRect(margin, 28, pageW - margin * 2, 18, 2, 2, 'FD');
-            pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6.5);
-            pdf.text('PASSENGER', margin + 5, 34);
-            pdf.text('CLASS', margin + 70, 34);
-            pdf.text('TICKET PRICE', margin + 130, 34);
-            pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
-            pdf.text(wrapped(data.name, 58, 10, 1), margin + 5, 42);
-            pdf.setFontSize(8.5); pdf.text(safe(data.class), margin + 70, 42);
-            pdf.setTextColor(...green); pdf.text(safe(data.ticketPrice), margin + 130, 42);
+            pdf.setFillColor(255, 255, 255); pdf.setDrawColor(226, 232, 240); pdf.setLineWidth(0.3);
+            pdf.roundedRect(margin, 22, panelW, 20, 2, 2, 'FD');
+            label('PASSENGER', margin + 4, 27);
+            pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9);
+            pdf.text(wrapped(data.name, 75, 9, 1), margin + 4, 33);
+            label('CLASS', margin + 85, 27);
+            pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.5);
+            pdf.text(wrapped(data.class, 25, 7.5, 1), margin + 85, 33);
+            label('FARE', margin + 114, 27);
+            pdf.setTextColor(...green); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.5);
+            pdf.text(wrapped(data.ticketPrice, 30, 7.5, 1), margin + 114, 33);
+            label('STATUS', margin + 150, 27);
+            pdf.setTextColor(...statusRgb); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7);
+            pdf.text(statusText, margin + 150, 33);
+            label('BOOKING REFERENCE', margin + 4, 38, 5);
+            pdf.setTextColor(...navy); pdf.setFont('courier', 'bold'); pdf.setFontSize(7);
+            pdf.text(safe(data.bookingReference), margin + 31, 38);
+            label('AIRLINE PNR', margin + 104, 38, 5);
+            pdf.setTextColor(...navy); pdf.setFont('courier', 'bold'); pdf.setFontSize(7);
+            pdf.text(safe(data.pnr), margin + 132, 38);
+            const contactBits = [];
+            if (String(data.email || '').trim()) contactBits.push('EMAIL  ' + String(data.email).trim());
+            if (String(data.phone || '').trim()) contactBits.push('PHONE  ' + String(data.phone).trim());
+            if (contactBits.length) {
+                pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6);
+                pdf.text(wrapped(contactBits.join('     ·     '), panelW - 8, 5.5, 1), margin + 4, 41);
+            }
 
-            const gap = allLegs.length > 1 ? 5 : 0;
-            const panelW = pageW - margin * 2;
-            const panelY = 52, panelH = allLegs.length > 1 ? 115 : 230;
-            function drawLeg(leg, idx) {
-                const x = margin, y = panelY + idx * (panelH + gap);
-                const single = allLegs.length === 1;
-                const accent = leg.kind === 'RETURN' ? green : blue;
-                pdf.setFillColor(255, 255, 255); pdf.setDrawColor(203, 213, 225); pdf.setLineWidth(0.35);
-                pdf.roundedRect(x, y, panelW, panelH, 2.5, 2.5, 'FD');
-                pdf.setFillColor(...accent); pdf.roundedRect(x, y, panelW, 12, 2.5, 2.5, 'F');
-                pdf.rect(x, y + 7, panelW, 5, 'F');
-                if (logos[idx]) {
-                    try { pdf.addImage(logos[idx], 'PNG', x + 5, y + 1.5, 16, 8); } catch (e) {}
-                }
-                pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8);
-                pdf.text(leg.kind, x + 24, y + 5);
-                pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7);
-                pdf.text(safe(leg.airline), x + 24, y + 9.5);
+            // Compact e-ticket row: explicit number label, machine-readable barcode beside it.
+            pdf.setFillColor(248, 250, 252); pdf.setDrawColor(226, 232, 240);
+            pdf.roundedRect(margin, 46, panelW, 11, 1.5, 1.5, 'FD');
+            label('E-TICKET NO.', margin + 4, 50.5, 5.2);
+            pdf.setTextColor(...navy); pdf.setFont('courier', 'bold'); pdf.setFontSize(7.5);
+            pdf.text(fmtETicket(data.eTicket), margin + 4, 54.5);
+            drawCode128Pdf(pdf, data.eTicket, margin + 48, 48, 52, 7);
+            pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(5.2);
+            pdf.text('SCAN BARCODE', margin + 74, 56, { align: 'center' });
 
-                // Route card: city, country and airport names/codes remain readable.
-                pdf.setFillColor(...pale); pdf.setDrawColor(226, 232, 240);
-                const routeY = y + 15, routeH = single ? 50 : 30;
-                pdf.roundedRect(x + 4, routeY, panelW - 8, routeH, 2, 2, 'FD');
-                const half = (panelW - 24) / 2;
-                pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6);
-                pdf.text('FROM', x + 8, y + (single ? 23 : 21));
-                pdf.text('TO', x + panelW - 8, y + (single ? 23 : 21), { align: 'right' });
-                pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(single ? 15 : 12);
-                const citySize = single ? 15 : 12;
-                const fromLines = wrapped(leg.fromCity, half, citySize, 2);
-                const toLines = wrapped(leg.toCity, half, citySize, 2);
-                pdf.text(fromLines, x + 8, y + (single ? 33 : 27));
-                pdf.text(toLines, x + panelW - 8, y + (single ? 33 : 27), { align: 'right' });
-                pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.2);
-                pdf.text(wrapped(leg.fromCountry, half, 6.2, 1), x + 8, y + (single ? 44 : 34));
-                pdf.text(wrapped(leg.toCountry, half, 6.2, 1), x + panelW - 8, y + (single ? 44 : 34), { align: 'right' });
-                const fromAirport = [leg.fromAirportCode, leg.fromAirportName].filter(Boolean).join(' — ');
-                const toAirport = [leg.toAirportCode, leg.toAirportName].filter(Boolean).join(' — ');
-                pdf.setTextColor(...accent); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(5.8);
-                pdf.text(wrapped(fromAirport, half, 5.8, 1), x + 8, y + (single ? 55 : 41));
-                pdf.text(wrapped(toAirport, half, 5.8, 1), x + panelW - 8, y + (single ? 55 : 41), { align: 'right' });
-                pdf.setDrawColor(...accent); pdf.setLineWidth(0.7);
-                const arrowY = y + (single ? 37 : 30), arrowX = x + panelW / 2;
-                pdf.line(arrowX - 4, arrowY, arrowX + 4, arrowY);
-                pdf.line(arrowX + 4, arrowY, arrowX + 1.5, arrowY - 2);
-                pdf.line(arrowX + 4, arrowY, arrowX + 1.5, arrowY + 2);
+            function drawLeg(leg, idx, y) {
+                const h = 87, x = margin, accent = leg.kind === 'RETURN' ? green : blue;
+                pdf.setFillColor(255, 255, 255); pdf.setDrawColor(203, 213, 225); pdf.setLineWidth(0.3);
+                pdf.roundedRect(x, y, panelW, h, 2, 2, 'FD');
+                pdf.setFillColor(...accent); pdf.roundedRect(x, y, panelW, 10, 2, 2, 'F');
+                pdf.rect(x, y + 6, panelW, 4, 'F');
+                if (logos[idx]) { try { pdf.addImage(logos[idx], 'PNG', x + 4, y + 1.2, 13, 7); } catch (e) {} }
+                pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7);
+                pdf.text(leg.kind, x + 20, y + 4.5);
+                pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6);
+                pdf.text(safe(leg.airline), x + 20, y + 8);
+                pdf.setFont('helvetica', 'bold'); pdf.setFontSize(5);
+                pdf.text('AIRCRAFT  ' + safe(leg.aircraft), x + panelW - 4, y + 6, { align: 'right' });
 
-                // Six clearly separated flight facts in a 3 x 2 grid.
-                const factRows = [
-                    [['DEPARTURE DATE', leg.date], ['DEPARTURE TIME', leg.dep], ['ARRIVAL DATE', leg.arrDate]],
-                    [['ARRIVAL TIME', leg.arr], ['GATE / TERMINAL', safe(leg.gate) + ' / ' + safe(leg.terminal)], ['FLIGHT / SEAT', safe(leg.flightNum) + ' / ' + safe(leg.seat)]]
+                // Route: city, country and airport identifiers on a compact two-line row.
+                label('FROM', x + 5, y + 15, 5);
+                label('TO', x + panelW - 5, y + 15, 5);
+                pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+                pdf.text(wrapped(leg.fromCity, 70, 10, 1), x + 5, y + 21);
+                pdf.text(wrapped(leg.toCity, 70, 10, 1), x + panelW - 5, y + 21, { align: 'right' });
+                const fromExtra = [leg.fromCountry, [leg.fromAirportCode, leg.fromAirportName].filter(Boolean).join(' · ')].filter(Boolean).join('  |  ');
+                const toExtra = [leg.toCountry, [leg.toAirportCode, leg.toAirportName].filter(Boolean).join(' · ')].filter(Boolean).join('  |  ');
+                pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(5.5);
+                pdf.text(wrapped(fromExtra, 78, 5.5, 1), x + 5, y + 26);
+                pdf.text(wrapped(toExtra, 78, 5.5, 1), x + panelW - 5, y + 26, { align: 'right' });
+                pdf.setDrawColor(...accent); pdf.setLineWidth(0.6);
+                const ax = x + panelW / 2, ay = y + 20;
+                pdf.line(ax - 3, ay, ax + 3, ay); pdf.line(ax + 3, ay, ax + 1, ay - 1.5); pdf.line(ax + 3, ay, ax + 1, ay + 1.5);
+
+                const facts = [
+                    ['DEPART', safe(leg.date) + '  ' + safe(leg.dep)],
+                    ['ARRIVE', safe(leg.arrDate) + '  ' + safe(leg.arr)],
+                    ['FLIGHT', safe(leg.flightNum)],
+                    ['GATE / TERMINAL', safe(leg.gate) + ' / ' + safe(leg.terminal)],
+                    ['SEAT', safe(leg.seat)],
+                    ['BOARDING GROUP', data.boardingGroup ? 'GROUP ' + data.boardingGroup : '']
                 ];
-                const cellGap = 3, cellW = (panelW - 14 - cellGap * 2) / 3;
-                const factTop = single ? 74 : 49;
-                const factGap = single ? 28 : 15.5;
-                const factH = single ? 22 : 13.5;
-                factRows.forEach((row, ri) => row.forEach((fact, ci) => {
-                    const cx = x + 5 + ci * (cellW + cellGap), cy = y + factTop + ri * factGap;
-                    pdf.setFillColor(ri === 0 ? 248 : 250, ri === 0 ? 250 : 252, ri === 0 ? 252 : 255);
-                    pdf.roundedRect(cx, cy, cellW, factH, 1.5, 1.5, 'F');
-                    pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(single ? 7 : 6);
-                    pdf.text(fact[0], cx + 2, cy + (single ? 7.5 : 4.3));
-                    pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(single ? 9 : 8);
-                    const valueSize = single ? 9 : 8;
-                    pdf.text(wrapped(fact[1], cellW - 4, valueSize, 2), cx + 2, cy + (single ? 15.5 : 9.5));
-                }));
-
-                pdf.setTextColor(...accent); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7);
-                const stopsLabelY = single ? 135 : 82;
-                const stopsStartY = single ? 140 : 85;
-                const stopGap = single ? 23 : 9;
-                const stopH = single ? 19 : 8.5;
-                pdf.text(leg.stops.length ? 'STOPS / LAYOVERS' : 'ROUTE STATUS', x + 5, y + stopsLabelY);
+                const gap = 2, cellW = (panelW - 14 - 2 * gap) / 3;
+                facts.forEach((fact, i) => {
+                    if (!fact[1]) return;
+                    const col = i % 3, row = Math.floor(i / 3), cx = x + 5 + col * (cellW + gap), cy = y + 30 + row * 10.5;
+                    pdf.setFillColor(248, 250, 252); pdf.roundedRect(cx, cy, cellW, 9.5, 1, 1, 'F');
+                    pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(4.6);
+                    pdf.text(fact[0], cx + 2, cy + 3.3);
+                    pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6.1);
+                    pdf.text(wrapped(fact[1], cellW - 4, 6.1, 1), cx + 2, cy + 7.2);
+                });
+                label(leg.stops.length ? 'STOPS / LAYOVERS' : 'ROUTE STATUS', x + 5, y + 55, 5);
                 if (!leg.stops.length) {
-                    pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8);
-                    pdf.text('Direct flight — no scheduled intermediate stops', x + 5, y + stopsStartY + 5);
+                    pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6);
+                    pdf.text('Direct flight — no scheduled intermediate stops', x + 5, y + 62);
                 } else {
                     leg.stops.slice(0, 3).forEach((stop, si) => {
-                        const sy = y + stopsStartY + si * stopGap;
-                        pdf.setFillColor(leg.kind === 'RETURN' ? 240 : 255, leg.kind === 'RETURN' ? 253 : 251, leg.kind === 'RETURN' ? 244 : 235);
-                        pdf.roundedRect(x + 4, sy, panelW - 8, stopH, 1.2, 1.2, 'F');
+                        const sy = y + 57 + si * 8;
                         const time = stop.arrTime ? formatTimeDisplay(stop.arrTime, data.timeFormat || '12h') : '';
                         const place = safe(stop.city) + (stop.country ? ', ' + stop.country : '');
-                        const code = stop.airportCode ? '  ·  ' + stop.airportCode + (stop.airportName ? ' — ' + stop.airportName : '') : '';
+                        const airport = stop.airportCode ? ' · ' + stop.airportCode : '';
                         const duration = Number(stop.durationMin) || 0;
                         const durationText = duration >= 60 ? Math.floor(duration / 60) + 'h ' + (duration % 60 ? (duration % 60) + 'm' : '') : duration + 'm';
-                        const stopFont = single ? 8.5 : 7;
-                        const stopBaseline = single ? 11 : 4;
-                        pdf.setTextColor(...ink); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(stopFont);
-                        pdf.text(wrapped((si + 1) + '. ' + place + (time ? ' · arrives ' + time : '') + code, panelW - 42, stopFont, 1), x + 6, sy + stopBaseline);
-                        pdf.setTextColor(...accent); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(single ? 8 : 6.8);
-                        pdf.text('LAYOVER ' + durationText, x + panelW - 6, sy + (single ? 11 : 4), { align: 'right' });
+                        pdf.setFillColor(leg.kind === 'RETURN' ? 240 : 239, leg.kind === 'RETURN' ? 253 : 246, leg.kind === 'RETURN' ? 244 : 255);
+                        pdf.roundedRect(x + 4, sy, panelW - 8, 7, 1, 1, 'F');
+                        pdf.setTextColor(...ink); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(5.7);
+                        pdf.text(wrapped((si + 1) + '. ' + place + (time ? ' · ' + time : '') + airport, panelW - 43, 5.7, 1), x + 6, sy + 4.6);
+                        pdf.setTextColor(...accent); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(5.6);
+                        pdf.text('LAYOVER ' + durationText, x + panelW - 6, sy + 4.6, { align: 'right' });
                     });
                 }
             }
-            allLegs.forEach(drawLeg);
 
-            // Footer is intentionally light and leaves breathing room around the page.
-            pdf.setDrawColor(226, 232, 240); pdf.line(margin, 291, pageW - margin, 291);
-            pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5);
+            const legY = allLegs.length > 1 ? [59, 149] : [59];
+            allLegs.forEach((leg, i) => drawLeg(leg, i, legY[i]));
+            const serviceBits = [];
+            if (String(data.meal || '').trim()) serviceBits.push('MEAL: ' + String(data.meal).trim());
+            const pm = String(data.paymentMode || '').toUpperCase();
+            if (pm) {
+                let payment = pm === 'CARD' ? 'CARD' + (data.cardBrand ? ' · ' + data.cardBrand : '') + (data.cardMasked ? ' ' + data.cardMasked : '') : pm;
+                serviceBits.push('PAYMENT: ' + payment);
+            }
+            if (serviceBits.length) {
+                const serviceY = allLegs.length > 1 ? 239 : 150;
+                pdf.setFillColor(248, 250, 252); pdf.setDrawColor(226, 232, 240);
+                pdf.roundedRect(margin, serviceY, panelW, 12, 1.5, 1.5, 'FD');
+                let serviceX = margin + 4;
+                if (data.meal && mealPng) {
+                    try { pdf.addImage(mealPng, 'PNG', serviceX, serviceY + 2.5, 7, 7); } catch (e) {}
+                    serviceX += 10;
+                    pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(5.8);
+                    pdf.text('MEAL: ' + String(data.meal), serviceX, serviceY + 7.5);
+                    serviceX += Math.min(90, pdf.getTextWidth('MEAL: ' + String(data.meal)) + 8);
+                }
+                const pm = String(data.paymentMode || '').toUpperCase();
+                if (pm) {
+                    const payment = pm === 'CARD' ? 'PAYMENT: CARD' + (data.cardBrand ? ' · ' + data.cardBrand : '') + (data.cardMasked ? ' ' + data.cardMasked : '') : 'PAYMENT: ' + pm;
+                    pdf.setTextColor(...muted); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(5.8);
+                    pdf.text(payment, serviceX, serviceY + 7.5);
+                }
+            }
+            const hasBookedOn = !!String(data.bookedOn || '').trim();
+            const footerRuleY = hasBookedOn ? 284 : 291;
+            pdf.setDrawColor(226, 232, 240); pdf.setLineWidth(0.3); pdf.line(margin, footerRuleY, pageW - margin, footerRuleY);
+            pdf.setTextColor(...muted); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6);
+            if (hasBookedOn) {
+                const bookedOnDate = new Date(String(data.bookedOn).slice(0, 10) + 'T00:00:00');
+                const bookedOnLabel = isNaN(bookedOnDate.getTime()) ? String(data.bookedOn) : bookedOnDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('BOOKED ON  ' + bookedOnLabel, margin, 289);
+                pdf.setFont('helvetica', 'normal');
+            }
             pdf.text('This itinerary is for reference. Confirm live timings, terminal and gate details with your airline.', margin, 295);
-            pdf.text('SkyTrack Pro  •  ' + safe(data.id || window._currentTicketId), pageW - margin, 295, { align: 'right' });
+            pdf.text('SkyTrack Pro  •  ' + safe(data.id || window._currentTicketId) + '  •  Page 1/1', pageW - margin, 295, { align: 'right' });
             pdf.save(filename || 'Flight-Itinerary.pdf');
         }
 
@@ -3573,6 +3993,11 @@
             const name = document.getElementById('fullName').value;
             if (!name) {
                 showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Name Required', body:'<p>Please enter a passenger name before generating your ticket.</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
+                return;
+            }
+            const contactErr = validateOptionalContact();
+            if (contactErr) {
+                showSkyModal({ icon: '⚠️', iconColor:'#f59e0b', title:'Check Details', body:'<p>' + contactErr + '</p>', buttons:[{label:'OK', cls:'modal-btn-primary', action:closeSkyModal}] });
                 return;
             }
 
