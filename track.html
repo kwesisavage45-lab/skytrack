@@ -1350,9 +1350,45 @@
             const loadingEl = document.getElementById('mapLoading');
             const errorEl   = document.getElementById('mapError');
 
-            // ── Prefer saved airport coordinates (exact); fall back to airport-aware geocoding ──
-            // Priority: 1) saved lat/lon  2) airport name geocode  3) city geocode
+            // Verified route points for common airports. Zurich is deliberately
+            // resolved locally so a stale coordinate or ambiguous geocoder result
+            // can never send a Zurich-bound flight to Singapore (or elsewhere).
+            const KNOWN_AIRPORT_POINTS = {
+                ZRH: { lat: 47.458056, lng: 8.555556 }, // Zurich Airport, Switzerland
+                ORD: { lat: 41.974200, lng: -87.907300 }, // Chicago O'Hare
+                MDW: { lat: 41.786800, lng: -87.752200 }, // Chicago Midway
+                MGW: { lat: 39.642900, lng: -79.916300 }  // Morgantown Municipal
+            };
+            const KNOWN_CITY_POINTS = {
+                zurich:     { lat: 47.458056, lng: 8.555556 }, // route endpoint at ZRH
+                chicago:    { lat: 41.878100, lng: -87.629800 },
+                morgantown: { lat: 39.629500, lng: -79.955900 }
+            };
+            const KNOWN_AIRPORT_CITY = { ZRH: 'zurich', ORD: 'chicago', MDW: 'chicago', MGW: 'morgantown' };
+
+            function knownRoutePoint(aptIata, cityQuery) {
+                const code = String(aptIata || '').trim().toUpperCase();
+                const query = String(cityQuery || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                const city = query.split(',')[0].trim().replace(/[^a-z\s-]/g, '').trim();
+
+                // Explicit route city wins over conflicting saved coordinates or
+                // a mismatched code; matching airport codes retain airport precision.
+                if (city === 'zurich') return KNOWN_CITY_POINTS.zurich;
+                if (KNOWN_CITY_POINTS[city]) {
+                    if (KNOWN_AIRPORT_POINTS[code] && KNOWN_AIRPORT_CITY[code] === city) return KNOWN_AIRPORT_POINTS[code];
+                    return KNOWN_CITY_POINTS[city];
+                }
+                if (KNOWN_AIRPORT_POINTS[code]) return KNOWN_AIRPORT_POINTS[code];
+                return null;
+            }
+
+            // ── Prefer verified route points; then saved coordinates; then geocoding ──
             async function resolvePoint(aptLat, aptLon, aptName, aptIata, cityQuery) {
+                // Verified local endpoint/airport point takes precedence over persisted
+                // coordinates because older records may contain a bad geocoder result.
+                const known = knownRoutePoint(aptIata, cityQuery);
+                if (known) return { lat: known.lat, lng: known.lng };
+
                 // 1. Use exact saved coordinates when available
                 if (aptLat != null && aptLon != null && !isNaN(aptLat) && !isNaN(aptLon)) {
                     return { lat: parseFloat(aptLat), lng: parseFloat(aptLon) };
@@ -1405,15 +1441,19 @@
             // Geocode each stop (best-effort), prefer airport coords if saved
             const stopPts = [];
             for (const s of stopData) {
-                if (s.airportLat != null && s.airportLon != null && !isNaN(s.airportLat) && !isNaN(s.airportLon)) {
+                const stopQuery = [s.city, s.country].filter(Boolean).join(', ');
+                const knownStop = knownRoutePoint(s.airportCode, stopQuery);
+                if (knownStop) {
+                    stopPts.push({ lat: knownStop.lat, lng: knownStop.lng });
+                } else if (s.airportLat != null && s.airportLon != null && !isNaN(s.airportLat) && !isNaN(s.airportLon)) {
                     stopPts.push({ lat: parseFloat(s.airportLat), lng: parseFloat(s.airportLon) });
                 } else if (s.airportName && s.airportName.length > 2) {
                     // Use airport name for accurate placement instead of city
-                    const q = [s.city, s.country].filter(Boolean).join(', ');
+                    const q = stopQuery;
                     try { stopPts.push(await geocodeAirport(s.airportName, s.airportCode, q) || await geocode(q)); }
                     catch(e) { stopPts.push(null); }
                 } else {
-                    const q = [s.city, s.country].filter(Boolean).join(', ');
+                    const q = stopQuery;
                     try { stopPts.push(await geocode(q)); } catch(e) { stopPts.push(null); }
                 }
             }
